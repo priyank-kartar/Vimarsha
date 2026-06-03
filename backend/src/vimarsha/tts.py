@@ -41,3 +41,31 @@ class Synthesizer(Protocol):
     def synthesize(self, text: str) -> np.ndarray:
         """Return a 1-D float32 numpy array of audio samples for `text`."""
         ...
+
+
+class ChatterboxSynth:
+    """Real Chatterbox TTS adapter. Requires the `[tts]` extra and a GPU/MPS.
+
+    Lazily imports torch/chatterbox so the rest of the package runs without them.
+    """
+
+    def __init__(self, device: str | None = None, audio_prompt_path: str | None = None):
+        import torch
+        from chatterbox.tts import ChatterboxTTS
+
+        if device is None:
+            device = (
+                "cuda" if torch.cuda.is_available()
+                else "mps" if torch.backends.mps.is_available()
+                else "cpu"
+            )
+        self._model = ChatterboxTTS.from_pretrained(device=device)
+        self.sample_rate = self._model.sr
+        self._audio_prompt_path = audio_prompt_path
+
+    def synthesize(self, text: str) -> np.ndarray:
+        kwargs = {}
+        if self._audio_prompt_path:
+            kwargs["audio_prompt_path"] = self._audio_prompt_path
+        wav = self._model.generate(text, **kwargs)  # torch tensor [1, N]
+        return wav.squeeze(0).detach().cpu().numpy().astype("float32")
