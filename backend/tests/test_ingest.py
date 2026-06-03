@@ -20,6 +20,12 @@ def test_ingest_epub_returns_validated_bundles(sample_epub):
     assert bundle.para_timings == {}
 
 
+def test_bundle_title_is_first_heading(sample_epub):
+    """bundle.title must be the text of the first heading block, not the filename."""
+    bundles = ingest_epub(str(sample_epub))
+    assert bundles[0].title == "The Engine"
+
+
 def test_bundle_json_is_camelcase(sample_epub):
     bundle = ingest_epub(str(sample_epub))[0]
     import json

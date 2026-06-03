@@ -11,9 +11,13 @@ def ingest_chapter(chapter: Chapter) -> ChapterBundle:
     """Run the full no-ML pipeline on one chapter."""
     blocks = parse_blocks(chapter.html)
     figures = detect_spans(blocks, build_registry(blocks))
+    # Use the first heading block's text as the chapter title; fall back to the
+    # chapter name (which is typically the xhtml filename from the epub manifest).
+    first_heading = next((b for b in blocks if b.kind == "heading"), None)
+    title = first_heading.text if first_heading and first_heading.text else chapter.title
     return ChapterBundle(
         chapter_id=chapter.chapter_id,
-        title=chapter.title,
+        title=title,
         blocks=blocks,
         figure_map=figures,
     )
