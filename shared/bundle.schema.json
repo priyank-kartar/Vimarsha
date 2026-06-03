@@ -1,0 +1,260 @@
+{
+  "$defs": {
+    "Block": {
+      "description": "One ordered, typed unit of a chapter in reading order.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "index": {
+          "title": "Index",
+          "type": "integer"
+        },
+        "kind": {
+          "enum": [
+            "heading",
+            "paragraph",
+            "image",
+            "figure",
+            "blockquote",
+            "pullquote",
+            "table",
+            "list"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        },
+        "level": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Level"
+        },
+        "src": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Src"
+        },
+        "alt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Alt"
+        },
+        "caption": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Caption"
+        },
+        "html": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Html"
+        }
+      },
+      "required": [
+        "id",
+        "index",
+        "kind"
+      ],
+      "title": "Block",
+      "type": "object"
+    },
+    "Figure": {
+      "description": "A visual/special-display element and the paragraph span it belongs to.",
+      "properties": {
+        "figureId": {
+          "title": "Figureid",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "figure",
+            "diagram",
+            "table",
+            "pullquote"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "asset": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Asset"
+        },
+        "caption": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Caption"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "startPara": {
+          "title": "Startpara",
+          "type": "string"
+        },
+        "endPara": {
+          "title": "Endpara",
+          "type": "string"
+        },
+        "startMs": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Startms"
+        },
+        "endMs": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Endms"
+        }
+      },
+      "required": [
+        "figureId",
+        "kind",
+        "startPara",
+        "endPara"
+      ],
+      "title": "Figure",
+      "type": "object"
+    }
+  },
+  "description": "The cross-language contract between backend and Flutter client.",
+  "properties": {
+    "chapterId": {
+      "title": "Chapterid",
+      "type": "string"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "blocks": {
+      "items": {
+        "$ref": "#/$defs/Block"
+      },
+      "title": "Blocks",
+      "type": "array"
+    },
+    "figureMap": {
+      "items": {
+        "$ref": "#/$defs/Figure"
+      },
+      "title": "Figuremap",
+      "type": "array"
+    },
+    "audio": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Audio"
+    },
+    "paraTimings": {
+      "additionalProperties": {
+        "items": {
+          "type": "integer"
+        },
+        "type": "array"
+      },
+      "title": "Paratimings",
+      "type": "object"
+    }
+  },
+  "required": [
+    "chapterId",
+    "title",
+    "blocks",
+    "figureMap"
+  ],
+  "title": "ChapterBundle",
+  "type": "object"
+}
