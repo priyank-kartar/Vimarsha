@@ -25,6 +25,27 @@ def test_figure_referenced_before_it_appears():
     assert fig2.end_para == "b8"
 
 
+def test_duplicate_label_widens_both_figures():
+    """Two figures with the same label should BOTH have their spans widened."""
+    # b0 = Figure 1 (first), b1 = Figure 1 (second duplicate), b2 = reference para
+    blocks = [
+        Block(id="b0", index=0, kind="figure", src="a.png", caption="Figure 1."),
+        Block(id="b1", index=1, kind="figure", src="b.png", caption="Figure 1."),
+        Block(id="b2", index=2, kind="paragraph", text="see Figure 1 above"),
+    ]
+    figs = [
+        Figure(figure_id="b0", kind="figure", caption="Figure 1.",
+               label="Figure 1", start_para="b0", end_para="b0"),
+        Figure(figure_id="b1", kind="figure", caption="Figure 1.",
+               label="Figure 1", start_para="b1", end_para="b1"),
+    ]
+    out = detect_spans(blocks, figs)
+    by_id = {f.figure_id: f for f in out}
+    # Both figures must have their span widened to include b2
+    assert by_id["b0"].end_para == "b2", f"b0 end_para={by_id['b0'].end_para}"
+    assert by_id["b1"].end_para == "b2", f"b1 end_para={by_id['b1'].end_para}"
+
+
 def test_span_is_capped_by_window():
     blocks = [Block(id="b0", index=0, kind="figure", src="x.png",
                     caption="Figure 1.")]

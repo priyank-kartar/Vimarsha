@@ -34,11 +34,12 @@ def _label_key(label: Optional[str]) -> Optional[tuple[str, str]]:
 
 def detect_spans(blocks: list[Block], figures: list[Figure]) -> list[Figure]:
     """Widen each figure's paragraph span to cover its textual references."""
-    label_index: dict[tuple[str, str], Figure] = {}
+    # Map label key -> LIST of figures (handles duplicate labels).
+    label_index: dict[tuple[str, str], list[Figure]] = {}
     for f in figures:
         key = _label_key(f.label)
         if key is not None:
-            label_index[key] = f
+            label_index.setdefault(key, []).append(f)
 
     block_index = {b.id: b.index for b in blocks}
     # Collect reference block-indices per figure.
@@ -47,9 +48,10 @@ def detect_spans(blocks: list[Block], figures: list[Figure]) -> list[Figure]:
         if b.kind != "paragraph" or not b.text:
             continue
         for m in _REF_RE.finditer(b.text):
-            fig = label_index.get(_canon_key(m.group(1), m.group(2)))
-            if fig is not None:
-                refs.setdefault(fig.figure_id, []).append(b.index)
+            matched_figs = label_index.get(_canon_key(m.group(1), m.group(2)))
+            if matched_figs is not None:
+                for fig in matched_figs:
+                    refs.setdefault(fig.figure_id, []).append(b.index)
 
     by_id = {f.figure_id: f for f in figures}
     index_to_id = {b.index: b.id for b in blocks}
