@@ -12,10 +12,18 @@ _HEADINGS = {"h1", "h2", "h3", "h4", "h5", "h6"}
 _CONTAINERS = {"body", "section", "div", "main", "article", "header", "footer"}
 
 
+def _get_classes(el: Tag) -> str:
+    """Return a lowercase space-joined class string, handling both str and list."""
+    cls = el.get("class") or []
+    if isinstance(cls, str):
+        cls = cls.split()
+    return " ".join(cls).lower()
+
+
 def _classify(el: Tag) -> Optional[str]:
     """Return a BlockKind for a recognized block element, else None."""
     etype = (el.get("epub:type") or "").lower()
-    classes = " ".join(el.get("class", [])).lower()
+    classes = _get_classes(el)
     if any(k in etype or k in classes for k in ("pullquote", "epigraph")):
         return "pullquote"
     name = el.name
@@ -76,12 +84,17 @@ def _walk(node: Tag, blocks: list[Block], counter: "itertools.count") -> None:
             if child.name in _CONTAINERS:
                 _walk(child, blocks, counter)
             continue
+        # A <p> that directly wraps a <figure> (XHTML authoring quirk):
+        # skip the paragraph wrapper and treat the figure as a top-level block.
+        if kind == "paragraph" and child.find("figure", recursive=False):
+            _walk(child, blocks, counter)
+            continue
         blocks.append(_make_block(child, kind, next(counter)))
 
 
 def parse_blocks(html: str) -> list[Block]:
     """Parse chapter XHTML into typed blocks in document (reading) order."""
-    soup = BeautifulSoup(html, "lxml")
+    soup = BeautifulSoup(html, "lxml-xml")
     root = soup.body or soup
     blocks: list[Block] = []
     _walk(root, blocks, itertools.count())
