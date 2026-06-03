@@ -5,6 +5,8 @@ from typing import Optional
 
 from vimarsha.models import Block, Figure
 
+_DIAGRAM_RE = re.compile(r"\b(diagram|chart|graph)\b", re.IGNORECASE)
+
 # Captures a label in a caption: "Figure 3.2", "Fig. 4", "Table 4", "Diagram 1".
 _LABEL_RE = re.compile(
     r"\b(fig(?:ure)?|table|diagram|chart|plate)\.?\s*([0-9]+(?:\.[0-9]+)?)",
@@ -34,8 +36,8 @@ def _figure_kind(block: Block) -> str:
         return "table"
     if block.kind in ("pullquote", "blockquote"):
         return "pullquote"
-    text = (block.caption or block.alt or "").lower()
-    if any(w in text for w in ("diagram", "chart", "graph")):
+    text = (block.caption or block.alt or "")
+    if _DIAGRAM_RE.search(text):
         return "diagram"
     return "figure"
 

@@ -1,6 +1,7 @@
 # backend/tests/test_figure_registry.py
 from vimarsha.block_parser import parse_blocks
-from vimarsha.figure_registry import build_registry, extract_label
+from vimarsha.figure_registry import build_registry, extract_label, _figure_kind
+from vimarsha.models import Block
 from tests.conftest import CHAPTER_XHTML
 
 
@@ -17,6 +18,21 @@ def test_build_registry_picks_visual_and_special_blocks():
     # two figures + one pullquote
     kinds = sorted(f.kind for f in figures)
     assert kinds == ["figure", "figure", "pullquote"]
+
+
+def test_figure_kind_no_substring_overmatch():
+    """'photograph' contains 'graph' but must not be classified as 'diagram'."""
+    photo_block = Block(id="b0", index=0, kind="figure",
+                        caption="A photograph of the engine", alt=None)
+    assert _figure_kind(photo_block) == "figure", (
+        "_figure_kind wrongly matched 'graph' inside 'photograph'"
+    )
+
+
+def test_figure_kind_chart_matches_diagram():
+    chart_block = Block(id="b0", index=0, kind="figure",
+                        caption="the data chart", alt=None)
+    assert _figure_kind(chart_block) == "diagram"
 
 
 def test_registry_entry_fields():
