@@ -4,6 +4,7 @@ import tempfile
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 
 from vimarsha.ingest import ingest_epub
@@ -25,19 +26,27 @@ async def import_chapter(
     file: UploadFile = File(...),
     synth: Synthesizer = Depends(get_synth),
 ):
-    with tempfile.NamedTemporaryFile(suffix=".epub", delete=True) as tmp:
-        tmp.write(await file.read())
+    data = await file.read()
+    with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as tmp:
+        tmp.write(data)
         tmp.flush()
-        bundles = ingest_epub(tmp.name)
+        tmp_path_str = tmp.name
+    try:
+        bundles = await run_in_threadpool(ingest_epub, tmp_path_str)
+    finally:
+        Path(tmp_path_str).unlink(missing_ok=True)
     if not (0 <= chapter_index < len(bundles)):
         raise HTTPException(status_code=404, detail="chapter_index out of range")
-    narrated = narrate_bundle(bundles[chapter_index], synth, app.state.audio_dir)
+    narrated = await run_in_threadpool(
+        narrate_bundle, bundles[chapter_index], synth, app.state.audio_dir
+    )
     return narrated.model_dump(by_alias=True, exclude_none=True)
 
 
 @app.get("/audio/{name}")
 def get_audio(name: str):
-    path = Path(app.state.audio_dir) / name
-    if not path.is_file():
+    base = Path(app.state.audio_dir).resolve()
+    path = (base / name).resolve()
+    if not path.is_file() or not path.is_relative_to(base):
         raise HTTPException(status_code=404, detail="audio not found")
     return FileResponse(str(path), media_type="audio/mpeg")

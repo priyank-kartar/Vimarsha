@@ -37,6 +37,21 @@ def test_narrate_bundle_fills_audio_timings_and_figure_ms(tmp_path, sample_epub)
     assert fig1.end_ms > fig1.start_ms
 
 
+def test_narrate_bundle_missing_span_endpoint_id_does_not_raise(tmp_path):
+    """If a Figure's start_para/end_para references a block id not in blocks, return 0."""
+    from vimarsha.models import ChapterBundle, Figure
+    blocks = [
+        Block(id="b0", index=0, kind="paragraph", text="Hello world text here."),
+    ]
+    fig = Figure(figure_id="bX_fig", kind="figure", asset="img.png",
+                 start_para="bX", end_para="bX")  # "bX" is NOT in blocks
+    bundle = ChapterBundle(chapter_id="c", title="t", blocks=blocks, figure_map=[fig])
+    out = narrate_bundle(bundle, FakeSynth(), str(tmp_path))
+    f = out.figure_map[0]
+    assert isinstance(f.start_ms, int)
+    assert isinstance(f.end_ms, int)
+
+
 def test_narrate_resolves_ms_for_unnarrated_span_endpoint(tmp_path):
     # A figure whose own block has no caption (not narrated): ms falls back to neighbors.
     from vimarsha.models import ChapterBundle, Figure

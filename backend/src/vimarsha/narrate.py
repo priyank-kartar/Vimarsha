@@ -38,6 +38,8 @@ def _resolve_ms(
     if block_id in timings:
         return timings[block_id][0 if edge == "start" else 1]
     index_of = {b.id: b.index for b in blocks}
+    if block_id not in index_of:
+        return 0
     target = index_of[block_id]
     narrated = sorted((b.index, b.id) for b in blocks if b.id in timings)
     if not narrated:

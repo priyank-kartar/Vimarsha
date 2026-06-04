@@ -13,8 +13,13 @@ def write_mp3(waveform: np.ndarray, sample_rate: int, out_path: str) -> None:
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as tmp:
         sf.write(tmp.name, waveform, sample_rate, subtype="PCM_16")
-        subprocess.run(
-            ["ffmpeg", "-y", "-i", tmp.name,
-             "-codec:a", "libmp3lame", "-qscale:a", "2", out_path],
-            check=True, capture_output=True,
-        )
+        try:
+            subprocess.run(
+                ["ffmpeg", "-y", "-i", tmp.name,
+                 "-codec:a", "libmp3lame", "-qscale:a", "2", out_path],
+                check=True, capture_output=True,
+            )
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(
+                f"ffmpeg failed: {e.stderr.decode(errors='replace')}"
+            ) from e
