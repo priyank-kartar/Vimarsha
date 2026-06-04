@@ -70,14 +70,18 @@
       "caption": "Figure 1. The four-stroke cycle.",
       "label": "Figure 1",
       "startPara": "b2",
-      "endPara": "b3"
+      "endPara": "b3",
+      "startMs": 1088,
+      "endMs": 2000
     },
     {
       "figureId": "b5",
       "kind": "pullquote",
       "caption": "Simplicity is the soul of efficiency.",
       "startPara": "b5",
-      "endPara": "b5"
+      "endPara": "b5",
+      "startMs": 3156,
+      "endMs": 3388
     },
     {
       "figureId": "b8",
@@ -86,8 +90,48 @@
       "caption": "Figure 2. The two-stroke variant.",
       "label": "Figure 2",
       "startPara": "b6",
-      "endPara": "b8"
+      "endPara": "b8",
+      "startMs": 3788,
+      "endMs": 5400
     }
   ],
-  "paraTimings": {}
+  "audio": "chap1.mp3",
+  "paraTimings": {
+    "b0": [
+      0,
+      62
+    ],
+    "b1": [
+      462,
+      688
+    ],
+    "b2": [
+      1088,
+      1288
+    ],
+    "b3": [
+      1688,
+      2000
+    ],
+    "b4": [
+      2400,
+      2756
+    ],
+    "b5": [
+      3156,
+      3388
+    ],
+    "b6": [
+      3788,
+      4169
+    ],
+    "b7": [
+      4569,
+      4794
+    ],
+    "b8": [
+      5194,
+      5400
+    ]
+  }
 }
