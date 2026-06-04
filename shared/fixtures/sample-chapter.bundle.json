@@ -1,0 +1,137 @@
+{
+  "chapterId": "chap1",
+  "title": "The Engine",
+  "blocks": [
+    {
+      "id": "b0",
+      "index": 0,
+      "kind": "heading",
+      "text": "The Engine",
+      "level": 1
+    },
+    {
+      "id": "b1",
+      "index": 1,
+      "kind": "paragraph",
+      "text": "The principle is simple and elegant."
+    },
+    {
+      "id": "b2",
+      "index": 2,
+      "kind": "figure",
+      "src": "images/cycle.png",
+      "alt": "four stroke cycle",
+      "caption": "Figure 1. The four-stroke cycle."
+    },
+    {
+      "id": "b3",
+      "index": 3,
+      "kind": "paragraph",
+      "text": "As shown in Figure 1, each stroke drives the next."
+    },
+    {
+      "id": "b4",
+      "index": 4,
+      "kind": "paragraph",
+      "text": "The crankshaft then converts linear motion into rotation."
+    },
+    {
+      "id": "b5",
+      "index": 5,
+      "kind": "pullquote",
+      "text": "Simplicity is the soul of efficiency."
+    },
+    {
+      "id": "b6",
+      "index": 6,
+      "kind": "paragraph",
+      "text": "Later designs improved on this; see Figure 2 for the variant."
+    },
+    {
+      "id": "b7",
+      "index": 7,
+      "kind": "paragraph",
+      "text": "That variant fires every revolution."
+    },
+    {
+      "id": "b8",
+      "index": 8,
+      "kind": "figure",
+      "src": "images/variant.png",
+      "alt": "two stroke variant",
+      "caption": "Figure 2. The two-stroke variant."
+    }
+  ],
+  "figureMap": [
+    {
+      "figureId": "b2",
+      "kind": "figure",
+      "asset": "images/cycle.png",
+      "caption": "Figure 1. The four-stroke cycle.",
+      "label": "Figure 1",
+      "startPara": "b2",
+      "endPara": "b3",
+      "startMs": 1088,
+      "endMs": 2000
+    },
+    {
+      "figureId": "b5",
+      "kind": "pullquote",
+      "caption": "Simplicity is the soul of efficiency.",
+      "startPara": "b5",
+      "endPara": "b5",
+      "startMs": 3156,
+      "endMs": 3388
+    },
+    {
+      "figureId": "b8",
+      "kind": "figure",
+      "asset": "images/variant.png",
+      "caption": "Figure 2. The two-stroke variant.",
+      "label": "Figure 2",
+      "startPara": "b6",
+      "endPara": "b8",
+      "startMs": 3788,
+      "endMs": 5400
+    }
+  ],
+  "audio": "chap1.mp3",
+  "paraTimings": {
+    "b0": [
+      0,
+      62
+    ],
+    "b1": [
+      462,
+      688
+    ],
+    "b2": [
+      1088,
+      1288
+    ],
+    "b3": [
+      1688,
+      2000
+    ],
+    "b4": [
+      2400,
+      2756
+    ],
+    "b5": [
+      3156,
+      3388
+    ],
+    "b6": [
+      3788,
+      4169
+    ],
+    "b7": [
+      4569,
+      4794
+    ],
+    "b8": [
+      5194,
+      5400
+    ]
+  }
+}

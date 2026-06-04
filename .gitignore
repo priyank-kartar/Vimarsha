@@ -1,1 +1,11 @@
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Brainstorm companion
 .superpowers/
+
+# Build output
+backend/dist/
