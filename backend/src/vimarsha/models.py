@@ -53,3 +53,26 @@ class ChapterBundle(BaseModel):
     para_timings: dict[str, list[int]] = Field(                     # filled in Plan 2
         default_factory=dict, alias="paraTimings"
     )
+
+
+class BookMeta(BaseModel):
+    """Book-level metadata from the EPUB OPF (distinct from chapter titles)."""
+    model_config = ConfigDict(populate_by_name=True)
+
+    title: str
+    author: str = ""
+
+
+class ChapterSummary(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    index: int
+    chapter_id: str = Field(alias="chapterId")
+    title: str
+
+
+class TocResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    book: BookMeta
+    chapters: list[ChapterSummary]
