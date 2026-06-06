@@ -2340,40 +2340,11 @@ wheels = [
 
 [[package]]
 name = "setuptools"
-version = "81.0.0"
+version = "80.10.2"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14' and platform_machine != 's390x' and platform_system == 'Linux'",
-    "python_full_version >= '3.14' and platform_machine == 's390x' and platform_system == 'Linux'",
-    "python_full_version >= '3.14' and platform_machine != 's390x' and platform_system != 'Linux' and sys_platform == 'win32'",
-    "python_full_version >= '3.14' and platform_machine == 's390x' and platform_system != 'Linux' and sys_platform == 'win32'",
-    "python_full_version >= '3.14' and platform_machine != 's390x' and platform_system != 'Linux' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.14' and platform_machine == 's390x' and platform_system != 'Linux' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.14' and platform_machine != 's390x' and platform_system != 'Linux' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version >= '3.14' and platform_machine == 's390x' and platform_system != 'Linux' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
-sdist = { url = "https://files.pythonhosted.org/packages/0d/1c/73e719955c59b8e424d015ab450f51c0af856ae46ea2da83eba51cc88de1/setuptools-81.0.0.tar.gz", hash = "sha256:487b53915f52501f0a79ccfd0c02c165ffe06631443a886740b91af4b7a5845a", size = 1198299 }
+sdist = { url = "https://files.pythonhosted.org/packages/76/95/faf61eb8363f26aa7e1d762267a8d602a1b26d4f3a1e758e92cb3cb8b054/setuptools-80.10.2.tar.gz", hash = "sha256:8b0e9d10c784bf7d262c4e5ec5d4ec94127ce206e8738f29a437945fbc219b70", size = 1200343 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e1/e3/c164c88b2e5ce7b24d667b9bd83589cf4f3520d97cad01534cd3c4f55fdb/setuptools-81.0.0-py3-none-any.whl", hash = "sha256:fdd925d5c5d9f62e4b74b30d6dd7828ce236fd6ed998a08d81de62ce5a6310d6", size = 1062021 },
-]
-
-[[package]]
-name = "setuptools"
-version = "82.0.1"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version < '3.14' and platform_machine != 's390x' and platform_system == 'Linux'",
-    "python_full_version < '3.14' and platform_machine == 's390x' and platform_system == 'Linux'",
-    "python_full_version < '3.14' and platform_machine != 's390x' and platform_system != 'Linux' and sys_platform == 'win32'",
-    "python_full_version < '3.14' and platform_machine == 's390x' and platform_system != 'Linux' and sys_platform == 'win32'",
-    "python_full_version < '3.14' and platform_machine != 's390x' and platform_system != 'Linux' and sys_platform == 'emscripten'",
-    "python_full_version < '3.14' and platform_machine == 's390x' and platform_system != 'Linux' and sys_platform == 'emscripten'",
-    "python_full_version < '3.14' and platform_machine != 's390x' and platform_system != 'Linux' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version < '3.14' and platform_machine == 's390x' and platform_system != 'Linux' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
-sdist = { url = "https://files.pythonhosted.org/packages/4f/db/cfac1baf10650ab4d1c111714410d2fbb77ac5a616db26775db562c8fab2/setuptools-82.0.1.tar.gz", hash = "sha256:7d872682c5d01cfde07da7bccc7b65469d3dca203318515ada1de5eda35efbf9", size = 1152316 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/9d/76/f789f7a86709c6b087c5a2f52f911838cad707cc613162401badc665acfe/setuptools-82.0.1-py3-none-any.whl", hash = "sha256:a59e362652f08dcd477c78bb6e7bd9d80a7995bc73ce773050228a348ce2e5bb", size = 1006223 },
+    { url = "https://files.pythonhosted.org/packages/94/b8/f1f62a5e3c0ad2ff1d189590bfa4c46b4f3b6e49cef6f26c6ee4e575394d/setuptools-80.10.2-py3-none-any.whl", hash = "sha256:95b30ddfb717250edb492926c92b5221f7ef3fbcc2b07579bcd4a27da21d0173", size = 1064234 },
 ]
 
 [[package]]
@@ -2663,7 +2634,7 @@ dependencies = [
     { name = "nvidia-nccl-cu12", marker = "python_full_version < '3.14' and platform_machine == 'x86_64' and platform_system == 'Linux'" },
     { name = "nvidia-nvjitlink-cu12", marker = "python_full_version < '3.14' and platform_machine == 'x86_64' and platform_system == 'Linux'" },
     { name = "nvidia-nvtx-cu12", marker = "python_full_version < '3.14' and platform_machine == 'x86_64' and platform_system == 'Linux'" },
-    { name = "setuptools", version = "82.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.14'" },
+    { name = "setuptools", marker = "python_full_version < '3.14'" },
     { name = "sympy", version = "1.13.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.14'" },
     { name = "triton", version = "3.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.14' and platform_machine == 'x86_64' and platform_system == 'Linux'" },
     { name = "typing-extensions", marker = "python_full_version < '3.14'" },
@@ -2701,7 +2672,7 @@ dependencies = [
     { name = "nvidia-cusparselt-cu13", marker = "python_full_version >= '3.14' and platform_system == 'Linux'" },
     { name = "nvidia-nccl-cu13", marker = "python_full_version >= '3.14' and platform_system == 'Linux'" },
     { name = "nvidia-nvshmem-cu13", marker = "python_full_version >= '3.14' and platform_system == 'Linux'" },
-    { name = "setuptools", version = "81.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.14'" },
+    { name = "setuptools", marker = "python_full_version >= '3.14'" },
     { name = "sympy", version = "1.14.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.14'" },
     { name = "triton", version = "3.7.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.14' and platform_system == 'Linux'" },
     { name = "typing-extensions", marker = "python_full_version >= '3.14'" },
@@ -2979,6 +2950,7 @@ dependencies = [
 [package.optional-dependencies]
 tts = [
     { name = "chatterbox-tts" },
+    { name = "setuptools" },
     { name = "torch", version = "2.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.14'" },
     { name = "torch", version = "2.12.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.14'" },
     { name = "torchaudio", version = "2.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.14'" },
@@ -3002,6 +2974,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.4.6" },
     { name = "pydantic", specifier = ">=2.13.4" },
     { name = "python-multipart", specifier = ">=0.0.30" },
+    { name = "setuptools", marker = "extra == 'tts'", specifier = "<81" },
     { name = "soundfile", specifier = ">=0.13.1" },
     { name = "torch", marker = "extra == 'tts'" },
     { name = "torchaudio", marker = "extra == 'tts'" },

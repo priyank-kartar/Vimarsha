@@ -17,7 +17,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-tts = ["chatterbox-tts", "torch", "torchaudio"]
+tts = [
+    "chatterbox-tts",
+    "setuptools<81",
+    "torch",
+    "torchaudio",
+]
 
 [project.scripts]
 vimarsha = "vimarsha:main"
