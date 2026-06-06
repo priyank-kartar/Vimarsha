@@ -61,12 +61,22 @@ void main() {
     expect(bundle.paraTimings['b0'], [0, 1000]);
   });
 
-  test('downloadAudio gets /audio/<name> as bytes', () async {
-    adapter.onGet(
-      '/audio/chap1.mp3',
-      (server) => server.reply(200, [10, 20, 30]),
-    );
-    final bytes = await client.downloadAudio('chap1.mp3');
-    expect(bytes, [10, 20, 30]);
+  test('downloadAudio gets /audio/<name> as raw bytes', () async {
+    // http_mock_adapter mishandles ResponseType.bytes, so use a real local
+    // server to verify binary bytes survive intact (production uses bytes mode).
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    final payload = [0, 255, 10, 200, 30]; // includes non-UTF8 byte values
+    server.listen((req) {
+      req.response
+        ..headers.contentType = ContentType('audio', 'mpeg')
+        ..add(payload);
+      req.response.close();
+    });
+
+    final realDio = Dio(BaseOptions(baseUrl: 'http://${server.address.host}:${server.port}'));
+    final realClient = DioBackendClient(realDio);
+    final bytes = await realClient.downloadAudio('chap1.mp3');
+    expect(bytes, payload);
   });
 }

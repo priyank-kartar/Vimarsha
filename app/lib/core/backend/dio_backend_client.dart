@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
@@ -34,17 +33,13 @@ class DioBackendClient implements BackendClient {
 
   @override
   Future<List<int>> downloadAudio(String audioName) async {
-    // ResponseType.bytes is correct for real HTTP (returns Uint8List).
-    // http_mock_adapter does not honour ResponseType.bytes — it JSON-encodes the
-    // reply body and returns those UTF-8 bytes, which breaks the assertion.
-    // We therefore omit the options here; the default ResponseType.json lets
-    // the mock return a List<dynamic> that we cast, and the real backend serves
-    // audio/mpeg whose body Dio still delivers as a List/Uint8List at runtime.
-    final resp = await _dio.get<dynamic>('/audio/$audioName');
-    final data = resp.data;
-    if (data is Uint8List) return data;
-    if (data is List<int>) return data;
-    if (data is List) return data.cast<int>();
-    return <int>[];
+    // ResponseType.bytes is required for binary audio — the default JSON/string
+    // handling corrupts the MP3. The download unit test uses a real local HTTP
+    // server (http_mock_adapter mishandles bytes) to verify this path.
+    final resp = await _dio.get<List<int>>(
+      '/audio/$audioName',
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return resp.data ?? <int>[];
   }
 }
