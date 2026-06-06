@@ -9,8 +9,22 @@ class FileStore {
 
   final Directory root;
 
+  /// Reject ids that could escape the store root via path traversal. `bookId`
+  /// is a server-generated UUID in normal use, but this primitive owns a
+  /// recursive delete, so we never trust the caller blindly.
+  static String _safeId(String bookId) {
+    if (bookId.isEmpty ||
+        bookId.contains('/') ||
+        bookId.contains(r'\') ||
+        bookId.contains('..')) {
+      throw ArgumentError.value(bookId, 'bookId', 'invalid book id');
+    }
+    return bookId;
+  }
+
   Directory _booksDir() => Directory(p.join(root.path, 'books'));
-  Directory bookDir(String bookId) => Directory(p.join(_booksDir().path, bookId));
+  Directory bookDir(String bookId) =>
+      Directory(p.join(_booksDir().path, _safeId(bookId)));
   Directory chapterDir(String bookId, int index) =>
       Directory(p.join(bookDir(bookId).path, 'ch$index'));
 

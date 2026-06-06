@@ -34,4 +34,11 @@ void main() {
     await store.removeBook('bookA');
     expect(Directory('${tmp.path}/books/bookA').existsSync(), isFalse);
   });
+
+  test('rejects book ids that attempt path traversal', () {
+    // All path-deriving methods route through bookDir -> _safeId.
+    expect(() => store.bookDir('../evil'), throwsArgumentError);
+    expect(() => store.epubFile('a/b'), throwsArgumentError);
+    expect(() => store.chapterDir(r'a\b', 0), throwsArgumentError);
+  });
 }
