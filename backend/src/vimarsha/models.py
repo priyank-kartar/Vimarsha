@@ -61,3 +61,18 @@ class BookMeta(BaseModel):
 
     title: str
     author: str = ""
+
+
+class ChapterSummary(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    index: int
+    chapter_id: str = Field(alias="chapterId")
+    title: str
+
+
+class TocResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    book: BookMeta
+    chapters: list[ChapterSummary]

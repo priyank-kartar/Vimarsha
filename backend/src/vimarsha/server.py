@@ -8,6 +8,8 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 
 from vimarsha.ingest import ingest_epub
+from vimarsha.metadata import read_book_meta
+from vimarsha.models import ChapterSummary, TocResponse
 from vimarsha.narrate import narrate_bundle
 from vimarsha.tts import ChatterboxSynth, Synthesizer
 
@@ -18,6 +20,30 @@ app.state.audio_dir = tempfile.mkdtemp(prefix="vimarsha-audio-")
 def get_synth() -> Synthesizer:
     """Default to the real Chatterbox synth; overridden in tests."""
     return ChatterboxSynth()
+
+
+@app.post("/toc")
+async def toc(file: UploadFile = File(...)):
+    import tempfile
+    from pathlib import Path as _Path
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".epub", delete=False)
+    try:
+        tmp.write(await file.read())
+        tmp.flush()
+        tmp.close()
+        meta = await run_in_threadpool(read_book_meta, tmp.name)
+        bundles = await run_in_threadpool(ingest_epub, tmp.name)
+    finally:
+        _Path(tmp.name).unlink(missing_ok=True)
+
+    chapters = [
+        ChapterSummary(index=i, chapter_id=b.chapter_id, title=b.title)
+        for i, b in enumerate(bundles)
+    ]
+    return TocResponse(book=meta, chapters=chapters).model_dump(
+        by_alias=True, exclude_none=True
+    )
 
 
 @app.post("/import")
