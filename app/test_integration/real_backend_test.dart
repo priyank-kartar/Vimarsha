@@ -60,5 +60,5 @@ void main() {
     final duration = double.parse((probe.stdout as String).trim());
     expect(duration, greaterThan(1.0),
         reason: 'a narrated chapter should be over a second of audio');
-  });
+  }, timeout: const Timeout(Duration(minutes: 10))); // first import downloads the model
 }
