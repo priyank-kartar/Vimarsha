@@ -70,6 +70,15 @@ void main() {
     expect(files.audioFile('bookX', 0).existsSync(), isFalse);
   });
 
+  test('empty audio body marks error, not ready', () async {
+    backend.audio = const [];
+    await expectLater(
+        repo().downloadChapter('bookX', 0), throwsA(isA<Error>()));
+    final c = await row();
+    expect(c.downloadStatus, 'error');
+    expect(files.audioFile('bookX', 0).existsSync(), isFalse);
+  });
+
   test('saveProgress persists positionMs', () async {
     await repo().saveProgress('bookX', 0, 4200);
     expect((await row()).positionMs, 4200);

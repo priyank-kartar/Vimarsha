@@ -28,6 +28,8 @@ class LibraryRepository {
   /// and its chapter rows. Returns the new book id. On backend failure, no rows
   /// are written and the copied EPUB is removed (no half-state).
   Future<String> addBook(File pickedEpub) async {
+    // Precondition: _idGen yields a fresh id (UUID v4 by default). The failure
+    // cleanup removes bookId's directory, which assumes this call created it.
     final bookId = _idGen();
     await _files.ensureBookDir(bookId);
     final stored = _files.epubFile(bookId);

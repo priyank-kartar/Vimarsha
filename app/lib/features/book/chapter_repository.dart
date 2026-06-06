@@ -42,6 +42,9 @@ class ChapterRepository {
       await bundleFile.writeAsString(jsonEncode(bundle.toJson()));
 
       final bytes = await _backend.downloadAudio(audioName);
+      if (bytes.isEmpty) {
+        throw StateError('empty audio for $bookId/$index');
+      }
       final audioFile = _files.audioFile(bookId, index);
       await audioFile.writeAsBytes(bytes);
 
@@ -53,8 +56,14 @@ class ChapterRepository {
         audioPath: Value(audioFile.path),
       ));
     } catch (_) {
-      await _files.removeChapter(bookId, index);
-      await _setStatus(bookId, index, 'error');
+      // Best-effort cleanup: never let a cleanup failure mask the real error or
+      // leave the row stuck in 'downloading'.
+      try {
+        await _files.removeChapter(bookId, index);
+      } catch (_) {/* ignore */}
+      try {
+        await _setStatus(bookId, index, 'error');
+      } catch (_) {/* ignore */}
       rethrow;
     }
   }
