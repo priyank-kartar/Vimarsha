@@ -41,6 +41,7 @@ CONTENT_OPF = """<?xml version="1.0" encoding="utf-8"?>
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
     <dc:identifier id="bookid">urn:uuid:test-book-1</dc:identifier>
     <dc:title>Test Book</dc:title>
+    <dc:creator>Ada Lovelace</dc:creator>
     <dc:language>en</dc:language>
   </metadata>
   <manifest>
@@ -51,6 +52,22 @@ CONTENT_OPF = """<?xml version="1.0" encoding="utf-8"?>
   </spine>
 </package>
 """
+
+
+CONTENT_OPF_NO_AUTHOR = CONTENT_OPF.replace(
+    "    <dc:creator>Ada Lovelace</dc:creator>\n", ""
+)
+
+
+@pytest.fixture
+def sample_epub_no_author(tmp_path: Path) -> Path:
+    path = tmp_path / "sample_no_author.epub"
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("mimetype", "application/epub+zip", compress_type=zipfile.ZIP_STORED)
+        z.writestr("META-INF/container.xml", CONTAINER_XML)
+        z.writestr("OEBPS/content.opf", CONTENT_OPF_NO_AUTHOR)
+        z.writestr("OEBPS/chap1.xhtml", CHAPTER_XHTML)
+    return path
 
 
 @pytest.fixture
