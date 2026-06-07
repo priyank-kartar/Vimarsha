@@ -9,3 +9,9 @@ __pycache__/
 
 # Build output
 backend/dist/
+
+# macOS
+.DS_Store
+
+# Flutter build output (repo root)
+build/
