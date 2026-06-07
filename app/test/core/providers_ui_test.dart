@@ -33,7 +33,7 @@ void main() {
     final c = container();
     // Riverpod 3: listen to keep the stream provider alive (otherwise stream
     // is paused when no listeners, and .future never resolves).
-    final sub = c.listen(booksStreamProvider, (_, __) {});
+    final sub = c.listen(booksStreamProvider, (prev, next) {});
     addTearDown(sub.close);
     final books = await c.read(booksStreamProvider.future);
     expect(books, isEmpty);
