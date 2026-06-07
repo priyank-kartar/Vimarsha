@@ -24,6 +24,7 @@ class PlayerScreen extends ConsumerStatefulWidget {
 
 class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _loaded = false;
+  String? _error; // set if the chapter audio is missing or won't load
   double? _dragMs; // non-null while the user is scrubbing the slider
 
   ({String bookId, int index}) get _args =>
@@ -34,12 +35,27 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     super.initState();
     // Load after first frame so the provider exists.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final controller = ref.read(playerControllerProvider(_args));
-      final Chapter? row =
-          await ref.read(chapterRepositoryProvider).getChapter(widget.bookId, widget.index);
-      final path = row?.audioPath;
-      if (path != null) await controller.load(path);
-      if (mounted) setState(() => _loaded = true);
+      String? error;
+      try {
+        final controller = ref.read(playerControllerProvider(_args));
+        final Chapter? row = await ref
+            .read(chapterRepositoryProvider)
+            .getChapter(widget.bookId, widget.index);
+        final path = row?.audioPath;
+        if (path == null) {
+          error = 'This chapter has no audio. Try downloading it again.';
+        } else {
+          await controller.load(path);
+        }
+      } catch (e) {
+        error = "Couldn't play this chapter: $e";
+      }
+      if (mounted) {
+        setState(() {
+          _loaded = true;
+          _error = error;
+        });
+      }
     });
   }
 
@@ -51,6 +67,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       appBar: AppBar(title: const Text('Now Playing')),
       body: !_loaded
           ? const Center(child: CircularProgressIndicator())
+          : _error != null
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(_error!, textAlign: TextAlign.center),
+              ),
+            )
           : Padding(
               padding: const EdgeInsets.all(24),
               child: Column(

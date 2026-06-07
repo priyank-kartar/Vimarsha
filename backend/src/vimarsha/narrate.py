@@ -67,6 +67,11 @@ def narrate_bundle(
             continue
         segments.append((b.id, _synthesize_block(text, synth)))
 
+    if not segments:
+        # Nothing to read (e.g. a part-divider page that is only an image).
+        # Refuse rather than emit an unplayable, near-empty audio file.
+        raise ValueError(f"chapter {bundle.chapter_id} has no narratable text")
+
     waveform, timings = assemble(segments, synth.sample_rate, para_gap_ms)
 
     audio_name = f"{bundle.chapter_id}.mp3"

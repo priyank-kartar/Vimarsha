@@ -1,7 +1,21 @@
+import pytest
+
 from vimarsha.ingest import ingest_epub
 from vimarsha.narrate import narrate_bundle, narratable_text
-from vimarsha.models import Block
+from vimarsha.models import Block, ChapterBundle
 from tests.fakes import FakeSynth
+
+
+def test_narrate_raises_when_no_narratable_text(tmp_path):
+    # A chapter that is only an image with no caption has nothing to read.
+    bundle = ChapterBundle(
+        chapter_id="empty",
+        title="Part One",
+        blocks=[Block(id="b0", index=0, kind="image", src="x.png")],
+        figure_map=[],
+    )
+    with pytest.raises(ValueError, match="no narratable text"):
+        narrate_bundle(bundle, FakeSynth(), str(tmp_path))
 
 
 def test_narratable_text_rules():
