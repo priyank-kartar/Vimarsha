@@ -24,6 +24,7 @@ class PlayerScreen extends ConsumerStatefulWidget {
 
 class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _loaded = false;
+  double? _dragMs; // non-null while the user is scrubbing the slider
 
   ({String bookId, int index}) get _args =>
       (bookId: widget.bookId, index: widget.index);
@@ -56,10 +57,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Slider(
-                    value: c.position.inMilliseconds.clamp(0, maxMs).toDouble(),
+                    value: (_dragMs ?? c.position.inMilliseconds.toDouble())
+                        .clamp(0, maxMs.toDouble()),
                     max: maxMs.toDouble(),
-                    onChanged: (v) =>
-                        c.seek(Duration(milliseconds: v.round())),
+                    onChanged: (v) => setState(() => _dragMs = v),
+                    onChangeEnd: (v) {
+                      c.seek(Duration(milliseconds: v.round()));
+                      setState(() => _dragMs = null);
+                    },
                   ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,

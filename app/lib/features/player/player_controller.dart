@@ -32,8 +32,10 @@ class PlayerController extends ChangeNotifier {
   StreamSubscription<Duration>? _posSub;
   StreamSubscription<bool>? _playSub;
   Duration _lastSaved = Duration.zero;
+  bool _disposed = false;
 
   Future<void> load(String audioPath) async {
+    if (_posSub != null) return; // already loaded; don't double-subscribe
     final dur = await _audio.load(audioPath);
     if (dur != null) duration = dur;
 
@@ -47,6 +49,7 @@ class PlayerController extends ChangeNotifier {
 
     _posSub = _audio.positionStream.listen(_onPosition);
     _playSub = _audio.playingStream.listen((p) {
+      if (_disposed) return;
       playing = p;
       notifyListeners();
     });
@@ -54,6 +57,7 @@ class PlayerController extends ChangeNotifier {
   }
 
   void _onPosition(Duration p) {
+    if (_disposed) return;
     position = p;
     if ((p - _lastSaved).abs() >= _saveInterval) {
       _lastSaved = p;
@@ -88,11 +92,15 @@ class PlayerController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _posSub?.cancel();
     _playSub?.cancel();
+    // Stop playback, but do NOT dispose the shared AudioHandler — it is owned by
+    // audioHandlerProvider (disposed when the app scope tears down). Disposing it
+    // here would leave a dead AudioPlayer for the next playback.
+    unawaited(_audio.pause());
     // best-effort final save
     unawaited(_chapters.saveProgress(bookId, index, position.inMilliseconds));
-    unawaited(_audio.dispose());
     super.dispose();
   }
 }
