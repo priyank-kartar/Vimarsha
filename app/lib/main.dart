@@ -1,14 +1,29 @@
+import 'dart:io';
+
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
-void main() => runApp(const VimarshaApp());
+import 'app.dart';
+import 'core/db/database.dart';
+import 'core/providers.dart';
+import 'core/storage/file_store.dart';
 
-class VimarshaApp extends StatelessWidget {
-  const VimarshaApp({super.key});
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final docs = await getApplicationDocumentsDirectory();
+  final dbFile = File(p.join(docs.path, 'vimarsha', 'vimarsha.sqlite'));
+  await dbFile.parent.create(recursive: true);
+  final db = AppDatabase(NativeDatabase.createInBackground(dbFile));
+  final fileStore = FileStore(Directory(p.join(docs.path, 'vimarsha')));
 
-  @override
-  Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(body: Center(child: Text('Vimarsha'))),
-    );
-  }
+  runApp(ProviderScope(
+    overrides: [
+      databaseProvider.overrideWithValue(db),
+      fileStoreProvider.overrideWithValue(fileStore),
+    ],
+    child: const VimarshaApp(),
+  ));
 }
