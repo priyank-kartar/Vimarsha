@@ -71,4 +71,12 @@ void main() {
     final books = await repo().watchBooks().first;
     expect(books.single.id, 'bookX');
   });
+
+  test('getBook returns the stored book or null', () async {
+    expect(await repo().getBook('missing'), isNull);
+    await repo().addBook(pickedEpub); // inserts book 'bookX'
+    final book = await repo().getBook('bookX');
+    expect(book, isNotNull);
+    expect(book!.title, 'Test Book');
+  });
 }

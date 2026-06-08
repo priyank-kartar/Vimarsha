@@ -132,6 +132,16 @@ class PlayerController extends ChangeNotifier {
     await seek(Duration(milliseconds: range[0]));
   }
 
+  /// Seek forward/back by [delta], clamped to [0, duration].
+  Future<void> skip(Duration delta) async {
+    final target = position + delta;
+    final maxd = duration;
+    final clamped = target < Duration.zero
+        ? Duration.zero
+        : (target > maxd ? maxd : target);
+    await seek(clamped);
+  }
+
   Future<void> setSpeed(double s) async {
     await _audio.setSpeed(s);
     speed = s;

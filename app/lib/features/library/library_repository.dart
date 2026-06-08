@@ -60,6 +60,10 @@ class LibraryRepository {
     }
   }
 
+  Future<Book?> getBook(String bookId) =>
+      (_db.select(_db.books)..where((b) => b.id.equals(bookId)))
+          .getSingleOrNull();
+
   Stream<List<Book>> watchBooks() =>
       (_db.select(_db.books)..orderBy([(b) => OrderingTerm(expression: b.createdAt)]))
           .watch();
