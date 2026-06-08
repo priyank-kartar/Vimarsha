@@ -190,6 +190,18 @@
           ],
           "default": null,
           "title": "Endms"
+        },
+        "image": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image"
         }
       },
       "required": [

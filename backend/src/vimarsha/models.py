@@ -39,6 +39,7 @@ class Figure(BaseModel):
     end_para: str = Field(alias="endPara")
     start_ms: Optional[int] = Field(default=None, alias="startMs")  # filled in Plan 2
     end_ms: Optional[int] = Field(default=None, alias="endMs")      # filled in Plan 2
+    image: Optional[str] = None          # served image filename, filled at import (Plan 4a)
 
 
 class ChapterBundle(BaseModel):
