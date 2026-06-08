@@ -33,4 +33,16 @@ class FakeBackendClient implements BackendClient {
 
   @override
   Future<List<int>> downloadAudio(String audioName) async => audio;
+
+  /// bytes returned by downloadImage (any name); records requested names.
+  List<int> image = const [137, 80, 78, 71]; // "\x89PNG"
+  final List<String> imageRequests = [];
+  Object? throwOnImage;
+
+  @override
+  Future<List<int>> downloadImage(String imageName) async {
+    if (throwOnImage != null) throw throwOnImage!;
+    imageRequests.add(imageName);
+    return image;
+  }
 }

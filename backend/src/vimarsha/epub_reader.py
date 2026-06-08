@@ -11,6 +11,7 @@ class Chapter:
     chapter_id: str
     title: str
     html: str
+    href: str = ""
 
 
 def read_chapters(epub_path: str) -> list[Chapter]:
@@ -23,6 +24,11 @@ def read_chapters(epub_path: str) -> list[Chapter]:
             continue
         html = item.get_content().decode("utf-8")
         chapters.append(
-            Chapter(chapter_id=idref, title=item.get_name(), html=html)
+            Chapter(
+                chapter_id=idref,
+                title=item.get_name(),
+                html=html,
+                href=item.get_name(),
+            )
         )
     return chapters

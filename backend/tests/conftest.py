@@ -3,6 +3,12 @@ from pathlib import Path
 
 import pytest
 
+# Minimal valid 1x1 PNG, used as fixture figure images.
+PNG_1PX = bytes.fromhex(
+    "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489"
+    "0000000a49444154789c6360000002000154a24f5f0000000049454e44ae426082"
+)
+
 CHAPTER_XHTML = """<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml"
@@ -46,6 +52,8 @@ CONTENT_OPF = """<?xml version="1.0" encoding="utf-8"?>
   </metadata>
   <manifest>
     <item id="chap1" href="chap1.xhtml" media-type="application/xhtml+xml"/>
+    <item id="img-cycle" href="images/cycle.png" media-type="image/png"/>
+    <item id="img-variant" href="images/variant.png" media-type="image/png"/>
   </manifest>
   <spine>
     <itemref idref="chap1"/>
@@ -67,6 +75,8 @@ def sample_epub_no_author(tmp_path: Path) -> Path:
         z.writestr("META-INF/container.xml", CONTAINER_XML)
         z.writestr("OEBPS/content.opf", CONTENT_OPF_NO_AUTHOR)
         z.writestr("OEBPS/chap1.xhtml", CHAPTER_XHTML)
+        z.writestr("OEBPS/images/cycle.png", PNG_1PX)
+        z.writestr("OEBPS/images/variant.png", PNG_1PX)
     return path
 
 
@@ -80,4 +90,6 @@ def sample_epub(tmp_path: Path) -> Path:
         z.writestr("META-INF/container.xml", CONTAINER_XML)
         z.writestr("OEBPS/content.opf", CONTENT_OPF)
         z.writestr("OEBPS/chap1.xhtml", CHAPTER_XHTML)
+        z.writestr("OEBPS/images/cycle.png", PNG_1PX)
+        z.writestr("OEBPS/images/variant.png", PNG_1PX)
     return path

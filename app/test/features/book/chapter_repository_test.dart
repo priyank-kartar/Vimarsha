@@ -6,6 +6,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vimarsha/core/db/database.dart';
 import 'package:vimarsha/core/models/chapter_bundle.dart';
+import 'package:vimarsha/core/models/figure.dart';
 import 'package:vimarsha/core/storage/file_store.dart';
 import 'package:vimarsha/features/book/chapter_repository.dart';
 
@@ -16,6 +17,20 @@ ChapterBundle _bundle() => const ChapterBundle(
       title: 'The Engine',
       blocks: [],
       figureMap: [],
+      audio: 'chap1.mp3',
+      paraTimings: {},
+    );
+
+ChapterBundle _bundleWithFigure() => const ChapterBundle(
+      chapterId: 'chap1',
+      title: 'The Engine',
+      blocks: [],
+      figureMap: [
+        Figure(
+          figureId: 'b2', kind: 'figure', startPara: 'b2', endPara: 'b3',
+          startMs: 0, endMs: 1000, image: 'chap1_b2.png',
+        ),
+      ],
       audio: 'chap1.mp3',
       paraTimings: {},
     );
@@ -87,5 +102,28 @@ void main() {
   test('watchChapters emits chapters in order', () async {
     final chapters = await repo().watchChapters('bookX').first;
     expect(chapters.single.chapterId, 'chap1');
+  });
+
+  test('downloadChapter caches figure images', () async {
+    backend.bundle = _bundleWithFigure();
+    await repo().downloadChapter('bookX', 0);
+    expect(backend.imageRequests, contains('chap1_b2.png'));
+    expect(files.imageFile('bookX', 0, 'chap1_b2.png').existsSync(), isTrue);
+  });
+
+  test('downloadChapter still succeeds if an image download fails', () async {
+    backend.bundle = _bundleWithFigure();
+    backend.throwOnImage = Exception('img boom');
+    await repo().downloadChapter('bookX', 0);
+    final c = await row();
+    expect(c.downloadStatus, 'ready'); // image failure is non-fatal
+  });
+
+  test('loadBundle round-trips the cached bundle', () async {
+    backend.bundle = _bundleWithFigure();
+    await repo().downloadChapter('bookX', 0);
+    final loaded = await repo().loadBundle('bookX', 0);
+    expect(loaded, isNotNull);
+    expect(loaded!.figureMap.single.image, 'chap1_b2.png');
   });
 }

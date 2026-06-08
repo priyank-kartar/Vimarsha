@@ -16,6 +16,7 @@ _Figure _$FigureFromJson(Map<String, dynamic> json) => _Figure(
   endPara: json['endPara'] as String,
   startMs: (json['startMs'] as num?)?.toInt(),
   endMs: (json['endMs'] as num?)?.toInt(),
+  image: json['image'] as String?,
 );
 
 Map<String, dynamic> _$FigureToJson(_Figure instance) => <String, dynamic>{
@@ -28,4 +29,5 @@ Map<String, dynamic> _$FigureToJson(_Figure instance) => <String, dynamic>{
   'endPara': instance.endPara,
   'startMs': instance.startMs,
   'endMs': instance.endMs,
+  'image': instance.image,
 };

@@ -79,4 +79,19 @@ void main() {
     final bytes = await realClient.downloadAudio('chap1.mp3');
     expect(bytes, payload);
   });
+
+  test('downloadImage gets /image/<name> as raw bytes', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    final payload = [137, 80, 78, 71, 13, 10];
+    server.listen((req) {
+      req.response
+        ..headers.contentType = ContentType('image', 'png')
+        ..add(payload);
+      req.response.close();
+    });
+    final realDio = Dio(BaseOptions(baseUrl: 'http://${server.address.host}:${server.port}'));
+    final bytes = await DioBackendClient(realDio).downloadImage('chap1_b2.png');
+    expect(bytes, payload);
+  });
 }

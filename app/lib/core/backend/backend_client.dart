@@ -13,4 +13,7 @@ abstract class BackendClient {
 
   /// Download the bytes of a generated chapter audio file by its name.
   Future<List<int>> downloadAudio(String audioName);
+
+  /// Download the bytes of a figure image by its served name.
+  Future<List<int>> downloadImage(String imageName);
 }

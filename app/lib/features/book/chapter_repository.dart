@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 
 import '../../core/backend/backend_client.dart';
 import '../../core/db/database.dart';
+import '../../core/models/chapter_bundle.dart';
 import '../../core/storage/file_store.dart';
 
 /// Owns per-chapter download (narrated bundle + audio) and reading progress.
@@ -48,6 +49,19 @@ class ChapterRepository {
       final audioFile = _files.audioFile(bookId, index);
       await audioFile.writeAsBytes(bytes);
 
+      // Cache figure images (best-effort; a failure here does not fail the chapter).
+      for (final fig in bundle.figureMap) {
+        final imageName = fig.image;
+        if (imageName == null) continue;
+        try {
+          final imgBytes = await _backend.downloadImage(imageName);
+          if (imgBytes.isNotEmpty) {
+            await _files.ensureImagesDir(bookId, index);
+            await _files.imageFile(bookId, index, imageName).writeAsBytes(imgBytes);
+          }
+        } catch (_) {/* non-fatal: card will show without the image */}
+      }
+
       await (_db.update(_db.chapters)
             ..where((c) => c.bookId.equals(bookId) & c.chapterIndex.equals(index)))
           .write(ChaptersCompanion(
@@ -82,4 +96,12 @@ class ChapterRepository {
       (_db.select(_db.chapters)
             ..where((c) => c.bookId.equals(bookId) & c.chapterIndex.equals(index)))
           .getSingleOrNull();
+
+  /// Read and parse the cached bundle JSON for a chapter, or null if absent.
+  Future<ChapterBundle?> loadBundle(String bookId, int index) async {
+    final file = _files.bundleFile(bookId, index);
+    if (!await file.exists()) return null;
+    final json = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    return ChapterBundle.fromJson(json);
+  }
 }

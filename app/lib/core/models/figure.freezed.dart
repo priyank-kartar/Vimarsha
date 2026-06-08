@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Figure {
 
- String get figureId; String get kind; String? get asset; String? get caption; String? get label; String get startPara; String get endPara; int? get startMs; int? get endMs;
+ String get figureId; String get kind; String? get asset; String? get caption; String? get label; String get startPara; String get endPara; int? get startMs; int? get endMs; String? get image;
 /// Create a copy of Figure
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $FigureCopyWith<Figure> get copyWith => _$FigureCopyWithImpl<Figure>(this as Fig
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Figure&&(identical(other.figureId, figureId) || other.figureId == figureId)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.asset, asset) || other.asset == asset)&&(identical(other.caption, caption) || other.caption == caption)&&(identical(other.label, label) || other.label == label)&&(identical(other.startPara, startPara) || other.startPara == startPara)&&(identical(other.endPara, endPara) || other.endPara == endPara)&&(identical(other.startMs, startMs) || other.startMs == startMs)&&(identical(other.endMs, endMs) || other.endMs == endMs));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Figure&&(identical(other.figureId, figureId) || other.figureId == figureId)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.asset, asset) || other.asset == asset)&&(identical(other.caption, caption) || other.caption == caption)&&(identical(other.label, label) || other.label == label)&&(identical(other.startPara, startPara) || other.startPara == startPara)&&(identical(other.endPara, endPara) || other.endPara == endPara)&&(identical(other.startMs, startMs) || other.startMs == startMs)&&(identical(other.endMs, endMs) || other.endMs == endMs)&&(identical(other.image, image) || other.image == image));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,figureId,kind,asset,caption,label,startPara,endPara,startMs,endMs);
+int get hashCode => Object.hash(runtimeType,figureId,kind,asset,caption,label,startPara,endPara,startMs,endMs,image);
 
 @override
 String toString() {
-  return 'Figure(figureId: $figureId, kind: $kind, asset: $asset, caption: $caption, label: $label, startPara: $startPara, endPara: $endPara, startMs: $startMs, endMs: $endMs)';
+  return 'Figure(figureId: $figureId, kind: $kind, asset: $asset, caption: $caption, label: $label, startPara: $startPara, endPara: $endPara, startMs: $startMs, endMs: $endMs, image: $image)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $FigureCopyWith<$Res>  {
   factory $FigureCopyWith(Figure value, $Res Function(Figure) _then) = _$FigureCopyWithImpl;
 @useResult
 $Res call({
- String figureId, String kind, String? asset, String? caption, String? label, String startPara, String endPara, int? startMs, int? endMs
+ String figureId, String kind, String? asset, String? caption, String? label, String startPara, String endPara, int? startMs, int? endMs, String? image
 });
 
 
@@ -65,7 +65,7 @@ class _$FigureCopyWithImpl<$Res>
 
 /// Create a copy of Figure
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? figureId = null,Object? kind = null,Object? asset = freezed,Object? caption = freezed,Object? label = freezed,Object? startPara = null,Object? endPara = null,Object? startMs = freezed,Object? endMs = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? figureId = null,Object? kind = null,Object? asset = freezed,Object? caption = freezed,Object? label = freezed,Object? startPara = null,Object? endPara = null,Object? startMs = freezed,Object? endMs = freezed,Object? image = freezed,}) {
   return _then(_self.copyWith(
 figureId: null == figureId ? _self.figureId : figureId // ignore: cast_nullable_to_non_nullable
 as String,kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
@@ -76,7 +76,8 @@ as String?,startPara: null == startPara ? _self.startPara : startPara // ignore:
 as String,endPara: null == endPara ? _self.endPara : endPara // ignore: cast_nullable_to_non_nullable
 as String,startMs: freezed == startMs ? _self.startMs : startMs // ignore: cast_nullable_to_non_nullable
 as int?,endMs: freezed == endMs ? _self.endMs : endMs // ignore: cast_nullable_to_non_nullable
-as int?,
+as int?,image: freezed == image ? _self.image : image // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -161,10 +162,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String figureId,  String kind,  String? asset,  String? caption,  String? label,  String startPara,  String endPara,  int? startMs,  int? endMs)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String figureId,  String kind,  String? asset,  String? caption,  String? label,  String startPara,  String endPara,  int? startMs,  int? endMs,  String? image)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Figure() when $default != null:
-return $default(_that.figureId,_that.kind,_that.asset,_that.caption,_that.label,_that.startPara,_that.endPara,_that.startMs,_that.endMs);case _:
+return $default(_that.figureId,_that.kind,_that.asset,_that.caption,_that.label,_that.startPara,_that.endPara,_that.startMs,_that.endMs,_that.image);case _:
   return orElse();
 
 }
@@ -182,10 +183,10 @@ return $default(_that.figureId,_that.kind,_that.asset,_that.caption,_that.label,
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String figureId,  String kind,  String? asset,  String? caption,  String? label,  String startPara,  String endPara,  int? startMs,  int? endMs)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String figureId,  String kind,  String? asset,  String? caption,  String? label,  String startPara,  String endPara,  int? startMs,  int? endMs,  String? image)  $default,) {final _that = this;
 switch (_that) {
 case _Figure():
-return $default(_that.figureId,_that.kind,_that.asset,_that.caption,_that.label,_that.startPara,_that.endPara,_that.startMs,_that.endMs);case _:
+return $default(_that.figureId,_that.kind,_that.asset,_that.caption,_that.label,_that.startPara,_that.endPara,_that.startMs,_that.endMs,_that.image);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -202,10 +203,10 @@ return $default(_that.figureId,_that.kind,_that.asset,_that.caption,_that.label,
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String figureId,  String kind,  String? asset,  String? caption,  String? label,  String startPara,  String endPara,  int? startMs,  int? endMs)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String figureId,  String kind,  String? asset,  String? caption,  String? label,  String startPara,  String endPara,  int? startMs,  int? endMs,  String? image)?  $default,) {final _that = this;
 switch (_that) {
 case _Figure() when $default != null:
-return $default(_that.figureId,_that.kind,_that.asset,_that.caption,_that.label,_that.startPara,_that.endPara,_that.startMs,_that.endMs);case _:
+return $default(_that.figureId,_that.kind,_that.asset,_that.caption,_that.label,_that.startPara,_that.endPara,_that.startMs,_that.endMs,_that.image);case _:
   return null;
 
 }
@@ -217,7 +218,7 @@ return $default(_that.figureId,_that.kind,_that.asset,_that.caption,_that.label,
 @JsonSerializable()
 
 class _Figure implements Figure {
-  const _Figure({required this.figureId, required this.kind, this.asset, this.caption, this.label, required this.startPara, required this.endPara, this.startMs, this.endMs});
+  const _Figure({required this.figureId, required this.kind, this.asset, this.caption, this.label, required this.startPara, required this.endPara, this.startMs, this.endMs, this.image});
   factory _Figure.fromJson(Map<String, dynamic> json) => _$FigureFromJson(json);
 
 @override final  String figureId;
@@ -229,6 +230,7 @@ class _Figure implements Figure {
 @override final  String endPara;
 @override final  int? startMs;
 @override final  int? endMs;
+@override final  String? image;
 
 /// Create a copy of Figure
 /// with the given fields replaced by the non-null parameter values.
@@ -243,16 +245,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Figure&&(identical(other.figureId, figureId) || other.figureId == figureId)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.asset, asset) || other.asset == asset)&&(identical(other.caption, caption) || other.caption == caption)&&(identical(other.label, label) || other.label == label)&&(identical(other.startPara, startPara) || other.startPara == startPara)&&(identical(other.endPara, endPara) || other.endPara == endPara)&&(identical(other.startMs, startMs) || other.startMs == startMs)&&(identical(other.endMs, endMs) || other.endMs == endMs));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Figure&&(identical(other.figureId, figureId) || other.figureId == figureId)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.asset, asset) || other.asset == asset)&&(identical(other.caption, caption) || other.caption == caption)&&(identical(other.label, label) || other.label == label)&&(identical(other.startPara, startPara) || other.startPara == startPara)&&(identical(other.endPara, endPara) || other.endPara == endPara)&&(identical(other.startMs, startMs) || other.startMs == startMs)&&(identical(other.endMs, endMs) || other.endMs == endMs)&&(identical(other.image, image) || other.image == image));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,figureId,kind,asset,caption,label,startPara,endPara,startMs,endMs);
+int get hashCode => Object.hash(runtimeType,figureId,kind,asset,caption,label,startPara,endPara,startMs,endMs,image);
 
 @override
 String toString() {
-  return 'Figure(figureId: $figureId, kind: $kind, asset: $asset, caption: $caption, label: $label, startPara: $startPara, endPara: $endPara, startMs: $startMs, endMs: $endMs)';
+  return 'Figure(figureId: $figureId, kind: $kind, asset: $asset, caption: $caption, label: $label, startPara: $startPara, endPara: $endPara, startMs: $startMs, endMs: $endMs, image: $image)';
 }
 
 
@@ -263,7 +265,7 @@ abstract mixin class _$FigureCopyWith<$Res> implements $FigureCopyWith<$Res> {
   factory _$FigureCopyWith(_Figure value, $Res Function(_Figure) _then) = __$FigureCopyWithImpl;
 @override @useResult
 $Res call({
- String figureId, String kind, String? asset, String? caption, String? label, String startPara, String endPara, int? startMs, int? endMs
+ String figureId, String kind, String? asset, String? caption, String? label, String startPara, String endPara, int? startMs, int? endMs, String? image
 });
 
 
@@ -280,7 +282,7 @@ class __$FigureCopyWithImpl<$Res>
 
 /// Create a copy of Figure
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? figureId = null,Object? kind = null,Object? asset = freezed,Object? caption = freezed,Object? label = freezed,Object? startPara = null,Object? endPara = null,Object? startMs = freezed,Object? endMs = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? figureId = null,Object? kind = null,Object? asset = freezed,Object? caption = freezed,Object? label = freezed,Object? startPara = null,Object? endPara = null,Object? startMs = freezed,Object? endMs = freezed,Object? image = freezed,}) {
   return _then(_Figure(
 figureId: null == figureId ? _self.figureId : figureId // ignore: cast_nullable_to_non_nullable
 as String,kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
@@ -291,7 +293,8 @@ as String?,startPara: null == startPara ? _self.startPara : startPara // ignore:
 as String,endPara: null == endPara ? _self.endPara : endPara // ignore: cast_nullable_to_non_nullable
 as String,startMs: freezed == startMs ? _self.startMs : startMs // ignore: cast_nullable_to_non_nullable
 as int?,endMs: freezed == endMs ? _self.endMs : endMs // ignore: cast_nullable_to_non_nullable
-as int?,
+as int?,image: freezed == image ? _self.image : image // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 

@@ -42,4 +42,13 @@ class DioBackendClient implements BackendClient {
     );
     return resp.data ?? <int>[];
   }
+
+  @override
+  Future<List<int>> downloadImage(String imageName) async {
+    final resp = await _dio.get<List<int>>(
+      '/image/$imageName',
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return resp.data ?? <int>[];
+  }
 }

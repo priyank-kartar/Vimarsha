@@ -7,6 +7,8 @@ from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 
+from vimarsha.epub_reader import read_chapters
+from vimarsha.figure_images import extract_images
 from vimarsha.ingest import ingest_epub
 from vimarsha.metadata import read_book_meta
 from vimarsha.models import ChapterSummary, TocResponse
@@ -58,15 +60,33 @@ async def import_chapter(
         tmp.flush()
         tmp_path_str = tmp.name
     try:
+        chapters = await run_in_threadpool(read_chapters, tmp_path_str)
         bundles = await run_in_threadpool(ingest_epub, tmp_path_str)
+        if not (0 <= chapter_index < len(bundles)):
+            raise HTTPException(status_code=404, detail="chapter_index out of range")
+        narrated = await run_in_threadpool(
+            narrate_bundle, bundles[chapter_index], synth, app.state.audio_dir
+        )
+        await run_in_threadpool(
+            extract_images,
+            tmp_path_str,
+            narrated.chapter_id,
+            chapters[chapter_index].href,
+            narrated.figure_map,
+            app.state.audio_dir,
+        )
     finally:
         Path(tmp_path_str).unlink(missing_ok=True)
-    if not (0 <= chapter_index < len(bundles)):
-        raise HTTPException(status_code=404, detail="chapter_index out of range")
-    narrated = await run_in_threadpool(
-        narrate_bundle, bundles[chapter_index], synth, app.state.audio_dir
-    )
     return narrated.model_dump(by_alias=True, exclude_none=True)
+
+
+@app.get("/image/{name}")
+def get_image(name: str):
+    base = Path(app.state.audio_dir).resolve()
+    path = (base / name).resolve()
+    if not path.is_file() or not path.is_relative_to(base):
+        raise HTTPException(status_code=404, detail="image not found")
+    return FileResponse(str(path))
 
 
 @app.get("/audio/{name}")
