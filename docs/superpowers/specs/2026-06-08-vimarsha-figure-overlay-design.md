@@ -29,6 +29,12 @@ In scope:
   it in view, **tap a paragraph to seek** there.
 - **Figure overlay:** a floating card shows the active figure during its time
   range (tap to expand full-screen); pull-quotes render as a styled quote card.
+- **Figures gallery (the reliable backbone):** a **Figures button** in the
+  player opens a panel listing **every** figure in the chapter (from
+  `figureMap`), independent of playback timing. Tap any figure to view it
+  full-screen, and "jump to where it's discussed" (seek to its `startMs`). This
+  is the deterministic way to reach figures; the synced auto-pop is a bonus on
+  top of it.
 - Player refinements: book/chapter **title header**, **skip ±15s**, **compact
   speed control**, cleaner layout/theming.
 
@@ -107,6 +113,14 @@ All of §3 is unit-tested against a fixture bundle with the existing fakes; no U
   dots/chevrons) so the user can **switch between the stacked figures**; the
   front selection defaults to the first and is widget-local state that resets
   when the active set changes. The card dismisses when no figure is active.
+- **Figures gallery:** a **Figures button** (with a count badge) in the player
+  chrome opens a sheet/panel showing **all** chapter figures — for image figures
+  a thumbnail (cached image) + label/caption; for pull-quotes the quote text.
+  Tapping opens full-screen; each entry has a **"go to in audio"** action that
+  calls `controller.seekToBlock` on the figure's `startPara` (or seeks to its
+  `startMs`). This view is driven purely by `figureMap` + cached images, so it
+  works regardless of how well the auto-sync timing guessed — the dependable way
+  to see any figure.
 - **Player chrome:** app bar shows book + chapter title; a bottom transport bar
   with **skip −15s / play-pause / skip +15s**, a **compact speed chip** that
   cycles `0.75→1.0→1.25→1.5→2.0×`, a scrub slider (seek-on-release, already
@@ -114,6 +128,18 @@ All of §3 is unit-tested against a fixture bundle with the existing fakes; no U
 - New dependency: `scrollable_positioned_list`.
 
 ---
+
+## 4a. Reliability stance
+
+Figure **timing** (when a figure auto-pops) is heuristic — it derives from
+rule-based mention detection (and, later, the Plan 6 LLM fallback), so it will
+be wrong or absent for some real-book figures (no clean caption number,
+references like "the chart below", decorative images). Everything else is
+deterministic: paragraph highlight/scroll (exact `paraTimings`), figure images
+(pulled from the EPUB), and the **Figures gallery** (lists all figures
+regardless of timing). The product is built so the reliable layer stands on its
+own — the synced auto-pop is an enhancement, and the gallery is the guaranteed
+path to every figure. Improving auto-pop accuracy is deferred to Plan 6.
 
 ## 5. Architecture & boundaries
 
@@ -160,7 +186,10 @@ All of §3 is unit-tested against a fixture bundle with the existing fakes; no U
   tapping a paragraph calls `seekToBlock`; the figure card appears when the
   position enters a figure range and dismisses on exit; with two overlapping
   figures the stack shows "1 / 2" and tapping switches the front; skip ±15s and
-  the speed chip call the controller; the title header renders.
+  the speed chip call the controller; the title header renders. The **Figures
+  gallery** lists every figure in the fixture bundle and "go to in audio" calls
+  the controller's seek — verified with playback paused (proves it's independent
+  of the auto-sync timing).
 - **Manual gate:** run on macOS against the real backend; download a figure-rich
   chapter (e.g. "The Christmas Truce"); confirm text scrolls/highlights with the
   audio and the right diagram pops at the right time.
@@ -175,5 +204,6 @@ All of §3 is unit-tested against a fixture bundle with the existing fakes; no U
 (5) `PlayerController` sync logic.
 
 **Plan 4b:** (6) reading view (typography + highlight + auto-scroll + tap-seek);
-(7) figure overlay card (+ full-screen + quote card); (8) player chrome
-refinements; (9) manual macOS verification.
+(7) figure overlay card (+ full-screen + quote card, stacked with tap-to-switch);
+(8) Figures gallery (button + list-all + full-screen + go-to-in-audio);
+(9) player chrome refinements; (10) manual macOS verification.
