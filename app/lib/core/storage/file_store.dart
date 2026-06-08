@@ -22,6 +22,16 @@ class FileStore {
     return bookId;
   }
 
+  /// Reject a file name (server-supplied) that isn't a plain basename, so a
+  /// crafted image name can't escape the chapter's images directory.
+  static String _safeName(String name) {
+    if (name.isEmpty || name.contains('/') || name.contains(r'\') ||
+        name.contains('..') || p.basename(name) != name) {
+      throw ArgumentError.value(name, 'name', 'invalid file name');
+    }
+    return name;
+  }
+
   Directory _booksDir() => Directory(p.join(root.path, 'books'));
   Directory bookDir(String bookId) =>
       Directory(p.join(_booksDir().path, _safeId(bookId)));
@@ -37,7 +47,7 @@ class FileStore {
   Directory imagesDir(String bookId, int index) =>
       Directory(p.join(chapterDir(bookId, index).path, 'images'));
   File imageFile(String bookId, int index, String name) =>
-      File(p.join(imagesDir(bookId, index).path, name));
+      File(p.join(imagesDir(bookId, index).path, _safeName(name)));
 
   Future<Directory> ensureImagesDir(String bookId, int index) =>
       imagesDir(bookId, index).create(recursive: true);

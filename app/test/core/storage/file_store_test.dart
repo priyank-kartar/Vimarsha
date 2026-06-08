@@ -46,4 +46,9 @@ void main() {
     expect(store.imageFile('bookA', 2, 'chap1_b2.png').path,
         '${tmp.path}/books/bookA/ch2/images/chap1_b2.png');
   });
+
+  test('rejects image names that attempt path traversal', () {
+    expect(() => store.imageFile('bookA', 0, '../evil.png'), throwsArgumentError);
+    expect(() => store.imageFile('bookA', 0, 'a/b.png'), throwsArgumentError);
+  });
 }
