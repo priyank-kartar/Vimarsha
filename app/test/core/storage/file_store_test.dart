@@ -41,4 +41,9 @@ void main() {
     expect(() => store.epubFile('a/b'), throwsArgumentError);
     expect(() => store.chapterDir(r'a\b', 0), throwsArgumentError);
   });
+
+  test('image files live under the chapter images dir', () {
+    expect(store.imageFile('bookA', 2, 'chap1_b2.png').path,
+        '${tmp.path}/books/bookA/ch2/images/chap1_b2.png');
+  });
 }

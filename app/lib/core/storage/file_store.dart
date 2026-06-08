@@ -34,6 +34,14 @@ class FileStore {
   File audioFile(String bookId, int index) =>
       File(p.join(chapterDir(bookId, index).path, 'audio.mp3'));
 
+  Directory imagesDir(String bookId, int index) =>
+      Directory(p.join(chapterDir(bookId, index).path, 'images'));
+  File imageFile(String bookId, int index, String name) =>
+      File(p.join(imagesDir(bookId, index).path, name));
+
+  Future<Directory> ensureImagesDir(String bookId, int index) =>
+      imagesDir(bookId, index).create(recursive: true);
+
   Future<Directory> ensureBookDir(String bookId) =>
       bookDir(bookId).create(recursive: true);
   Future<Directory> ensureChapterDir(String bookId, int index) =>

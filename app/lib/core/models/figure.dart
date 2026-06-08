@@ -15,6 +15,7 @@ abstract class Figure with _$Figure {
     required String endPara,
     int? startMs,
     int? endMs,
+    String? image,
   }) = _Figure;
 
   factory Figure.fromJson(Map<String, dynamic> json) => _$FigureFromJson(json);
