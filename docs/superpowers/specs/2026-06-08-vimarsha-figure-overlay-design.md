@@ -77,8 +77,10 @@ the served filename the client uses.
   derived from its tracked `position`:
   - `String? currentBlockId` — block whose `paraTimings` range contains the
     position; between paragraphs, the greatest `startMs ≤ position`.
-  - `Figure? currentFigure` — first `figureMap` entry whose `[startMs, endMs]`
-    contains the position, else null.
+  - `List<Figure> currentFigures` — ALL `figureMap` entries whose
+    `[startMs, endMs]` contains the position, in document order (empty when
+    none). Overlapping figures stack; the overlay lets the user tap to switch
+    between them.
   - `String? imagePathFor(Figure)` — resolves a figure's `image` to its cached
     local file path via `FileStore` (null for pull-quotes / missing images).
   - `Future<void> seekToBlock(String blockId)` — seek to that block's
@@ -97,10 +99,14 @@ All of §3 is unit-tested against a fixture bundle with the existing fakes; no U
   can scroll a specific block index into view. The block matching
   `currentBlockId` is highlighted; auto-scroll keeps it in view; tapping a
   paragraph calls `controller.seekToBlock(id)`.
-- **Figure overlay:** when `currentFigure != null`, a floating card animates up
-  over the bottom of the text: for image figures, the cached image +
-  label + caption, tappable to a full-screen view; for pull-quote-kind figures,
-  a styled quote card. Dismisses when the position leaves the range.
+- **Figure overlay:** when `currentFigures` is non-empty, a floating card
+  animates up over the bottom of the text showing the front figure — for image
+  figures, the cached image + label + caption, tappable to a full-screen view;
+  for pull-quote-kind figures, a styled quote card. When more than one figure is
+  active, the card shows a **stack affordance** (e.g. "1 / N" with tappable
+  dots/chevrons) so the user can **switch between the stacked figures**; the
+  front selection defaults to the first and is widget-local state that resets
+  when the active set changes. The card dismisses when no figure is active.
 - **Player chrome:** app bar shows book + chapter title; a bottom transport bar
   with **skip −15s / play-pause / skip +15s**, a **compact speed chip** that
   cycles `0.75→1.0→1.25→1.5→2.0×`, a scrub slider (seek-on-release, already
@@ -133,8 +139,8 @@ All of §3 is unit-tested against a fixture bundle with the existing fakes; no U
 - **Missing bundle on open:** if `loadBundle` returns null (corrupt/missing), the
   player shows the existing "couldn't play this chapter" state rather than
   crashing.
-- **Figure with no timing / out-of-range ms:** simply never becomes
-  `currentFigure`; no crash.
+- **Figure with no timing / out-of-range ms:** simply never appears in
+  `currentFigures`; no crash.
 - **Pull-quote with no image:** renders as a quote card (expected, not an error).
 
 ---
@@ -146,13 +152,15 @@ All of §3 is unit-tested against a fixture bundle with the existing fakes; no U
   asset → `image None` without error; `/image/{name}` serves bytes and rejects
   traversal. Existing suite stays green.
 - **Client unit (4a):** `downloadChapter` caches images; `loadBundle` round-trips
-  a cached bundle; `PlayerController` `currentBlockId`/`currentFigure`/
-  `imagePathFor`/`seekToBlock` against a fixture bundle with known timings.
+  a cached bundle; `PlayerController` `currentBlockId`/`currentFigures` (incl. an
+  overlapping-ranges case)/`imagePathFor`/`seekToBlock` against a fixture bundle
+  with known timings.
 - **Client widget (4b):** with a fake audio handler + fixture bundle + a
   placeholder image — narrated paragraph highlights and the list scrolls to it;
   tapping a paragraph calls `seekToBlock`; the figure card appears when the
-  position enters a figure range and dismisses on exit; skip ±15s and the speed
-  chip call the controller; the title header renders.
+  position enters a figure range and dismisses on exit; with two overlapping
+  figures the stack shows "1 / 2" and tapping switches the front; skip ±15s and
+  the speed chip call the controller; the title header renders.
 - **Manual gate:** run on macOS against the real backend; download a figure-rich
   chapter (e.g. "The Christmas Truce"); confirm text scrolls/highlights with the
   audio and the right diagram pops at the right time.
