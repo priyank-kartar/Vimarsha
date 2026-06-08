@@ -93,6 +93,7 @@ final playerControllerProvider = ChangeNotifierProvider.autoDispose
   return PlayerController(
     audio: ref.watch(audioHandlerProvider),
     chapters: ref.watch(chapterRepositoryProvider),
+    files: ref.watch(fileStoreProvider),
     bookId: args.bookId,
     index: args.index,
   );

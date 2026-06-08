@@ -39,6 +39,7 @@ void main() {
       child: const MaterialApp(home: PlayerScreen(bookId: 'b1', index: 0)),
     ));
     await tester.pump(); // load()
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
     await tester.pump();
 
     expect(find.byIcon(Icons.play_arrow), findsOneWidget);
