@@ -13,6 +13,7 @@ from vimarsha.ingest import ingest_epub
 from vimarsha.metadata import read_book_meta
 from vimarsha.models import ChapterSummary, TocResponse
 from vimarsha.narrate import narrate_bundle
+from vimarsha.transcribe import FasterWhisperTranscriber, Transcriber
 from vimarsha.tts import ChatterboxSynth, Synthesizer
 
 app = FastAPI(title="Vimarsha backend")
@@ -22,6 +23,34 @@ app.state.audio_dir = tempfile.mkdtemp(prefix="vimarsha-audio-")
 def get_synth() -> Synthesizer:
     """Default to the real Chatterbox synth; overridden in tests."""
     return ChatterboxSynth()
+
+
+_transcriber: Transcriber | None = None
+
+
+def get_transcriber() -> Transcriber:
+    """Cached faster-whisper transcriber (loaded once); overridden in tests."""
+    global _transcriber
+    if _transcriber is None:
+        _transcriber = FasterWhisperTranscriber()
+    return _transcriber
+
+
+@app.post("/transcribe")
+async def transcribe(
+    file: UploadFile = File(...),
+    transcriber: Transcriber = Depends(get_transcriber),
+):
+    suffix = Path(file.filename or "audio").suffix or ".m4a"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(await file.read())
+        tmp.flush()
+        tmp_path_str = tmp.name
+    try:
+        text = await run_in_threadpool(transcriber.transcribe, tmp_path_str)
+    finally:
+        Path(tmp_path_str).unlink(missing_ok=True)
+    return {"text": text}
 
 
 @app.post("/toc")

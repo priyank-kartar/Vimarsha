@@ -19,6 +19,7 @@ dependencies = [
 [project.optional-dependencies]
 tts = [
     "chatterbox-tts",
+    "faster-whisper",
     "setuptools<81",
     "torch",
     "torchaudio",
