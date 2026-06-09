@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'features/book/book_screen.dart';
 import 'features/library/library_screen.dart';
+import 'features/notes/notes_screen.dart';
 import 'features/player/player_screen.dart';
 
 GoRouter _buildRouter() => GoRouter(
@@ -20,6 +21,7 @@ GoRouter _buildRouter() => GoRouter(
             index: int.parse(s.pathParameters['index']!),
           ),
         ),
+        GoRoute(path: '/notes', builder: (_, s) => const NotesScreen()),
       ],
     );
 
