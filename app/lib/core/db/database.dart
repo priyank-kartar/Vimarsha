@@ -28,10 +28,33 @@ class Chapters extends Table {
   Set<Column> get primaryKey => {bookId, chapterIndex};
 }
 
-@DriftDatabase(tables: [Books, Chapters])
+class Memos extends Table {
+  TextColumn get id => text()();
+  TextColumn get bookId => text()();
+  IntColumn get chapterIndex => integer()();
+  TextColumn get blockId => text().nullable()();
+  IntColumn get positionMs => integer().withDefault(const Constant(0))();
+  TextColumn get audioPath => text()();
+  TextColumn get transcript => text().nullable()();
+  TextColumn get transcriptStatus => text().withDefault(const Constant('pending'))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DriftDatabase(tables: [Books, Chapters, Memos])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) => m.createAll(),
+        onUpgrade: (m, from, to) async {
+          if (from < 2) await m.createTable(memos);
+        },
+      );
 }

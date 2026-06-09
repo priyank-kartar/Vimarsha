@@ -41,4 +41,15 @@ void main() {
       throwsA(isA<Exception>()),
     );
   });
+
+  test('insert a memo and read it back; defaults applied', () async {
+    await db.into(db.memos).insert(MemosCompanion.insert(
+          id: 'm1', bookId: 'b1', chapterIndex: 0,
+          positionMs: const Value(4200), audioPath: '/tmp/m1.m4a'));
+    final m = (await db.select(db.memos).get()).single;
+    expect(m.id, 'm1');
+    expect(m.transcriptStatus, 'pending');
+    expect(m.transcript, isNull);
+    expect(m.positionMs, 4200);
+  });
 }

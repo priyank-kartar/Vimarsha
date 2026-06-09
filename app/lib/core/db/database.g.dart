@@ -931,16 +931,584 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
   }
 }
 
+class $MemosTable extends Memos with TableInfo<$MemosTable, Memo> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MemosTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _bookIdMeta = const VerificationMeta('bookId');
+  @override
+  late final GeneratedColumn<String> bookId = GeneratedColumn<String>(
+    'book_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _chapterIndexMeta = const VerificationMeta(
+    'chapterIndex',
+  );
+  @override
+  late final GeneratedColumn<int> chapterIndex = GeneratedColumn<int>(
+    'chapter_index',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _blockIdMeta = const VerificationMeta(
+    'blockId',
+  );
+  @override
+  late final GeneratedColumn<String> blockId = GeneratedColumn<String>(
+    'block_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _positionMsMeta = const VerificationMeta(
+    'positionMs',
+  );
+  @override
+  late final GeneratedColumn<int> positionMs = GeneratedColumn<int>(
+    'position_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _audioPathMeta = const VerificationMeta(
+    'audioPath',
+  );
+  @override
+  late final GeneratedColumn<String> audioPath = GeneratedColumn<String>(
+    'audio_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _transcriptMeta = const VerificationMeta(
+    'transcript',
+  );
+  @override
+  late final GeneratedColumn<String> transcript = GeneratedColumn<String>(
+    'transcript',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _transcriptStatusMeta = const VerificationMeta(
+    'transcriptStatus',
+  );
+  @override
+  late final GeneratedColumn<String> transcriptStatus = GeneratedColumn<String>(
+    'transcript_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    bookId,
+    chapterIndex,
+    blockId,
+    positionMs,
+    audioPath,
+    transcript,
+    transcriptStatus,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'memos';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Memo> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('book_id')) {
+      context.handle(
+        _bookIdMeta,
+        bookId.isAcceptableOrUnknown(data['book_id']!, _bookIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bookIdMeta);
+    }
+    if (data.containsKey('chapter_index')) {
+      context.handle(
+        _chapterIndexMeta,
+        chapterIndex.isAcceptableOrUnknown(
+          data['chapter_index']!,
+          _chapterIndexMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_chapterIndexMeta);
+    }
+    if (data.containsKey('block_id')) {
+      context.handle(
+        _blockIdMeta,
+        blockId.isAcceptableOrUnknown(data['block_id']!, _blockIdMeta),
+      );
+    }
+    if (data.containsKey('position_ms')) {
+      context.handle(
+        _positionMsMeta,
+        positionMs.isAcceptableOrUnknown(data['position_ms']!, _positionMsMeta),
+      );
+    }
+    if (data.containsKey('audio_path')) {
+      context.handle(
+        _audioPathMeta,
+        audioPath.isAcceptableOrUnknown(data['audio_path']!, _audioPathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_audioPathMeta);
+    }
+    if (data.containsKey('transcript')) {
+      context.handle(
+        _transcriptMeta,
+        transcript.isAcceptableOrUnknown(data['transcript']!, _transcriptMeta),
+      );
+    }
+    if (data.containsKey('transcript_status')) {
+      context.handle(
+        _transcriptStatusMeta,
+        transcriptStatus.isAcceptableOrUnknown(
+          data['transcript_status']!,
+          _transcriptStatusMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Memo map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Memo(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      bookId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}book_id'],
+      )!,
+      chapterIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}chapter_index'],
+      )!,
+      blockId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}block_id'],
+      ),
+      positionMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}position_ms'],
+      )!,
+      audioPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}audio_path'],
+      )!,
+      transcript: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}transcript'],
+      ),
+      transcriptStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}transcript_status'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $MemosTable createAlias(String alias) {
+    return $MemosTable(attachedDatabase, alias);
+  }
+}
+
+class Memo extends DataClass implements Insertable<Memo> {
+  final String id;
+  final String bookId;
+  final int chapterIndex;
+  final String? blockId;
+  final int positionMs;
+  final String audioPath;
+  final String? transcript;
+  final String transcriptStatus;
+  final DateTime createdAt;
+  const Memo({
+    required this.id,
+    required this.bookId,
+    required this.chapterIndex,
+    this.blockId,
+    required this.positionMs,
+    required this.audioPath,
+    this.transcript,
+    required this.transcriptStatus,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['book_id'] = Variable<String>(bookId);
+    map['chapter_index'] = Variable<int>(chapterIndex);
+    if (!nullToAbsent || blockId != null) {
+      map['block_id'] = Variable<String>(blockId);
+    }
+    map['position_ms'] = Variable<int>(positionMs);
+    map['audio_path'] = Variable<String>(audioPath);
+    if (!nullToAbsent || transcript != null) {
+      map['transcript'] = Variable<String>(transcript);
+    }
+    map['transcript_status'] = Variable<String>(transcriptStatus);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  MemosCompanion toCompanion(bool nullToAbsent) {
+    return MemosCompanion(
+      id: Value(id),
+      bookId: Value(bookId),
+      chapterIndex: Value(chapterIndex),
+      blockId: blockId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(blockId),
+      positionMs: Value(positionMs),
+      audioPath: Value(audioPath),
+      transcript: transcript == null && nullToAbsent
+          ? const Value.absent()
+          : Value(transcript),
+      transcriptStatus: Value(transcriptStatus),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory Memo.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Memo(
+      id: serializer.fromJson<String>(json['id']),
+      bookId: serializer.fromJson<String>(json['bookId']),
+      chapterIndex: serializer.fromJson<int>(json['chapterIndex']),
+      blockId: serializer.fromJson<String?>(json['blockId']),
+      positionMs: serializer.fromJson<int>(json['positionMs']),
+      audioPath: serializer.fromJson<String>(json['audioPath']),
+      transcript: serializer.fromJson<String?>(json['transcript']),
+      transcriptStatus: serializer.fromJson<String>(json['transcriptStatus']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'bookId': serializer.toJson<String>(bookId),
+      'chapterIndex': serializer.toJson<int>(chapterIndex),
+      'blockId': serializer.toJson<String?>(blockId),
+      'positionMs': serializer.toJson<int>(positionMs),
+      'audioPath': serializer.toJson<String>(audioPath),
+      'transcript': serializer.toJson<String?>(transcript),
+      'transcriptStatus': serializer.toJson<String>(transcriptStatus),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  Memo copyWith({
+    String? id,
+    String? bookId,
+    int? chapterIndex,
+    Value<String?> blockId = const Value.absent(),
+    int? positionMs,
+    String? audioPath,
+    Value<String?> transcript = const Value.absent(),
+    String? transcriptStatus,
+    DateTime? createdAt,
+  }) => Memo(
+    id: id ?? this.id,
+    bookId: bookId ?? this.bookId,
+    chapterIndex: chapterIndex ?? this.chapterIndex,
+    blockId: blockId.present ? blockId.value : this.blockId,
+    positionMs: positionMs ?? this.positionMs,
+    audioPath: audioPath ?? this.audioPath,
+    transcript: transcript.present ? transcript.value : this.transcript,
+    transcriptStatus: transcriptStatus ?? this.transcriptStatus,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  Memo copyWithCompanion(MemosCompanion data) {
+    return Memo(
+      id: data.id.present ? data.id.value : this.id,
+      bookId: data.bookId.present ? data.bookId.value : this.bookId,
+      chapterIndex: data.chapterIndex.present
+          ? data.chapterIndex.value
+          : this.chapterIndex,
+      blockId: data.blockId.present ? data.blockId.value : this.blockId,
+      positionMs: data.positionMs.present
+          ? data.positionMs.value
+          : this.positionMs,
+      audioPath: data.audioPath.present ? data.audioPath.value : this.audioPath,
+      transcript: data.transcript.present
+          ? data.transcript.value
+          : this.transcript,
+      transcriptStatus: data.transcriptStatus.present
+          ? data.transcriptStatus.value
+          : this.transcriptStatus,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Memo(')
+          ..write('id: $id, ')
+          ..write('bookId: $bookId, ')
+          ..write('chapterIndex: $chapterIndex, ')
+          ..write('blockId: $blockId, ')
+          ..write('positionMs: $positionMs, ')
+          ..write('audioPath: $audioPath, ')
+          ..write('transcript: $transcript, ')
+          ..write('transcriptStatus: $transcriptStatus, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    bookId,
+    chapterIndex,
+    blockId,
+    positionMs,
+    audioPath,
+    transcript,
+    transcriptStatus,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Memo &&
+          other.id == this.id &&
+          other.bookId == this.bookId &&
+          other.chapterIndex == this.chapterIndex &&
+          other.blockId == this.blockId &&
+          other.positionMs == this.positionMs &&
+          other.audioPath == this.audioPath &&
+          other.transcript == this.transcript &&
+          other.transcriptStatus == this.transcriptStatus &&
+          other.createdAt == this.createdAt);
+}
+
+class MemosCompanion extends UpdateCompanion<Memo> {
+  final Value<String> id;
+  final Value<String> bookId;
+  final Value<int> chapterIndex;
+  final Value<String?> blockId;
+  final Value<int> positionMs;
+  final Value<String> audioPath;
+  final Value<String?> transcript;
+  final Value<String> transcriptStatus;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const MemosCompanion({
+    this.id = const Value.absent(),
+    this.bookId = const Value.absent(),
+    this.chapterIndex = const Value.absent(),
+    this.blockId = const Value.absent(),
+    this.positionMs = const Value.absent(),
+    this.audioPath = const Value.absent(),
+    this.transcript = const Value.absent(),
+    this.transcriptStatus = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MemosCompanion.insert({
+    required String id,
+    required String bookId,
+    required int chapterIndex,
+    this.blockId = const Value.absent(),
+    this.positionMs = const Value.absent(),
+    required String audioPath,
+    this.transcript = const Value.absent(),
+    this.transcriptStatus = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       bookId = Value(bookId),
+       chapterIndex = Value(chapterIndex),
+       audioPath = Value(audioPath);
+  static Insertable<Memo> custom({
+    Expression<String>? id,
+    Expression<String>? bookId,
+    Expression<int>? chapterIndex,
+    Expression<String>? blockId,
+    Expression<int>? positionMs,
+    Expression<String>? audioPath,
+    Expression<String>? transcript,
+    Expression<String>? transcriptStatus,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (bookId != null) 'book_id': bookId,
+      if (chapterIndex != null) 'chapter_index': chapterIndex,
+      if (blockId != null) 'block_id': blockId,
+      if (positionMs != null) 'position_ms': positionMs,
+      if (audioPath != null) 'audio_path': audioPath,
+      if (transcript != null) 'transcript': transcript,
+      if (transcriptStatus != null) 'transcript_status': transcriptStatus,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MemosCompanion copyWith({
+    Value<String>? id,
+    Value<String>? bookId,
+    Value<int>? chapterIndex,
+    Value<String?>? blockId,
+    Value<int>? positionMs,
+    Value<String>? audioPath,
+    Value<String?>? transcript,
+    Value<String>? transcriptStatus,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return MemosCompanion(
+      id: id ?? this.id,
+      bookId: bookId ?? this.bookId,
+      chapterIndex: chapterIndex ?? this.chapterIndex,
+      blockId: blockId ?? this.blockId,
+      positionMs: positionMs ?? this.positionMs,
+      audioPath: audioPath ?? this.audioPath,
+      transcript: transcript ?? this.transcript,
+      transcriptStatus: transcriptStatus ?? this.transcriptStatus,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (bookId.present) {
+      map['book_id'] = Variable<String>(bookId.value);
+    }
+    if (chapterIndex.present) {
+      map['chapter_index'] = Variable<int>(chapterIndex.value);
+    }
+    if (blockId.present) {
+      map['block_id'] = Variable<String>(blockId.value);
+    }
+    if (positionMs.present) {
+      map['position_ms'] = Variable<int>(positionMs.value);
+    }
+    if (audioPath.present) {
+      map['audio_path'] = Variable<String>(audioPath.value);
+    }
+    if (transcript.present) {
+      map['transcript'] = Variable<String>(transcript.value);
+    }
+    if (transcriptStatus.present) {
+      map['transcript_status'] = Variable<String>(transcriptStatus.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MemosCompanion(')
+          ..write('id: $id, ')
+          ..write('bookId: $bookId, ')
+          ..write('chapterIndex: $chapterIndex, ')
+          ..write('blockId: $blockId, ')
+          ..write('positionMs: $positionMs, ')
+          ..write('audioPath: $audioPath, ')
+          ..write('transcript: $transcript, ')
+          ..write('transcriptStatus: $transcriptStatus, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $BooksTable books = $BooksTable(this);
   late final $ChaptersTable chapters = $ChaptersTable(this);
+  late final $MemosTable memos = $MemosTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [books, chapters];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [books, chapters, memos];
 }
 
 typedef $$BooksTableCreateCompanionBuilder =
@@ -1416,6 +1984,283 @@ typedef $$ChaptersTableProcessedTableManager =
       Chapter,
       PrefetchHooks Function()
     >;
+typedef $$MemosTableCreateCompanionBuilder =
+    MemosCompanion Function({
+      required String id,
+      required String bookId,
+      required int chapterIndex,
+      Value<String?> blockId,
+      Value<int> positionMs,
+      required String audioPath,
+      Value<String?> transcript,
+      Value<String> transcriptStatus,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+typedef $$MemosTableUpdateCompanionBuilder =
+    MemosCompanion Function({
+      Value<String> id,
+      Value<String> bookId,
+      Value<int> chapterIndex,
+      Value<String?> blockId,
+      Value<int> positionMs,
+      Value<String> audioPath,
+      Value<String?> transcript,
+      Value<String> transcriptStatus,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$MemosTableFilterComposer extends Composer<_$AppDatabase, $MemosTable> {
+  $$MemosTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bookId => $composableBuilder(
+    column: $table.bookId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get chapterIndex => $composableBuilder(
+    column: $table.chapterIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get blockId => $composableBuilder(
+    column: $table.blockId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get positionMs => $composableBuilder(
+    column: $table.positionMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get audioPath => $composableBuilder(
+    column: $table.audioPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get transcript => $composableBuilder(
+    column: $table.transcript,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get transcriptStatus => $composableBuilder(
+    column: $table.transcriptStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MemosTableOrderingComposer
+    extends Composer<_$AppDatabase, $MemosTable> {
+  $$MemosTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bookId => $composableBuilder(
+    column: $table.bookId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get chapterIndex => $composableBuilder(
+    column: $table.chapterIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get blockId => $composableBuilder(
+    column: $table.blockId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get positionMs => $composableBuilder(
+    column: $table.positionMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get audioPath => $composableBuilder(
+    column: $table.audioPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get transcript => $composableBuilder(
+    column: $table.transcript,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get transcriptStatus => $composableBuilder(
+    column: $table.transcriptStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MemosTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MemosTable> {
+  $$MemosTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get bookId =>
+      $composableBuilder(column: $table.bookId, builder: (column) => column);
+
+  GeneratedColumn<int> get chapterIndex => $composableBuilder(
+    column: $table.chapterIndex,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get blockId =>
+      $composableBuilder(column: $table.blockId, builder: (column) => column);
+
+  GeneratedColumn<int> get positionMs => $composableBuilder(
+    column: $table.positionMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get audioPath =>
+      $composableBuilder(column: $table.audioPath, builder: (column) => column);
+
+  GeneratedColumn<String> get transcript => $composableBuilder(
+    column: $table.transcript,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get transcriptStatus => $composableBuilder(
+    column: $table.transcriptStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$MemosTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MemosTable,
+          Memo,
+          $$MemosTableFilterComposer,
+          $$MemosTableOrderingComposer,
+          $$MemosTableAnnotationComposer,
+          $$MemosTableCreateCompanionBuilder,
+          $$MemosTableUpdateCompanionBuilder,
+          (Memo, BaseReferences<_$AppDatabase, $MemosTable, Memo>),
+          Memo,
+          PrefetchHooks Function()
+        > {
+  $$MemosTableTableManager(_$AppDatabase db, $MemosTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MemosTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MemosTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MemosTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> bookId = const Value.absent(),
+                Value<int> chapterIndex = const Value.absent(),
+                Value<String?> blockId = const Value.absent(),
+                Value<int> positionMs = const Value.absent(),
+                Value<String> audioPath = const Value.absent(),
+                Value<String?> transcript = const Value.absent(),
+                Value<String> transcriptStatus = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MemosCompanion(
+                id: id,
+                bookId: bookId,
+                chapterIndex: chapterIndex,
+                blockId: blockId,
+                positionMs: positionMs,
+                audioPath: audioPath,
+                transcript: transcript,
+                transcriptStatus: transcriptStatus,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String bookId,
+                required int chapterIndex,
+                Value<String?> blockId = const Value.absent(),
+                Value<int> positionMs = const Value.absent(),
+                required String audioPath,
+                Value<String?> transcript = const Value.absent(),
+                Value<String> transcriptStatus = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MemosCompanion.insert(
+                id: id,
+                bookId: bookId,
+                chapterIndex: chapterIndex,
+                blockId: blockId,
+                positionMs: positionMs,
+                audioPath: audioPath,
+                transcript: transcript,
+                transcriptStatus: transcriptStatus,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MemosTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MemosTable,
+      Memo,
+      $$MemosTableFilterComposer,
+      $$MemosTableOrderingComposer,
+      $$MemosTableAnnotationComposer,
+      $$MemosTableCreateCompanionBuilder,
+      $$MemosTableUpdateCompanionBuilder,
+      (Memo, BaseReferences<_$AppDatabase, $MemosTable, Memo>),
+      Memo,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -1424,4 +2269,6 @@ class $AppDatabaseManager {
       $$BooksTableTableManager(_db, _db.books);
   $$ChaptersTableTableManager get chapters =>
       $$ChaptersTableTableManager(_db, _db.chapters);
+  $$MemosTableTableManager get memos =>
+      $$MemosTableTableManager(_db, _db.memos);
 }
