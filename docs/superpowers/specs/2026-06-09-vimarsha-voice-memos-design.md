@@ -88,8 +88,10 @@ audio dir.
     with the current `bookId`/`index`/`currentBlockId`/`position.inMilliseconds`;
     a brief "saved · transcribing…" confirmation. (Implemented via a gesture's
     press-down → start, release/cancel → stop.)
-  - Playback does **not** auto-resume on release — the reader chooses when to
-    continue. A very short/empty recording is discarded.
+  - On release, **playback auto-resumes** (`PlayerController.play`) so the reader
+    picks up where they paused — but only if it was playing before recording
+    started (don't start playback if the reader had it paused). A very
+    short/empty recording is discarded.
 - **Notes screen** (top-level; a notes icon in the Library app bar opens it):
   - `watchMemos()` stream, grouped by book (and chapter). Each memo row shows the
     transcript (or "Transcribing…" / "Transcription failed · Retry"), a **play**
