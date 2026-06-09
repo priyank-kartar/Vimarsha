@@ -183,4 +183,16 @@ void main() {
     expect(audio.seeks.last, const Duration(milliseconds: 3000));
     c.dispose();
   });
+
+  test('skip clamps within [0, duration]', () async {
+    final c = make();
+    await c.load('/a.mp3'); // FakeAudioHandler duration = 60s
+    await c.seek(const Duration(seconds: 10));
+    await c.skip(const Duration(seconds: -15));
+    expect(audio.seeks.last, Duration.zero); // clamped at 0
+    await c.seek(const Duration(seconds: 55));
+    await c.skip(const Duration(seconds: 15));
+    expect(audio.seeks.last, const Duration(seconds: 60)); // clamped at duration
+    c.dispose();
+  });
 }
