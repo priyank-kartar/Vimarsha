@@ -16,4 +16,7 @@ abstract class BackendClient {
 
   /// Download the bytes of a figure image by its served name.
   Future<List<int>> downloadImage(String imageName);
+
+  /// Upload an audio clip and get its transcript text.
+  Future<String> transcribe(File audio);
 }

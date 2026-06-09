@@ -51,4 +51,12 @@ void main() {
     expect(() => store.imageFile('bookA', 0, '../evil.png'), throwsArgumentError);
     expect(() => store.imageFile('bookA', 0, 'a/b.png'), throwsArgumentError);
   });
+
+  test('memo files live under the memos dir', () {
+    expect(store.memoFile('m123').path, '${tmp.path}/memos/m123.m4a');
+  });
+
+  test('rejects memo ids that attempt path traversal', () {
+    expect(() => store.memoFile('../evil'), throwsArgumentError);
+  });
 }

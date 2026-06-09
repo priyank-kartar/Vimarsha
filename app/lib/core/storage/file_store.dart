@@ -52,6 +52,11 @@ class FileStore {
   Future<Directory> ensureImagesDir(String bookId, int index) =>
       imagesDir(bookId, index).create(recursive: true);
 
+  Directory memosDir() => Directory(p.join(root.path, 'memos'));
+  File memoFile(String memoId) =>
+      File(p.join(memosDir().path, '${_safeName(memoId)}.m4a'));
+  Future<Directory> ensureMemosDir() => memosDir().create(recursive: true);
+
   Future<Directory> ensureBookDir(String bookId) =>
       bookDir(bookId).create(recursive: true);
   Future<Directory> ensureChapterDir(String bookId, int index) =>
