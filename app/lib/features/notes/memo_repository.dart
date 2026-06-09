@@ -39,6 +39,10 @@ class MemoRepository {
     await _files.ensureMemosDir();
     final dest = _files.memoFile(id);
     await recordedFile.copy(dest.path);
+    // The recorder writes to a temp path; once cached we own only `dest`.
+    try {
+      await recordedFile.delete();
+    } catch (_) {/* best-effort: don't fail the save over a temp cleanup */}
     await _db.into(_db.memos).insert(MemosCompanion.insert(
           id: id,
           bookId: bookId,
