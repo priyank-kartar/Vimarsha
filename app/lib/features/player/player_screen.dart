@@ -97,9 +97,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(chapterTitle.isEmpty ? 'Now Playing' : chapterTitle,
-                style: const TextStyle(fontSize: 16)),
+                style: const TextStyle(fontSize: 16),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
             if (_bookTitle.isNotEmpty)
               Text(_bookTitle,
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                       fontSize: 12,
                       color: Theme.of(context).colorScheme.onSurfaceVariant)),
