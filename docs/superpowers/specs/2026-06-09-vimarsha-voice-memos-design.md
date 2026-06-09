@@ -77,14 +77,19 @@ audio dir.
 
 ## 4. UI (Plan 5b)
 
-- **Record button** in the player chrome (the red ● from the original mockup):
-  - Tap to start: narration pauses (`PlayerController.pause`), recording begins
-    (`RecorderHandler.start` to a temp path), a recording indicator + elapsed
-    timer replaces/augments the transport.
-  - Tap to stop: `stop()` → if a valid clip, `MemoRepository.saveMemo(...)` with
-    the current `bookId`/`index`/`currentBlockId`/`position.inMilliseconds`; a
-    brief "saved · transcribing…" confirmation.
-  - A very short/empty recording is discarded.
+- **Record button** in the player chrome (the red ● from the original mockup) —
+  **hold-to-record**:
+  - **Press and hold** to start: narration **stops** first
+    (`PlayerController.pause`), then recording begins (`RecorderHandler.start` to a
+    temp path). Because playback is stopped, the reading view **freezes** — the
+    paragraph highlight and auto-scroll do not move while recording (position
+    isn't advancing). A recording indicator + elapsed timer shows while held.
+  - **Release** to stop & save: `stop()` → if a valid clip, `MemoRepository.saveMemo(...)`
+    with the current `bookId`/`index`/`currentBlockId`/`position.inMilliseconds`;
+    a brief "saved · transcribing…" confirmation. (Implemented via a gesture's
+    press-down → start, release/cancel → stop.)
+  - Playback does **not** auto-resume on release — the reader chooses when to
+    continue. A very short/empty recording is discarded.
 - **Notes screen** (top-level; a notes icon in the Library app bar opens it):
   - `watchMemos()` stream, grouped by book (and chapter). Each memo row shows the
     transcript (or "Transcribing…" / "Transcription failed · Retry"), a **play**
@@ -132,8 +137,9 @@ audio dir.
   with status `error`; `retryTranscription` updates it; `watchMemos*` stream
   ordering; `deleteMemo` removes row + file. Uses fake `RecorderHandler` + fake
   `BackendClient` + in-memory Drift + temp `FileStore`.
-- **Client widget (5b):** Record button toggles recording state and calls
-  `saveMemo` on stop (fake recorder returns a temp file); Notes screen lists memos
+- **Client widget (5b):** holding the Record button starts recording and pauses
+  playback; releasing stops and calls `saveMemo` (fake recorder returns a temp
+  file); Notes screen lists memos
   from a controlled stream, "open at pin" navigates + seeks, Retry calls the repo.
   (Stream-provider overrides avoid the drift-watch fake-async hang; in-memory
   loadBundle pattern where a real controller is needed.)
