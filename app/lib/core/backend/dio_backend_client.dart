@@ -51,4 +51,13 @@ class DioBackendClient implements BackendClient {
     );
     return resp.data ?? <int>[];
   }
+
+  @override
+  Future<String> transcribe(File audio) async {
+    final form = FormData.fromMap({
+      'file': await MultipartFile.fromFile(audio.path, filename: 'memo.m4a'),
+    });
+    final resp = await _dio.post('/transcribe', data: form);
+    return (resp.data as Map<String, dynamic>)['text'] as String;
+  }
 }

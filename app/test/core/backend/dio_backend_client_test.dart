@@ -94,4 +94,14 @@ void main() {
     final bytes = await DioBackendClient(realDio).downloadImage('chap1_b2.png');
     expect(bytes, payload);
   });
+
+  test('transcribe posts /transcribe and returns text', () async {
+    adapter.onPost(
+      '/transcribe',
+      (server) => server.reply(200, {'text': 'spoken words'}),
+      data: Matchers.any,
+    );
+    final text = await client.transcribe(epub); // any file works as the upload
+    expect(text, 'spoken words');
+  });
 }

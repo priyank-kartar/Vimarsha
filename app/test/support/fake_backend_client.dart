@@ -45,4 +45,15 @@ class FakeBackendClient implements BackendClient {
     imageRequests.add(imageName);
     return image;
   }
+
+  String transcript = 'fake transcript';
+  Object? throwOnTranscribe;
+  final List<String> transcribeRequests = [];
+
+  @override
+  Future<String> transcribe(File audio) async {
+    transcribeRequests.add(audio.path);
+    if (throwOnTranscribe != null) throw throwOnTranscribe!;
+    return transcript;
+  }
 }

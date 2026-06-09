@@ -7,6 +7,9 @@ import 'package:flutter_riverpod/legacy.dart';
 
 import 'audio/audio_handler.dart';
 import 'audio/just_audio_handler.dart';
+import 'audio/recorder_handler.dart';
+import 'audio/record_recorder_handler.dart';
+import '../features/notes/memo_repository.dart';
 import 'backend/backend_client.dart';
 import 'backend/dio_backend_client.dart';
 import 'db/database.dart';
@@ -85,6 +88,20 @@ Future<File?> _pickEpubFromDisk() async {
 }
 
 final filePickerProvider = Provider<EpubPicker>((ref) => _pickEpubFromDisk);
+
+final recorderHandlerProvider = Provider<RecorderHandler>((ref) {
+  final handler = RecordRecorderHandler();
+  ref.onDispose(handler.dispose);
+  return handler;
+});
+
+final memoRepositoryProvider = Provider<MemoRepository>(
+  (ref) => MemoRepository(
+    db: ref.watch(databaseProvider),
+    files: ref.watch(fileStoreProvider),
+    backend: ref.watch(backendClientProvider),
+  ),
+);
 
 /// One PlayerController per (bookId, index). Auto-disposed when the player
 /// screen is left, which cancels subscriptions and saves final progress.
