@@ -103,6 +103,10 @@ final memoRepositoryProvider = Provider<MemoRepository>(
   ),
 );
 
+final memosStreamProvider = StreamProvider<List<Memo>>(
+  (ref) => ref.watch(memoRepositoryProvider).watchMemos(),
+);
+
 /// One PlayerController per (bookId, index). Auto-disposed when the player
 /// screen is left, which cancels subscriptions and saves final progress.
 final playerControllerProvider = ChangeNotifierProvider.autoDispose
