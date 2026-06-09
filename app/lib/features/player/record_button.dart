@@ -27,30 +27,43 @@ class RecordButton extends ConsumerStatefulWidget {
 
 class _RecordButtonState extends ConsumerState<RecordButton> {
   bool _recording = false;
+  bool _starting = false;
+  bool _pressed = false; // set synchronously by the gesture handlers
   bool _wasPlaying = false;
 
   Future<void> _start() async {
-    if (_recording) return;
+    if (_recording || _starting) return;
+    _starting = true;
     _wasPlaying = widget.controller.playing;
     await widget.controller.pause(); // also freezes the reading view (position stops)
     final file = await ref.read(fileStoreProvider).newRecordingFile();
     try {
       await ref.read(recorderHandlerProvider).start(file.path);
-      setState(() => _recording = true);
     } on RecorderPermissionDenied {
+      _starting = false;
+      if (_wasPlaying) await widget.controller.play(); // don't leave it stuck paused
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Microphone permission denied')),
         );
       }
+      return;
     }
+    _starting = false;
+    _recording = true;
+    if (mounted) setState(() {});
+    // The user may have released while start() was still awaiting — stop now so
+    // we never strand an in-flight recording or leave playback paused.
+    if (!_pressed) await _stop();
   }
 
   Future<void> _stop() async {
     if (!_recording) return;
-    setState(() => _recording = false);
+    _recording = false;
+    if (mounted) setState(() {});
     final path = await ref.read(recorderHandlerProvider).stop();
     final messenger = mounted ? ScaffoldMessenger.of(context) : null;
+    var saved = false;
     if (path != null) {
       final f = File(path);
       if (f.existsSync() && f.lengthSync() > 0) {
@@ -61,9 +74,16 @@ class _RecordButtonState extends ConsumerState<RecordButton> {
               positionMs: widget.controller.position.inMilliseconds,
               recordedFile: f,
             );
+        saved = true;
         messenger?.showSnackBar(
           const SnackBar(content: Text('Memo saved · transcribing…')),
         );
+      }
+      if (!saved) {
+        // Discard a too-short/empty clip rather than leaking it in rec/.
+        try {
+          if (f.existsSync()) f.deleteSync();
+        } catch (_) {/* best-effort */}
       }
     }
     if (_wasPlaying) await widget.controller.play();
@@ -72,9 +92,18 @@ class _RecordButtonState extends ConsumerState<RecordButton> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTapDown: (_) => _start(),
-      onTapUp: (_) => _stop(),
-      onTapCancel: _stop,
+      onTapDown: (_) {
+        _pressed = true;
+        _start();
+      },
+      onTapUp: (_) {
+        _pressed = false;
+        _stop();
+      },
+      onTapCancel: () {
+        _pressed = false;
+        _stop();
+      },
       child: Container(
         width: 56,
         height: 56,

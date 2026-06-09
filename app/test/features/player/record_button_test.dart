@@ -74,4 +74,55 @@ void main() {
     expect(memos, hasLength(1));
     expect(memos.single.bookId, 'b1');
   });
+
+  testWidgets('releasing during start does not strand the recording', (tester) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    final tmp = Directory.systemTemp.createTempSync('rb2');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    final files = FileStore(tmp);
+    final audio = FakeAudioHandler();
+    final recorder = FakeRecorderHandler();
+    final chapters =
+        ChapterRepository(db: db, files: files, backend: FakeBackendClient());
+    final controller = PlayerController(
+        audio: audio, chapters: chapters, files: files, bookId: 'b1', index: 0);
+    addTearDown(controller.dispose);
+    await tester.runAsync(() async {
+      await controller.load('/a.mp3');
+      await controller.play();
+    });
+
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        fileStoreProvider.overrideWithValue(files),
+        backendClientProvider.overrideWithValue(FakeBackendClient()),
+        recorderHandlerProvider.overrideWithValue(recorder),
+      ],
+      child: MaterialApp(
+        home: Scaffold(
+          body: RecordButton(controller: controller, bookId: 'b1', index: 0),
+        ),
+      ),
+    ));
+    await tester.pump();
+
+    // Press then release almost immediately (before start() finishes awaiting).
+    await tester.runAsync(() async {
+      final gesture =
+          await tester.startGesture(tester.getCenter(find.byType(RecordButton)));
+      await gesture.up();
+      // let the start→stop sequence settle
+      for (var i = 0; i < 20; i++) {
+        if (!recorder.isRecording && controller.playing) break;
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+    });
+    await tester.pump();
+
+    // The recorder must not be left running, and playback must have resumed.
+    expect(recorder.isRecording, isFalse);
+    expect(controller.playing, isTrue);
+  });
 }

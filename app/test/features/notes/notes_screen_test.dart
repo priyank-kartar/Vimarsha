@@ -11,6 +11,7 @@ import 'package:vimarsha/core/storage/file_store.dart';
 import 'package:vimarsha/features/book/chapter_repository.dart';
 import 'package:vimarsha/features/notes/notes_screen.dart';
 
+import '../../support/fake_audio_handler.dart';
 import '../../support/fake_backend_client.dart';
 
 /// Spy chapter repo to verify "open at pin" sets the resume position.
@@ -62,6 +63,7 @@ void main() {
         fileStoreProvider.overrideWithValue(files),
         backendClientProvider.overrideWithValue(FakeBackendClient()),
         chapterRepositoryProvider.overrideWithValue(chapters),
+        memoAudioHandlerProvider.overrideWithValue(FakeAudioHandler()),
         booksStreamProvider.overrideWith(
           (ref) => Stream.value([
             Book(

@@ -63,6 +63,15 @@ final audioHandlerProvider = Provider<AudioHandler>((ref) {
   return handler;
 });
 
+/// A SEPARATE audio handler for memo playback on the Notes screen, so playing a
+/// memo never drives the chapter player's position stream (which would corrupt
+/// the saved reading position).
+final memoAudioHandlerProvider = Provider<AudioHandler>((ref) {
+  final handler = JustAudioHandler();
+  ref.onDispose(handler.dispose);
+  return handler;
+});
+
 /// Streams the library (title/author rows) for the library screen.
 final booksStreamProvider = StreamProvider<List<Book>>(
   (ref) => ref.watch(libraryRepositoryProvider).watchBooks(),

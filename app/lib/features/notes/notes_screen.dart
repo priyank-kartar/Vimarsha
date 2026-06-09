@@ -4,28 +4,46 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/audio/audio_handler.dart';
 import '../../core/db/database.dart';
 import '../../core/providers.dart';
 
-class NotesScreen extends ConsumerWidget {
+class NotesScreen extends ConsumerStatefulWidget {
   const NotesScreen({super.key});
 
-  Future<void> _openAtPin(BuildContext context, WidgetRef ref, Memo m) async {
-    // Set the chapter's resume point to the memo's position, then open the player.
-    await ref.read(chapterRepositoryProvider)
-        .saveProgress(m.bookId, m.chapterIndex, m.positionMs);
-    if (context.mounted) context.push('/player/${m.bookId}/${m.chapterIndex}');
+  @override
+  ConsumerState<NotesScreen> createState() => _NotesScreenState();
+}
+
+class _NotesScreenState extends ConsumerState<NotesScreen> {
+  // Captured when a memo is played, so dispose() can stop it WITHOUT using `ref`
+  // (ref is unusable in dispose()).
+  AudioHandler? _memoAudio;
+
+  @override
+  void dispose() {
+    _memoAudio?.pause();
+    super.dispose();
   }
 
-  Future<void> _play(WidgetRef ref, Memo m) async {
+  Future<void> _openAtPin(Memo m) async {
+    // Set the chapter's resume point to the memo's position, then open the player.
+    await ref
+        .read(chapterRepositoryProvider)
+        .saveProgress(m.bookId, m.chapterIndex, m.positionMs);
+    if (mounted) context.push('/player/${m.bookId}/${m.chapterIndex}');
+  }
+
+  Future<void> _play(Memo m) async {
     if (!File(m.audioPath).existsSync()) return;
-    final audio = ref.read(audioHandlerProvider);
+    final audio = ref.read(memoAudioHandlerProvider); // separate from the chapter player
+    _memoAudio = audio;
     await audio.load(m.audioPath);
     await audio.play();
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final memos = ref.watch(memosStreamProvider);
     final books = ref.watch(booksStreamProvider).asData?.value ?? const <Book>[];
     final titles = {for (final b in books) b.id: b.title};
@@ -56,7 +74,7 @@ class NotesScreen extends ConsumerWidget {
                 leading: IconButton(
                   icon: const Icon(Icons.play_arrow),
                   tooltip: 'Play memo',
-                  onPressed: () => _play(ref, m),
+                  onPressed: () => _play(m),
                 ),
                 trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                   if (m.transcriptStatus == 'error')
@@ -69,7 +87,7 @@ class NotesScreen extends ConsumerWidget {
                   IconButton(
                     icon: const Icon(Icons.my_location),
                     tooltip: 'Open at this spot',
-                    onPressed: () => _openAtPin(context, ref, m),
+                    onPressed: () => _openAtPin(m),
                   ),
                   IconButton(
                     icon: const Icon(Icons.delete_outline),
