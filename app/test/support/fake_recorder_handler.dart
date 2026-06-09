@@ -15,7 +15,7 @@ class FakeRecorderHandler implements RecorderHandler {
   @override
   Future<void> start(String filePath) async {
     if (permissionDenied) throw const RecorderPermissionDenied();
-    await File(filePath).writeAsBytes(const [1, 2, 3, 4]);
+    File(filePath).writeAsBytesSync(const [1, 2, 3, 4]);
     startedPath = filePath;
     _recording = true;
   }
