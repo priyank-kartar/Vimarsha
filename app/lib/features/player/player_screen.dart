@@ -7,6 +7,7 @@ import 'figure_overlay.dart';
 import 'figures_gallery.dart';
 import 'player_controller.dart';
 import 'reading_view.dart';
+import 'record_button.dart';
 
 const _speeds = [0.75, 1.0, 1.25, 1.5, 2.0];
 
@@ -144,6 +145,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       alignment: Alignment.bottomCenter,
                       child: _Transport(
                         c: c,
+                        bookId: widget.bookId,
+                        index: widget.index,
                         maxMs: maxMs,
                         dragMs: _dragMs,
                         onDrag: (v) => setState(() => _dragMs = v),
@@ -163,6 +166,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 class _Transport extends StatelessWidget {
   const _Transport({
     required this.c,
+    required this.bookId,
+    required this.index,
     required this.maxMs,
     required this.dragMs,
     required this.onDrag,
@@ -171,6 +176,8 @@ class _Transport extends StatelessWidget {
   });
 
   final PlayerController c;
+  final String bookId;
+  final int index;
   final int maxMs;
   final double? dragMs;
   final ValueChanged<double> onDrag;
@@ -218,6 +225,8 @@ class _Transport extends StatelessWidget {
             ),
             const SizedBox(width: 16),
             ActionChip(label: Text(_speedLabel(c.speed)), onPressed: onCycleSpeed),
+            const SizedBox(width: 16),
+            RecordButton(controller: c, bookId: bookId, index: index),
           ]),
         ]),
       ),

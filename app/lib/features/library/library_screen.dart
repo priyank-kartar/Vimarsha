@@ -27,7 +27,16 @@ class LibraryScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final books = ref.watch(booksStreamProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Library')),
+      appBar: AppBar(
+        title: const Text('Library'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.sticky_note_2_outlined),
+            tooltip: 'Notes',
+            onPressed: () => context.push('/notes'),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _addBook(context, ref),
         child: const Icon(Icons.add),

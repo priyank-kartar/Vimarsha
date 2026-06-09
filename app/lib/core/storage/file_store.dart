@@ -75,4 +75,10 @@ class FileStore {
       await dir.delete(recursive: true);
     }
   }
+
+  Directory _recDir() => Directory(p.join(root.path, 'rec'));
+  Future<File> newRecordingFile() async {
+    _recDir().createSync(recursive: true);
+    return File(p.join(_recDir().path, 'rec_${DateTime.now().microsecondsSinceEpoch}.m4a'));
+  }
 }

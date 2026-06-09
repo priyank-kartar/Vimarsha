@@ -59,4 +59,11 @@ void main() {
   test('rejects memo ids that attempt path traversal', () {
     expect(() => store.memoFile('../evil'), throwsArgumentError);
   });
+
+  test('newRecordingFile lives under rec/ and creates the dir', () async {
+    final f = await store.newRecordingFile();
+    expect(f.path, startsWith('${tmp.path}/rec/'));
+    expect(f.path, endsWith('.m4a'));
+    expect(Directory('${tmp.path}/rec').existsSync(), isTrue);
+  });
 }

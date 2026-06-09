@@ -12,6 +12,7 @@ import 'package:vimarsha/core/providers.dart';
 import 'package:vimarsha/core/storage/file_store.dart';
 import 'package:vimarsha/features/book/chapter_repository.dart';
 import 'package:vimarsha/features/player/player_screen.dart';
+import 'package:vimarsha/features/player/record_button.dart';
 
 import '../../support/fake_audio_handler.dart';
 import '../../support/fake_backend_client.dart';
@@ -70,5 +71,6 @@ void main() {
     await tester.pump();
     expect(audio.playCalled, isTrue);
     expect(find.text('1.0×'), findsOneWidget); // compact speed chip
+    expect(find.byType(RecordButton), findsOneWidget); // hold-to-record present
   });
 }
