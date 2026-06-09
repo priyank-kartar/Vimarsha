@@ -50,7 +50,7 @@ class BookScreen extends ConsumerWidget {
               trailing: _trailing(context, ref, c),
               enabled: ready,
               onTap: ready
-                  ? () => context.go('/player/$bookId/${c.chapterIndex}')
+                  ? () => context.push('/player/$bookId/${c.chapterIndex}')
                   : null,
             );
           },

@@ -47,7 +47,7 @@ class LibraryScreen extends ConsumerWidget {
                 leading: const Icon(Icons.menu_book),
                 title: Text(b.title),
                 subtitle: b.author.isEmpty ? null : Text(b.author),
-                onTap: () => context.go('/book/${b.id}'),
+                onTap: () => context.push('/book/${b.id}'),
               );
             },
           );
