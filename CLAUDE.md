@@ -1,7 +1,10 @@
 # Vimarsha — Agent Guide
 
-Onboarding for the next coding agent. Read this first, then the spec in
-`docs/superpowers/specs/` for full detail.
+Onboarding for the next coding agent. Read this first. The **planning knowledge base**
+(vision, decisions/ADRs, roadmap, and the agent-runnable build items) lives in
+[`plan/`](plan/README.md) — to build the next thing, start at
+`plan/08-engineering/build-roadmap.md`. Historical per-plan specs are in
+`docs/superpowers/specs/`.
 
 ## What this is
 
@@ -156,13 +159,13 @@ Done and merged to `main` (each verified + code-reviewed):
 
 Test counts on `main`: ~55 backend, ~85 app, `flutter analyze` clean.
 
-**Pivot (2026-06-10):** the client is being rebuilt in native Swift + Liquid Glass under
-`apple/` (see "Client direction" above and `apple/CLAUDE.md`). Whether Plan 6b still lands
-in Flutter first or goes straight into the Swift client is the user's call — ask before
-starting it.
-
-Remaining (each its own spec → plan → implement cycle):
-- **Plan 6b — Discuss UI (NEXT):** record-button dual gesture (long-press = memo,
+**Pivot (2026-06-10/11):** the client is rebuilt in native Swift + Liquid Glass under
+`apple/` (see "Client direction" above and `apple/CLAUDE.md`). **The Flutter client is
+FROZEN** (ADR-007 in `plan/00-overview/decision-log.md`) — it stays green as the behavioral
+reference, but all new feature work is Swift-only, driven by
+`plan/08-engineering/build-roadmap.md`. The items below are retained as the *behavioral
+specs* their native rebuilds follow (Plan 6b → roadmap bucket P5, Plan 7 → bucket P6):
+- **Plan 6b — Discuss UI (frozen; native rebuild = P5):** record-button dual gesture (long-press = memo,
   double-tap = open Discuss **without pausing playback**), the Discuss panel
   (keyboard-default input + hold-to-talk, text replies + speaker, **Save**), and the
   Conversations screen. Pause chapter audio (client-side) while a reply is spoken or
