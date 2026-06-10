@@ -15,3 +15,4 @@ backend/dist/
 
 # Flutter build output (repo root)
 build/
+.agent-loop/
