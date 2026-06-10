@@ -101,7 +101,14 @@ is Ollama).
     field for review/send.
   - Each assistant bubble: text + a **speaker** icon → `BackendClient.speak` →
     play the returned audio on the **separate aux/memo handler**
-    (`memoAudioHandlerProvider`) so the chapter audio is undisturbed.
+    (`memoAudioHandlerProvider`).
+  - **Pause-on-audio-conflict (client-side only):** opening the panel does NOT
+    pause the chapter, but two concrete in-panel actions DO — (a) tapping the
+    **speaker** to hear a reply aloud, and (b) **voice-typing** a question
+    (hold-to-talk recording). While either is active the chapter playback is
+    paused so the streams don't overlap, and resumes afterward **if it was
+    playing**. This is purely client-side (the `PlayerController`); the backend
+    is unaware.
   - A **Save** button persists the thread (`ChatRepository.saveThread`) with the
     captured book/chapter/anchor; a "saved" confirmation. Closing without Save
     discards the conversation.
