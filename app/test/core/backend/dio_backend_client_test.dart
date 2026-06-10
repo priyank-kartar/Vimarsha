@@ -5,6 +5,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http_mock_adapter/http_mock_adapter.dart';
 import 'package:vimarsha/core/backend/dio_backend_client.dart';
+import 'package:vimarsha/core/models/chat_context.dart';
+import 'package:vimarsha/core/models/chat_message.dart';
 
 void main() {
   late Dio dio;
@@ -103,5 +105,34 @@ void main() {
     );
     final text = await client.transcribe(epub); // any file works as the upload
     expect(text, 'spoken words');
+  });
+
+  test('chat posts /chat and returns the reply', () async {
+    adapter.onPost(
+      '/chat',
+      (server) => server.reply(200, {'reply': 'because they trusted each other'}),
+      data: Matchers.any,
+    );
+    final text = await client.chat(
+      const [ChatMessage(role: 'user', text: 'why?')],
+      const ChatContext(
+          passage: 'p', bookTitle: 'B', chapterTitle: 'C'),
+    );
+    expect(text, 'because they trusted each other');
+  });
+
+  test('speak posts /speak and returns bytes', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    final payload = [137, 80, 78, 71, 13];
+    server.listen((req) {
+      req.response
+        ..headers.contentType = ContentType('audio', 'mpeg')
+        ..add(payload);
+      req.response.close();
+    });
+    final realDio = Dio(BaseOptions(baseUrl: 'http://${server.address.host}:${server.port}'));
+    final bytes = await DioBackendClient(realDio).speak('hi');
+    expect(bytes, payload);
   });
 }

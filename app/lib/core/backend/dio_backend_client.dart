@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 
 import '../models/chapter_bundle.dart';
+import '../models/chat_context.dart';
+import '../models/chat_message.dart';
 import '../models/toc_response.dart';
 import 'backend_client.dart';
 
@@ -59,5 +61,24 @@ class DioBackendClient implements BackendClient {
     });
     final resp = await _dio.post('/transcribe', data: form);
     return (resp.data as Map<String, dynamic>)['text'] as String;
+  }
+
+  @override
+  Future<String> chat(List<ChatMessage> messages, ChatContext context) async {
+    final resp = await _dio.post('/chat', data: {
+      'messages': messages.map((m) => m.toJson()).toList(),
+      'context': context.toJson(),
+    });
+    return (resp.data as Map<String, dynamic>)['reply'] as String;
+  }
+
+  @override
+  Future<List<int>> speak(String text) async {
+    final resp = await _dio.post<List<int>>(
+      '/speak',
+      data: {'text': text},
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return resp.data ?? <int>[];
   }
 }

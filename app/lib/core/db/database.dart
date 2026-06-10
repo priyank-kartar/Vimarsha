@@ -43,18 +43,45 @@ class Memos extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Books, Chapters, Memos])
+class ChatThreads extends Table {
+  TextColumn get id => text()();
+  TextColumn get bookId => text()();
+  IntColumn get chapterIndex => integer()();
+  TextColumn get anchorBlockId => text().nullable()();
+  TextColumn get title => text().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class ChatLines extends Table {
+  TextColumn get id => text()();
+  TextColumn get threadId => text()();
+  TextColumn get role => text()();
+  TextColumn get body => text()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DriftDatabase(tables: [Books, Chapters, Memos, ChatThreads, ChatLines])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) => m.createAll(),
         onUpgrade: (m, from, to) async {
           if (from < 2) await m.createTable(memos);
+          if (from < 3) {
+            await m.createTable(chatThreads);
+            await m.createTable(chatLines);
+          }
         },
       );
 }

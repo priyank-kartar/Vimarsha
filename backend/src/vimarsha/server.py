@@ -1,23 +1,59 @@
 from __future__ import annotations
 
+import os
 import tempfile
 from pathlib import Path
 
+import numpy as np
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 
+from vimarsha.audio_io import write_mp3
 from vimarsha.epub_reader import read_chapters
 from vimarsha.figure_images import extract_images
 from vimarsha.ingest import ingest_epub
+from vimarsha.llm import LlmClient, OllamaLlmClient
 from vimarsha.metadata import read_book_meta
-from vimarsha.models import ChapterSummary, TocResponse
+from vimarsha.models import ChatContextModel, ChatRequest, ChapterSummary, SpeakRequest, TocResponse
 from vimarsha.narrate import narrate_bundle
+from vimarsha.stitch import assemble
 from vimarsha.transcribe import FasterWhisperTranscriber, Transcriber
-from vimarsha.tts import ChatterboxSynth, Synthesizer
+from vimarsha.tts import ChatterboxSynth, Synthesizer, chunk_text
 
 app = FastAPI(title="Vimarsha backend")
 app.state.audio_dir = tempfile.mkdtemp(prefix="vimarsha-audio-")
+
+
+_llm: LlmClient | None = None
+
+
+def get_llm() -> LlmClient:
+    """Cached Ollama client; overridden in tests."""
+    global _llm
+    if _llm is None:
+        _llm = OllamaLlmClient()
+    return _llm
+
+
+def _chat_system(ctx: ChatContextModel) -> str:
+    fig = f"\nA figure on screen is captioned: {ctx.figure_caption}" if ctx.figure_caption else ""
+    return (
+        f"You are a thoughtful reading companion discussing "
+        f"\"{ctx.book_title}\" — chapter \"{ctx.chapter_title}\".\n"
+        f"The reader is currently on this passage:\n\"\"\"\n{ctx.passage}\n\"\"\"{fig}\n"
+        f"Answer their questions about it clearly and concisely. Ground your "
+        f"answer in this passage; if it isn't covered, say so briefly."
+    )
+
+
+@app.post("/chat")
+async def chat(req: ChatRequest, llm: LlmClient = Depends(get_llm)):
+    system = _chat_system(req.context)
+    messages = [{"role": m.role, "content": m.text} for m in req.messages]
+    reply = await run_in_threadpool(llm.reply, system, messages)
+    return {"reply": reply}
 
 
 def get_synth() -> Synthesizer:
@@ -125,3 +161,27 @@ def get_audio(name: str):
     if not path.is_file() or not path.is_relative_to(base):
         raise HTTPException(status_code=404, detail="audio not found")
     return FileResponse(str(path), media_type="audio/mpeg")
+
+
+@app.post("/speak")
+async def speak(req: SpeakRequest, synth: Synthesizer = Depends(get_synth)):
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="empty text")
+
+    def _render() -> str:
+        out = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
+        out.close()
+        try:
+            wav = np.concatenate([synth.synthesize(c) for c in chunk_text(req.text)])
+            full, _timings = assemble([("reply", wav)], synth.sample_rate, 0)
+            write_mp3(full, synth.sample_rate, out.name)
+        except BaseException:
+            # Don't leak the temp file if synthesis/encoding fails.
+            os.remove(out.name)
+            raise
+        return out.name
+
+    path = await run_in_threadpool(_render)
+    return FileResponse(
+        path, media_type="audio/mpeg", background=BackgroundTask(os.remove, path)
+    )

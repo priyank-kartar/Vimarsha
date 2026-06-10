@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:vimarsha/core/backend/backend_client.dart';
 import 'package:vimarsha/core/models/chapter_bundle.dart';
+import 'package:vimarsha/core/models/chat_context.dart';
+import 'package:vimarsha/core/models/chat_message.dart';
 import 'package:vimarsha/core/models/toc_response.dart';
 
 /// In-test BackendClient. Returns canned values; can be told to throw.
@@ -55,5 +57,24 @@ class FakeBackendClient implements BackendClient {
     transcribeRequests.add(audio.path);
     if (throwOnTranscribe != null) throw throwOnTranscribe!;
     return transcript;
+  }
+
+  String reply = 'a thoughtful answer';
+  List<int> speech = const [137, 80, 78, 71];
+  Object? throwOnChat;
+  Object? throwOnSpeak;
+  final List<List<ChatMessage>> chatCalls = [];
+
+  @override
+  Future<String> chat(List<ChatMessage> messages, ChatContext context) async {
+    chatCalls.add(messages);
+    if (throwOnChat != null) throw throwOnChat!;
+    return reply;
+  }
+
+  @override
+  Future<List<int>> speak(String text) async {
+    if (throwOnSpeak != null) throw throwOnSpeak!;
+    return speech;
   }
 }
