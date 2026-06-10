@@ -25,6 +25,16 @@ account — `gh auth switch --user kartar-sachmeet`).
 
 Tests on `main`: ~55 backend (pytest), ~85 app (flutter test), `flutter analyze` clean.
 
+## NEW (2026-06-10): native Swift + Liquid Glass client direction
+
+The client is being rebuilt **native Swift (SwiftUI), iOS 26 + macOS 26, Liquid Glass,
+UI-first** under `apple/` — full parity, same backend contract, Flutter `app/` stays as the
+reference implementation. The UI bible is **`apple/CLAUDE.md`** (palette tokens, motion
+grammar, glass rules); the reference-video analysis is `apple/docs/reference/`. No Swift
+code exists yet — the first Swift plan should scaffold the Xcode project + the depth-stack
+parallax library scroll. **Open question for the user:** does Plan 6b below still land in
+Flutter first, or go straight into the Swift client? Ask before starting.
+
 ## Do next: Plan 6b — the Discuss UI
 
 - **Spec:** `docs/superpowers/specs/2026-06-10-vimarsha-deep-dive-conversation-design.md`
