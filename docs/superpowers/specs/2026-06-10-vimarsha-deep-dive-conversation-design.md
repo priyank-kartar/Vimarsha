@@ -26,17 +26,19 @@ In scope:
   (single hold still records a memo). Opening Discuss does **not** pause playback.
 - Ask by **keyboard (default)** or a secondary **hold-to-talk** mic (transcribed
   via the existing `/transcribe`).
-- Answers from a **local LLM (Ollama)**, grounded in the passage where Discuss was
-  opened (the read paragraph + a window + any active figure) and the running
-  conversation. Answer shown as **text first**, with a **speaker** button to read
-  it aloud via Chatterbox (`/speak`).
-- Conversation is **ephemeral** until the user taps **Save**; saved threads are
-  listed on a **Conversations** screen (review, reopen as read-only history,
-  delete).
+- Answers from a **local LLM (Ollama)**, grounded in the **passage currently being
+  narrated at the moment each question is sent** (the live paragraph + a window +
+  any active figure) plus the running conversation. So the grounding rides along
+  with playback — a follow-up asked a minute later is grounded on what's being
+  read then. Answer shown as **text first**, with a **speaker** button to read it
+  aloud via Chatterbox (`/speak`).
+- Conversation is **ephemeral** until the user taps **Save**; each Save creates a
+  **new** thread (multiple per chapter allowed), listed on a **Conversations**
+  screen (review, reopen as read-only history, delete).
 
-Out of scope: streaming token-by-token replies, multi-thread-per-chapter, editing
-saved threads, the figure-mention LLM fallback (Plan 7), cloud LLM (the seam
-allows it later but v1 is Ollama).
+Out of scope: streaming token-by-token replies, editing saved threads, the
+figure-mention LLM fallback (Plan 7), cloud LLM (the seam allows it later but v1
+is Ollama).
 
 ---
 
@@ -47,9 +49,11 @@ allows it later but v1 is Ollama).
   (`http://localhost:11434/api/chat`, default model `llama3.2:3b`, configurable).
   Behind a cached `get_llm()` dependency (overridden by a fake in tests).
 - **`POST /chat`** — body `{messages: [{role, text}], context: {passage,
-  figureCaption?, bookTitle, chapterTitle}}`. Builds a grounded system prompt
-  ("You are discussing this passage from {book}/{chapter}: … Answer using it; say
-  if it's not covered.") + the message history, calls the LLM, returns `{reply}`.
+  figureCaption?, bookTitle, chapterTitle}}` where `context` is the snapshot
+  attached to the **latest** user message (the passage being narrated when it was
+  sent). Builds a grounded system prompt ("You are discussing this passage from
+  {book}/{chapter}: … Answer using it; say if it's not covered.") + the message
+  history, calls the LLM, returns `{reply}`.
 - **`POST /speak`** — `{text}` → `ChatterboxSynth` → MP3 bytes
   (`audio/mpeg`). Reuses the existing synth + `audio_io`. The opt-in
   read-the-answer-aloud path.
@@ -67,16 +71,19 @@ allows it later but v1 is Ollama).
 - **`ChatMessage`** model (`role` `user|assistant`, `text`) and **`ChatContext`**
   (`passage`, `figureCaption?`, `bookTitle`, `chapterTitle`).
 - **`ChatController`** (Riverpod `ChangeNotifier`/Notifier, **in-memory**): holds
-  `List<ChatMessage>` + a `sending` flag; `sendMessage(text)` appends the user
-  message, calls `backend.chat(messages, context)`, appends the assistant reply;
-  on backend failure appends an error/marker the UI can retry. Constructed with
-  the `ChatContext` captured when Discuss opens. **Nothing is persisted here.**
+  `List<ChatMessage>` + a `sending` flag; constructed with a `ChatContext
+  Function()` `contextSnapshot` that reads the *live* passage (current paragraph +
+  window + active figure) at call time. `sendMessage(text)` appends the user
+  message, calls `backend.chat(messages, contextSnapshot())` — snapshotting the
+  passage **at send time** — appends the assistant reply; on backend failure
+  appends an error/marker the UI can retry. **Nothing is persisted here.**
 - **Drift `ChatThreads`** (`id`, `bookId`, `chapterIndex`, `anchorBlockId?`,
   `title?`, `createdAt`) + **`ChatMessages`** (`id`, `threadId`, `role`, `text`,
-  `createdAt`); schema migration 2→3 (`createTable` both).
+  `createdAt`); schema migration 2→3 (`createTable` both). Multiple threads per
+  `(bookId, chapterIndex)` are allowed.
 - **`ChatRepository`** (persistence only): `saveThread({bookId, chapterIndex,
-  anchorBlockId, title, messages}) -> Future<String>` (insert thread + messages in
-  a transaction; rows exist only after an explicit Save), `watchThreads`,
+  anchorBlockId, title, messages}) -> Future<String>` always inserts a **new**
+  thread + its messages in a transaction (one per Save), `watchThreads`,
   `watchMessages(threadId)`, `getThreadMessages`, `deleteThread`.
 
 ---
@@ -113,8 +120,10 @@ allows it later but v1 is Ollama).
   Conversations screen only reads persistence.
 - Reply audio uses the existing `memoAudioHandlerProvider` (separate from the
   chapter player), so speaking an answer never disturbs the running narration.
-- Context is **anchored at panel-open** (the paragraph being read + window +
-  active figure caption), so the thread stays coherent though playback advances.
+- Context is **snapshotted per user message** (the paragraph being read + window +
+  active figure caption at send time), so a thread stays coherent as playback
+  advances and follow-ups are grounded on what's being read then. The thread's
+  `anchorBlockId` records where Discuss was opened, for reference.
 
 ---
 
