@@ -21,11 +21,11 @@ full client-facing set (the root guide's shorter list is the import-time core); 
 per-feature specs and mirrored from the Flutter client. The client keeps the original EPUB
 and re-uploads it per chapter download, exactly like the Flutter client.
 
-**Cover art is NOT in the current contract.** `BookMeta` is `{title, author}` only; `/toc`
-returns no cover and the schema has no cover field. The Swift client must either extract
-the cover image from the EPUB it already holds locally, or the backend grows a cover
-field/endpoint — an open decision the library/scaffold spec owns. Until then, first-plan
-work uses placeholder covers deliberately.
+**Cover art is client-side (decided 2026-06-11).** The contract has no cover field
+(`BookMeta` is `{title, author}` only) and the backend stays untouched: the Swift client
+extracts/renders covers itself from the EPUB it already holds locally. Until the library
+plan wires `/toc` + EPUB cover extraction, the shelf renders from static seed data
+(`Library/BookSeed.swift`) with generated cloth-bound covers.
 
 ## The Prime Directive: all motion, no pages
 
@@ -207,20 +207,27 @@ a `NavigationStack` push or sheet. The exact choreography belongs to each featur
 - Restraint: motion serves comprehension (where things came from / where they went). If an
   animation doesn't explain spatial continuity, cut it.
 
-## Project setup & how to run (defined by the scaffold plan)
+## Project setup & how to run (verified 2026-06-11)
 
-No Swift code exists yet; the first plan scaffolds the project. Conventions it must follow:
-
-- **Product/target name `Vimarsha`**; bundle id `com.vimarsha.apple` (the Flutter app owns
+- **Product/target name `Vimarsha`**, bundle id `com.vimarsha.apple` (the Flutter app owns
   `com.vimarsha.vimarsha` — see `app/macos/Runner/Configs/AppInfo.xcconfig`; don't collide,
   both may be installed during the transition).
-- Layout: `apple/Vimarsha.xcodeproj`, sources in `apple/Vimarsha/` (with `Palette.swift` at
-  `apple/Vimarsha/Design/Palette.swift`), tests in `apple/VimarshaTests/`.
-- Expected commands (the scaffold plan writes the real ones back into this section):
+- Layout: `apple/Vimarsha.xcodeproj` (hand-authored, **folder-synchronized** — new files in
+  `Vimarsha/`/`VimarshaTests/` join their target automatically, no pbxproj edits), sources
+  in `apple/Vimarsha/` (`Design/Palette.swift`, `Library/…`), tests in `apple/VimarshaTests/`.
+- Build & test (both verified green):
   ```bash
   cd apple
-  xcodebuild -scheme Vimarsha -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test
   xcodebuild -scheme Vimarsha -destination 'platform=macOS' test
+  xcodebuild -scheme Vimarsha -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test
+  ```
+- Run on the simulator:
+  ```bash
+  xcodebuild -scheme Vimarsha -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
+  APP=$(find ~/Library/Developer/Xcode/DerivedData/Vimarsha-*/Build/Products/Debug-iphonesimulator -name Vimarsha.app | head -1)
+  xcrun simctl boot "iPhone 17 Pro" 2>/dev/null; xcrun simctl install "iPhone 17 Pro" "$APP"
+  xcrun simctl launch "iPhone 17 Pro" com.vimarsha.apple
+  xcrun simctl ui "iPhone 17 Pro" appearance dark   # canonical mode
   ```
 - Requires Xcode 26 with the iOS 26 simulator runtime and macOS 26 SDK installed.
 - Backend for live runs: same as root CLAUDE.md (`uv run uvicorn vimarsha.server:app
@@ -259,6 +266,10 @@ check it against the named pattern in this file before merge.
 
 ## Status
 
-- 2026-06-10: direction set (this document). No Swift code exists yet — the first plan
-  should scaffold the Xcode project + `Palette.swift` + the depth-stack parallax scroll
-  with placeholder covers, since the stack is the product's signature.
+- 2026-06-10: direction set (this document).
+- 2026-06-11: **scaffold landed** (spec: `docs/superpowers/specs/2026-06-11-vimarsha-apple-scaffold-design.md`) —
+  Xcode project (multiplatform, folder-synchronized), `Palette.swift`, static `BookSeed`
+  shelf, generated hardback covers, **depth-stack parallax scroll** (`StackTransform`
+  pure math, 7 unit tests, `visualEffect`-driven), glass top-scrim capsule, Reduce Motion
+  flat-list fallback. Verified on iPhone 17 Pro simulator (dark + light) and macOS.
+  Next: book focus + glass control cluster, or `/toc` wiring + client-side EPUB covers.
