@@ -193,14 +193,19 @@ private struct BookTower: View {
             HardbackCoverView(book: book)
                 .frame(width: min(size.width * widthFactor(at: index), 460))
                 .visualEffect { content, proxy in
-                    let t = StackTransform.at(
-                        midY: proxy.frame(in: .scrollView).midY,
-                        viewportHeight: viewportHeight
-                    )
+                    let midY = proxy.frame(in: .scrollView).midY
+                    let t = StackTransform.at(midY: midY, viewportHeight: viewportHeight)
+                    // Slot-emit staircase fan-up (motion grammar #4): below the front slot the
+                    // cover rises from the bottom shelf anchor; above it `emit` is identity and
+                    // `StackTransform` owns the recede — the two compose seamlessly at the slot.
+                    let emit = SlotEmit.at(midY: midY, viewportHeight: viewportHeight)
                     return content
-                        .scaleEffect(t.scale * (1 + promotion * BookFocus.scaleBoost), anchor: .bottom)
-                        .opacity(t.opacity)
-                        .offset(y: t.yOffset)
+                        .scaleEffect(
+                            t.scale * emit.scale * (1 + promotion * BookFocus.scaleBoost),
+                            anchor: .bottom
+                        )
+                        .opacity(t.opacity * emit.opacity)
+                        .offset(y: t.yOffset + emit.yOffset)
                 }
                 // Publish this card's viewport midY for front-slot detection.
                 .background {
