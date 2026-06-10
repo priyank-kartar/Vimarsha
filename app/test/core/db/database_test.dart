@@ -56,6 +56,47 @@ void main() {
     expect(m.positionMs, 4200);
   });
 
+  test('insert a chat thread + line', () async {
+    await db.into(db.chatThreads).insert(ChatThreadsCompanion.insert(
+        id: 't1', bookId: 'b1', chapterIndex: 0, title: const Value('Why trust?')));
+    await db.into(db.chatLines).insert(ChatLinesCompanion.insert(
+        id: 'l1', threadId: 't1', role: 'user', body: 'why?'));
+    expect((await db.select(db.chatThreads).get()).single.title, 'Why trust?');
+    expect((await db.select(db.chatLines).get()).single.body, 'why?');
+  });
+
+  test('upgrading a v2 database adds chat tables and preserves data', () async {
+    final dir = Directory.systemTemp.createTempSync('mig3');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final path = '${dir.path}/v2.sqlite';
+    final raw = sqlite3.open(path);
+    raw.execute('CREATE TABLE books (id TEXT NOT NULL PRIMARY KEY, '
+        "title TEXT NOT NULL, author TEXT NOT NULL DEFAULT '', "
+        'epub_path TEXT NOT NULL, created_at INTEGER NOT NULL);');
+    raw.execute('CREATE TABLE chapters (book_id TEXT NOT NULL, '
+        'chapter_index INTEGER NOT NULL, chapter_id TEXT NOT NULL, '
+        "title TEXT NOT NULL, download_status TEXT NOT NULL DEFAULT 'none', "
+        'bundle_path TEXT, audio_path TEXT, duration_ms INTEGER, '
+        'position_ms INTEGER NOT NULL DEFAULT 0, '
+        'PRIMARY KEY (book_id, chapter_index));');
+    raw.execute('CREATE TABLE memos (id TEXT NOT NULL PRIMARY KEY, '
+        'book_id TEXT NOT NULL, chapter_index INTEGER NOT NULL, block_id TEXT, '
+        'position_ms INTEGER NOT NULL DEFAULT 0, audio_path TEXT NOT NULL, '
+        "transcript TEXT, transcript_status TEXT NOT NULL DEFAULT 'pending', "
+        'created_at INTEGER NOT NULL);');
+    raw.execute("INSERT INTO books (id, title, author, epub_path, created_at) "
+        "VALUES ('b1', 'Old Book', 'Ada', '/x', 1700000000);");
+    raw.execute('PRAGMA user_version = 2;');
+    raw.close();
+
+    final migrated = AppDatabase(NativeDatabase(File(path)));
+    addTearDown(migrated.close);
+    await migrated.into(migrated.chatThreads).insert(
+        ChatThreadsCompanion.insert(id: 't1', bookId: 'b1', chapterIndex: 0));
+    expect((await migrated.select(migrated.chatThreads).get()).single.id, 't1');
+    expect((await migrated.select(migrated.books).get()).single.title, 'Old Book');
+  });
+
   test('upgrading a v1 database adds memos and preserves existing data',
       () async {
     final dir = Directory.systemTemp.createTempSync('mig');

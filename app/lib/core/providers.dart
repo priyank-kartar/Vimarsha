@@ -9,6 +9,7 @@ import 'audio/audio_handler.dart';
 import 'audio/just_audio_handler.dart';
 import 'audio/recorder_handler.dart';
 import 'audio/record_recorder_handler.dart';
+import '../features/chat/chat_repository.dart';
 import '../features/notes/memo_repository.dart';
 import 'backend/backend_client.dart';
 import 'backend/dio_backend_client.dart';
@@ -103,6 +104,10 @@ final recorderHandlerProvider = Provider<RecorderHandler>((ref) {
   ref.onDispose(handler.dispose);
   return handler;
 });
+
+final chatRepositoryProvider = Provider<ChatRepository>(
+  (ref) => ChatRepository(db: ref.watch(databaseProvider)),
+);
 
 final memoRepositoryProvider = Provider<MemoRepository>(
   (ref) => MemoRepository(
