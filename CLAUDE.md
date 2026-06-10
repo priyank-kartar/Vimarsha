@@ -116,16 +116,39 @@ cd app && flutter test test_integration/real_backend_test.dart
 
 ## Status & what's next
 
-Done and merged to `main`: **Plans 1, 2, 3a, 3b, 3c** — the full client core works
-end-to-end (verified live: real EPUB → narration → cached audio → playback in the app).
+Done and merged to `main` (each verified + code-reviewed):
+- **Plans 1–2** — backend ingestion + Chatterbox narration.
+- **Plans 3a–3c** — full client core (library, lazy chapter download, player). Verified live.
+- **Plans 4a–4b** — reading view (highlight + auto-scroll + tap-to-seek), figure
+  overlay (synced floating card, stacked), Figures gallery, player chrome. Verified live.
+- **Plans 5a–5b** — voice memos: hold-to-record → backend Whisper transcript → Notes
+  screen (play / open-at-pin / retry / delete). Verified live.
+- **Plan 6a** — deep-dive conversation **data layer**: `LlmClient` seam + `OllamaLlmClient`,
+  `POST /chat` (grounded prompt) + `POST /speak` (Chatterbox TTS of text); client
+  `ChatMessage`/`ChatContext`, `ChatThreads`/`ChatLines` (+ migration), `ChatRepository`
+  (save-on-demand), `ChatController` (in-memory live chat).
+
+Test counts on `main`: ~55 backend, ~85 app, `flutter analyze` clean.
 
 Remaining (each its own spec → plan → implement cycle):
-- **Plan 4 — figure overlay (NEXT):** floating-card diagrams/quotes that appear on
-  screen during playback, driven by each figure's `startMs`/`endMs` range (already in
-  the bundle). The narration/timing groundwork is done; this is mostly client UI.
-- **Plan 5 — voice memos + on-device Whisper STT** (the Record button).
-- **Plan 6 — deep-dive AI conversation** (LLM abstraction: local or Claude) + the
-  LLM fallback for fuzzy figure mentions.
+- **Plan 6b — Discuss UI (NEXT):** record-button dual gesture (long-press = memo,
+  double-tap = open Discuss **without pausing playback**), the Discuss panel
+  (keyboard-default input + hold-to-talk, text replies + speaker, **Save**), and the
+  Conversations screen. Pause chapter audio (client-side) while a reply is spoken or
+  the user voice-types. Needs **Ollama** for live testing (`ollama serve` +
+  `ollama pull llama3.2:3b`).
+- **Plan 7 — figure-mention LLM fallback:** reuse the `LlmClient` seam at import to
+  resolve fuzzy figure references the rules miss (improves auto-pop accuracy).
 
-See `docs/superpowers/specs/2026-06-05-vimarsha-flutter-client-core-design.md` and the
-original `docs/superpowers/specs/2026-06-03-vimarsha-ebook-reader-design.md` for the full picture.
+Specs live in `docs/superpowers/specs/` (one per plan, dated); the matching
+implementation plans are in `docs/superpowers/plans/`.
+
+### Runtime gotchas worth knowing (beyond the build gotchas above)
+- The backend needs **`uv sync --extra tts`** to pull `faster-whisper` + `chatterbox` +
+  `setuptools<81`; a plain run 500s on `/transcribe`/`/import`/`/speak`.
+- **Ollama** (Plan 6) is a separate process the user runs — not bundled.
+- Drift is at **schemaVersion 3** (Books/Chapters → +Memos@2 → +ChatThreads/ChatLines@3),
+  migrations tested by fabricating old DBs via the `sqlite3` package.
+- Riverpod 3.x: **never use `ref` in `ConsumerState.dispose()`** — capture the object earlier.
+- Widget tests can't drive drift `.watch()` or real `dart:io` under the fake clock —
+  override stream providers with `Stream.value`, or use in-memory repo fakes.

@@ -59,6 +59,9 @@ cd app && flutter test test_integration/real_backend_test.dart
 
 ## Status
 
-Core reading loop is complete and working end-to-end (import → narrate → cache →
-play). Next: on-screen figure overlay, voice notes (on-device Whisper), and the
-deep-dive AI conversation. See `CLAUDE.md` for details.
+Working end-to-end and verified live: reading + listening (import → narrate →
+cache → play), the **reading view** with synced figure overlay + Figures gallery,
+and **voice notes** (hold-to-record → Whisper transcript → Notes). The **deep-dive
+conversation** backend (local-LLM `/chat` + `/speak`) is in; its UI (the Discuss
+panel) is next, followed by the figure-mention LLM fallback. See `CLAUDE.md` for
+the current plan-by-plan status and gotchas.
