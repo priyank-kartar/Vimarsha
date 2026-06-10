@@ -1,0 +1,166 @@
+# Vimarsha — Deep-Dive Conversation (Plan 6 Design)
+
+**Design spec — 2026-06-10**
+
+Talk *with* the book: open a Discuss panel from the player, ask questions (typed
+or spoken) about the passage being read, and get grounded answers from a local
+LLM — optionally read aloud. Conversations are ephemeral unless explicitly saved,
+and saved threads are reviewable. Playback keeps going while you discuss.
+
+This is **Plan 6**, split into:
+- **Plan 6a** — backend + data/logic: LLM seam + `/chat` + `/speak`, client
+  `BackendClient.chat/speak`, `ChatThreads`/`ChatMessages` tables, `ChatRepository`
+  (persistence), `ChatController` (live conversation). No new screens.
+- **Plan 6b** — UI: the Discuss panel (opened by double-tapping record), the
+  record button's dual gesture, and the Conversations review screen.
+
+Depends on Plans 1–5b. The **figure-mention LLM fallback** (reusing this LLM seam
+at import time) is a separate follow-on (Plan 7), out of scope here.
+
+---
+
+## 1. Scope
+
+In scope:
+- A **Discuss panel** opened by **double-tapping the record button** in the player
+  (single hold still records a memo). Opening Discuss does **not** pause playback.
+- Ask by **keyboard (default)** or a secondary **hold-to-talk** mic (transcribed
+  via the existing `/transcribe`).
+- Answers from a **local LLM (Ollama)**, grounded in the passage where Discuss was
+  opened (the read paragraph + a window + any active figure) and the running
+  conversation. Answer shown as **text first**, with a **speaker** button to read
+  it aloud via Chatterbox (`/speak`).
+- Conversation is **ephemeral** until the user taps **Save**; saved threads are
+  listed on a **Conversations** screen (review, reopen as read-only history,
+  delete).
+
+Out of scope: streaming token-by-token replies, multi-thread-per-chapter, editing
+saved threads, the figure-mention LLM fallback (Plan 7), cloud LLM (the seam
+allows it later but v1 is Ollama).
+
+---
+
+## 2. Backend (Plan 6a)
+
+- **LLM seam:** `LlmClient` protocol with `reply(messages, context) -> str`, and
+  **`OllamaLlmClient`** that POSTs to a local Ollama server
+  (`http://localhost:11434/api/chat`, default model `llama3.2:3b`, configurable).
+  Behind a cached `get_llm()` dependency (overridden by a fake in tests).
+- **`POST /chat`** — body `{messages: [{role, text}], context: {passage,
+  figureCaption?, bookTitle, chapterTitle}}`. Builds a grounded system prompt
+  ("You are discussing this passage from {book}/{chapter}: … Answer using it; say
+  if it's not covered.") + the message history, calls the LLM, returns `{reply}`.
+- **`POST /speak`** — `{text}` → `ChatterboxSynth` → MP3 bytes
+  (`audio/mpeg`). Reuses the existing synth + `audio_io`. The opt-in
+  read-the-answer-aloud path.
+- New backend dep: `httpx` (call Ollama). Ollama itself runs as a separate local
+  process the user starts (`ollama serve` + `ollama pull llama3.2:3b`); documented,
+  not bundled.
+
+---
+
+## 3. Client data + logic (Plan 6a)
+
+- **`BackendClient.chat(List<ChatMessage> messages, ChatContext context) ->
+  Future<String>`** and **`speak(String text) -> Future<List<int>>`** (+ fakes
+  with throw hooks).
+- **`ChatMessage`** model (`role` `user|assistant`, `text`) and **`ChatContext`**
+  (`passage`, `figureCaption?`, `bookTitle`, `chapterTitle`).
+- **`ChatController`** (Riverpod `ChangeNotifier`/Notifier, **in-memory**): holds
+  `List<ChatMessage>` + a `sending` flag; `sendMessage(text)` appends the user
+  message, calls `backend.chat(messages, context)`, appends the assistant reply;
+  on backend failure appends an error/marker the UI can retry. Constructed with
+  the `ChatContext` captured when Discuss opens. **Nothing is persisted here.**
+- **Drift `ChatThreads`** (`id`, `bookId`, `chapterIndex`, `anchorBlockId?`,
+  `title?`, `createdAt`) + **`ChatMessages`** (`id`, `threadId`, `role`, `text`,
+  `createdAt`); schema migration 2→3 (`createTable` both).
+- **`ChatRepository`** (persistence only): `saveThread({bookId, chapterIndex,
+  anchorBlockId, title, messages}) -> Future<String>` (insert thread + messages in
+  a transaction; rows exist only after an explicit Save), `watchThreads`,
+  `watchMessages(threadId)`, `getThreadMessages`, `deleteThread`.
+
+---
+
+## 4. UI (Plan 6b)
+
+- **Record button → dual gesture:** switch the hold-to-record from
+  `onTapDown/onTapUp` to **`onLongPressStart/onLongPressEnd`** so it coexists with
+  **`onDoubleTap` → open the Discuss panel**. Double-tap does not touch playback.
+- **Discuss panel** (a bottom sheet / route over the player; **chapter playback
+  continues**):
+  - Chat transcript (user/assistant bubbles) from the `ChatController`.
+  - Input row: a **TextField (default focus)** + **Send**, and a secondary
+    **hold-to-talk mic** that records → `/transcribe` → drops the text into the
+    field for review/send.
+  - Each assistant bubble: text + a **speaker** icon → `BackendClient.speak` →
+    play the returned audio on the **separate aux/memo handler**
+    (`memoAudioHandlerProvider`) so the chapter audio is undisturbed.
+  - A **Save** button persists the thread (`ChatRepository.saveThread`) with the
+    captured book/chapter/anchor; a "saved" confirmation. Closing without Save
+    discards the conversation.
+- **Conversations screen** (top-level; a library app-bar icon next to Notes):
+  `watchThreads` list (book · chapter · title/snippet); tap → a read-only thread
+  view (`watchMessages`); delete.
+
+---
+
+## 5. Architecture & boundaries
+
+- The LLM is a new seam (`LlmClient`) mirroring the TTS/transcriber seams; the
+  figure-mention fallback (Plan 7) reuses it. `BackendClient` gains `chat`/`speak`.
+- **Live conversation (`ChatController`, ephemeral) is cleanly separated from
+  persistence (`ChatRepository`, save-on-demand).** The panel composes both; the
+  Conversations screen only reads persistence.
+- Reply audio uses the existing `memoAudioHandlerProvider` (separate from the
+  chapter player), so speaking an answer never disturbs the running narration.
+- Context is **anchored at panel-open** (the paragraph being read + window +
+  active figure caption), so the thread stays coherent though playback advances.
+
+---
+
+## 6. Error handling
+
+- **Ollama not running / `/chat` fails:** the assistant turn shows an error
+  bubble with Retry; the conversation and prior turns are intact.
+- **`/speak` fails or backend down:** the text answer stays; the speaker button
+  shows a brief error, no crash.
+- **`/transcribe` fails for a spoken question:** fall back to the text field (the
+  user can type); no lost panel state.
+- **Save with an empty conversation:** Save is disabled until there's at least one
+  exchange.
+- **Deleted thread / missing data:** Conversations handles empty/missing
+  gracefully.
+
+---
+
+## 7. Testing
+
+- **Backend (pytest):** `/chat` returns the fake `LlmClient`'s reply for a posted
+  conversation+context (no Ollama in CI); `/speak` returns audio bytes via a fake
+  synth; prompt-building includes the passage.
+- **Client unit (6a):** `ChatController.sendMessage` appends user+assistant turns
+  via a fake `BackendClient` and surfaces a failure turn; `ChatRepository.saveThread`
+  persists thread+messages (and only on call), `watchThreads`/`watchMessages`
+  ordering, `deleteThread`; a 2→3 migration test (fabricate a v2 DB, open at v3,
+  assert chat tables exist + prior data survives).
+- **Client widget (6b):** double-tapping the record button opens the panel and
+  does **not** pause the controller; typing + Send appends bubbles and calls the
+  repo's chat path; the speaker button calls `speak` on the aux handler; Save
+  persists a thread; Conversations lists saved threads and opens one. (Stream
+  overrides / in-memory patterns as before.)
+- **Manual gate:** with the backend + `ollama serve` running, double-tap record
+  mid-playback, ask a question about the passage (typed), confirm a grounded answer
+  while audio continues, read it aloud, Save, and find it under Conversations.
+
+---
+
+## 8. Build order
+
+**Plan 6a:** (1) backend LLM seam + `/chat`; (2) backend `/speak`; (3) client
+`BackendClient.chat/speak` + `ChatMessage`/`ChatContext` + fakes; (4)
+`ChatThreads`/`ChatMessages` tables + 2→3 migration + `ChatRepository`; (5)
+`ChatController` (live conversation).
+
+**Plan 6b:** (6) record button dual gesture (long-press + double-tap); (7) Discuss
+panel (chat, keyboard input + hold-to-talk, speak, Save); (8) Conversations screen
++ library entry point; (9) manual macOS + Ollama verification.
