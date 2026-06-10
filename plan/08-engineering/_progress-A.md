@@ -15,6 +15,51 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V06 — Book-focus state ✅ both suites green + live focus verified
+
+**What:** `Library/BookFocus.swift` — pure `at(midYs: [Int: CGFloat], viewportHeight:) →
+{index, emphasis}`: the card whose viewport midY is nearest the front slot
+(`StackTransform.frontSlot` 0.72) **owns** it; `emphasis` (0…1) peaks when the card sits on
+the slot line and falls to 0 at the `settleWindow` edge (0.18·viewport). An eased `promotion`
+(`emphasis²`, "steeper curve near the front") drives the grow-to-front bump, the deepening
+contact shadow, and the metadata reveal. Deterministic lower-index tie-break, degenerate /
+empty inputs → `.none`. No state, no time — scrubbable like `StackTransform`/`HeaderContrast`
+(motion grammar #2). `FocusMetadataView` renders the focused book's title (editorial New York
+serif) + small-caps author on the **matte** canvas (content is paper, never glass), faded by
+`reveal`; decorative → `accessibilityHidden`.
+
+**Wiring:** each card publishes its `frame(in: .scrollView).midY` via a `CardMidYKey`
+PreferenceKey (background GeometryReader); `LibraryStackView.onPreferenceChange` computes
+`BookFocus.at(...)` into `@State focus` and feeds it to `BookTower`. The focused card alone
+gets the grow-to-front scale (`t.scale · (1 + promotion·scaleBoost)`, `scaleBoost` 0.04,
+bottom-anchored on top of the depth-stack transform, still inside the same render-side
+`visualEffect`) and a contact shadow that deepens with `promotion` (opacity 0.30→0.48, radius
+16→26, y 12→18). The reveal is a `.overlay(alignment: .bottom)`. **Reduce Motion** (flat
+full-size list, no front slot) pins `focus = .none` → no promotion, no reveal.
+
+**Evidence:**
+- 9/9 `BookFocusTests` green on macOS + iPhone 17 Pro sim (empty/degenerate → none, on-slot =
+  full emphasis, beyond-window → none, nearest-wins, monotonic fall-off, above/below
+  symmetry, promotion eased ≤ emphasis with exact endpoints, continuity near the slot).
+- `BookFocusSnapshotTests` (macOS-only, `ImageRenderer`) renders the real `FocusMetadataView`
+  at `reveal: 0` vs `1` and asserts the rasters differ; PNGs in
+  `.agent-loop/artifacts/V06/04-focus-hidden.png` + `05-focus-revealed.png` — **looked at:**
+  revealed shows "Design by Accident" in the warm off-white serif + "FOR A NEW HISTORY OF
+  DESIGN" small-caps author on ink; hidden is the opacity-0 (near-empty) state.
+- Live launch on iPhone 17 Pro sim (dark): `.agent-loop/artifacts/V06/01-launch-top.png` —
+  **looked at:** at rest the front-slot book (index 3, *Design by Accident*) is detected and
+  its metadata reveal fades up at the bottom; the blue board reads as the promoted card. Both
+  full suites `** TEST SUCCEEDED **` on macOS + iPhone 17 Pro.
+- Commits `0c14a24` (math+tests) + `671f97f` (wiring+snapshot), merged `40aea2b`.
+
+**Device-gated:** the live *feel* of grow-to-front as you flick a book into the slot (the
+emphasis ramp, shadow deepening, reveal timing) folds into the **V09** human motion review —
+scroll injection into the simulator isn't available in the agent-loop env, so focus is
+math-tested + snapshot-rendered + verified at the rest position rather than captured
+mid-flick. Tuning note for V07/V09: the bottom-anchored metadata caption currently sits low
+enough to graze the next rising cover — revisit placement when the V07 glass control cluster
+grows from the focused cover (it may host the metadata instead).
+
 ## V05 — Lensing drag puck [SPIKE] ✅ both suites green + look snapshot-verified
 
 **What:** `Library/LensingPuck.swift` — pure `drag location + speed → {center, diameter,

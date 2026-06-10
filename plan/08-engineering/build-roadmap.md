@@ -61,9 +61,15 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   + present/absent overlay snapshot. The live glass-refraction **feel + cost** (120Hz flick
   budget, Instruments) needs an injectable drag the agent loop lacks → folded into V09._
   ↳ [apple/CLAUDE.md §Glass moments #2](../../apple/CLAUDE.md)
-- **V06** · Book-focus state: scroll-settle detection (which book owns the front slot),
+- **V06** ✅ · Book-focus state: scroll-settle detection (which book owns the front slot),
   grow-to-front emphasis curve + deepening contact shadow, focused-book metadata reveal.
-  (needs V03) ↳ [screen-flows §Book focus](../03-design/screen-flows.md)
+  (needs V03) — _Done 2026-06-11, commit `40aea2b`; `BookFocus` pure math (9 tests) — the
+  card nearest the front slot owns it, eased `promotion` drives a grow-to-front scale bump +
+  deepening contact shadow on the focused card + `FocusMetadataView` reveal (matte/paper,
+  snapshot-tested). Per-card midY via `CardMidYKey`; Reduce Motion pins `.none`. Both suites
+  green; live launch focus verified. Live grow-to-front **feel** → V09 motion review._
+  ↳ [screen-flows §Book focus](../03-design/screen-flows.md) ·
+  [apple/CLAUDE.md §Motion grammar #2](../../apple/CLAUDE.md)
 - **V07** · Glass control cluster: Play/Figures/Memo/Discuss controls morph out of the
   focused cover (`GlassEffectContainer` + `glassEffectID`), re-absorb on scroll; stub
   actions. (needs V06) ↳ [apple/CLAUDE.md §Glass moments #5](../../apple/CLAUDE.md) ·
