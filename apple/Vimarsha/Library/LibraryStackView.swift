@@ -10,10 +10,6 @@ struct LibraryStackView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
-    @ScaledMetric(relativeTo: .largeTitle) private var ghostSize: CGFloat = 52
-    @ScaledMetric(relativeTo: .caption) private var labelSize: CGFloat = 11
-    @ScaledMetric(relativeTo: .title) private var headlineSize: CGFloat = 34
-
     /// Scroll distance-to-rest (≥ 0; 0 at the top). Drives the settle contrast shift
     /// (motion grammar #7) via `HeaderContrast` — header-only state, so the book tower is
     /// extracted into `BookTower` to keep this scroll tick off the heavy ForEach.
@@ -23,7 +19,7 @@ struct LibraryStackView: View {
         GeometryReader { geo in
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: reduceMotion ? 24 : -geo.size.height * 0.04) {
-                    header(in: geo.size)
+                    LibraryHeader(contrast: contrast(in: geo.size))
                         .padding(.top, 64)
                         .padding(.bottom, 72)
                     BookTower(size: geo.size, reduceMotion: reduceMotion)
@@ -39,34 +35,12 @@ struct LibraryStackView: View {
         }
     }
 
-    // MARK: Header — settle contrast shift (motion grammar #7)
-
-    /// Ghost serif title / small-caps label / headline; their contrast is a pure function of
-    /// `distanceToRest` (full at the top, fading as the tower scrolls under the glass plane;
-    /// the ghost fades furthest). Reduce Motion pins it to the resting baseline.
-    private func header(in size: CGSize) -> some View {
-        let c = reduceMotion
-            ? HeaderContrast.rest
-            : HeaderContrast.at(distanceToRest: distanceToRest, viewportHeight: size.height)
-        return VStack(spacing: 14) {
-            Text("VIMARSHA")
-                .font(.system(size: ghostSize, weight: .light, design: .serif))
-                .tracking(6)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-                .padding(.horizontal, 24)
-                .foregroundStyle(Palette.textPrimary.opacity(c.ghost))
-            Text("LIBRARY")
-                .font(.system(size: labelSize, weight: .medium))
-                .tracking(5)
-                .foregroundStyle(Palette.textPrimary.opacity(c.label))
-            Text("MY BOOKS")
-                .font(.system(size: headlineSize, weight: .regular, design: .serif))
-                .tracking(2)
-                .foregroundStyle(Palette.textPrimary.opacity(c.headline))
-        }
-        .multilineTextAlignment(.center)
-        .accessibilityAddTraits(.isHeader)
+    /// Settle contrast shift (motion grammar #7): full at the top, fading as the tower
+    /// scrolls under the glass plane. Reduce Motion pins it to the resting baseline.
+    private func contrast(in size: CGSize) -> HeaderContrast {
+        reduceMotion
+            ? .rest
+            : .at(distanceToRest: distanceToRest, viewportHeight: size.height)
     }
 
     // MARK: Glass top scrim (glass moment #1 — receding covers dissolve under it)
@@ -88,6 +62,41 @@ struct LibraryStackView: View {
         .padding(.top, 6)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+}
+
+/// The editorial header: ghost serif title / small-caps label / headline. Its type
+/// contrast is supplied by `HeaderContrast` (settle contrast shift, motion grammar #7) —
+/// full at rest, fading as the tower scrolls under the glass plane, the ghost fading
+/// furthest. Parameterized (not self-tracking) so it renders identically from the live
+/// scroll state and from snapshot tests.
+struct LibraryHeader: View {
+    let contrast: HeaderContrast
+
+    @ScaledMetric(relativeTo: .largeTitle) private var ghostSize: CGFloat = 52
+    @ScaledMetric(relativeTo: .caption) private var labelSize: CGFloat = 11
+    @ScaledMetric(relativeTo: .title) private var headlineSize: CGFloat = 34
+
+    var body: some View {
+        VStack(spacing: 14) {
+            Text("VIMARSHA")
+                .font(.system(size: ghostSize, weight: .light, design: .serif))
+                .tracking(6)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .padding(.horizontal, 24)
+                .foregroundStyle(Palette.textPrimary.opacity(contrast.ghost))
+            Text("LIBRARY")
+                .font(.system(size: labelSize, weight: .medium))
+                .tracking(5)
+                .foregroundStyle(Palette.textPrimary.opacity(contrast.label))
+            Text("MY BOOKS")
+                .font(.system(size: headlineSize, weight: .regular, design: .serif))
+                .tracking(2)
+                .foregroundStyle(Palette.textPrimary.opacity(contrast.headline))
+        }
+        .multilineTextAlignment(.center)
+        .accessibilityAddTraits(.isHeader)
     }
 }
 
