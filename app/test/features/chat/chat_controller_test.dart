@@ -34,6 +34,16 @@ void main() {
     expect(c.messages.last.text, 'recovered answer');
   });
 
+  test('a rapid second send while one is in flight is ignored', () async {
+    final backend = FakeBackendClient()..reply = 'answer';
+    final c = ChatController(backend: backend, contextSnapshot: _ctx);
+    final f1 = c.sendMessage('q1');
+    final f2 = c.sendMessage('q2'); // should be dropped (already sending)
+    await Future.wait([f1, f2]);
+    expect(backend.chatCalls, hasLength(1));
+    expect(c.messages.where((m) => m.role == 'user').length, 1);
+  });
+
   test('context is snapshotted at send time', () async {
     var passage = 'first passage';
     final backend = FakeBackendClient();

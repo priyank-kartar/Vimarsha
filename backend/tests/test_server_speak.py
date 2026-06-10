@@ -28,3 +28,24 @@ def test_speak_rejects_empty_text():
     client = TestClient(app)
     assert client.post("/speak", json={"text": "   "}).status_code == 400
     app.dependency_overrides.clear()
+
+
+class _BoomSynth:
+    sample_rate = 16000
+
+    def synthesize(self, text):  # noqa: ARG002
+        raise RuntimeError("synthesis failed")
+
+
+def test_speak_failure_returns_500_and_leaks_no_temp_file():
+    import glob
+    import tempfile
+
+    app.dependency_overrides[get_synth] = lambda: _BoomSynth()
+    client = TestClient(app, raise_server_exceptions=False)
+    before = set(glob.glob(f"{tempfile.gettempdir()}/*.mp3"))
+    resp = client.post("/speak", json={"text": "hello"})
+    assert resp.status_code == 500
+    after = set(glob.glob(f"{tempfile.gettempdir()}/*.mp3"))
+    assert after == before  # the temp mp3 was cleaned up on failure
+    app.dependency_overrides.clear()

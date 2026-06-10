@@ -169,11 +169,16 @@ async def speak(req: SpeakRequest, synth: Synthesizer = Depends(get_synth)):
         raise HTTPException(status_code=400, detail="empty text")
 
     def _render() -> str:
-        wav = np.concatenate([synth.synthesize(c) for c in chunk_text(req.text)])
-        full, _timings = assemble([("reply", wav)], synth.sample_rate, 0)
         out = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
         out.close()
-        write_mp3(full, synth.sample_rate, out.name)
+        try:
+            wav = np.concatenate([synth.synthesize(c) for c in chunk_text(req.text)])
+            full, _timings = assemble([("reply", wav)], synth.sample_rate, 0)
+            write_mp3(full, synth.sample_rate, out.name)
+        except BaseException:
+            # Don't leak the temp file if synthesis/encoding fails.
+            os.remove(out.name)
+            raise
         return out.name
 
     path = await run_in_threadpool(_render)

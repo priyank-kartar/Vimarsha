@@ -24,6 +24,7 @@ class ChatController extends ChangeNotifier {
   Future<void> sendMessage(String text) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty || sending) return;
+    sending = true; // claim synchronously so a rapid second call is ignored
     messages.add(ChatMessage(role: 'user', text: trimmed));
     await _send();
   }
@@ -31,11 +32,13 @@ class ChatController extends ChangeNotifier {
   /// Re-send after a failure (the last turn is the unanswered user message).
   Future<void> retry() async {
     if (sending) return;
+    sending = true;
     await _send();
   }
 
   Future<void> _send() async {
-    sending = true;
+    // `sending` is already set true by the caller (synchronously) so the guard
+    // and the flag live together; here we just run the request.
     error = false;
     notifyListeners();
     try {

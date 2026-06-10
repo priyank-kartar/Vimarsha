@@ -123,10 +123,13 @@ void main() {
     final migrated = AppDatabase(NativeDatabase(File(path)));
     addTearDown(migrated.close);
 
-    // memos table now exists and is usable
+    // a v1 DB runs BOTH the from<2 (memos) and from<3 (chat) upgrade steps
     await migrated.into(migrated.memos).insert(MemosCompanion.insert(
           id: 'm1', bookId: 'b1', chapterIndex: 0, audioPath: '/tmp/m.m4a'));
     expect((await migrated.select(migrated.memos).get()).single.id, 'm1');
+    await migrated.into(migrated.chatThreads).insert(
+        ChatThreadsCompanion.insert(id: 't1', bookId: 'b1', chapterIndex: 0));
+    expect((await migrated.select(migrated.chatThreads).get()).single.id, 't1');
     // pre-existing data survived the upgrade
     expect((await migrated.select(migrated.books).get()).single.title, 'Old Book');
   });
