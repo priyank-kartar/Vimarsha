@@ -25,17 +25,24 @@ account — `gh auth switch --user kartar-sachmeet`).
 
 Tests on `main`: ~55 backend (pytest), ~85 app (flutter test), `flutter analyze` clean.
 
-## NEW (2026-06-10): native Swift + Liquid Glass client direction
+## NEW (2026-06-11): the planning knowledge base — start there
 
-The client is being rebuilt **native Swift (SwiftUI), iOS 26 + macOS 26, Liquid Glass,
-UI-first** under `apple/` — full parity, same backend contract, Flutter `app/` stays as the
-reference implementation. The UI bible is **`apple/CLAUDE.md`** (palette tokens, motion
-grammar, glass rules); the reference-video analysis is `apple/docs/reference/`. No Swift
-code exists yet — the first Swift plan should scaffold the Xcode project + the depth-stack
-parallax library scroll. **Open question for the user:** does Plan 6b below still land in
-Flutter first, or go straight into the Swift client? Ask before starting.
+**`plan/`** is now the single source of truth for vision, decisions (ADRs), roadmap, and
+the agent-runnable build items. **To do the next piece of work:** read
+[`plan/README.md`](plan/README.md), then run the next V-item from
+[`plan/08-engineering/build-roadmap.md`](plan/08-engineering/build-roadmap.md) (next up:
+**Phase P1 — the living library**, V04–V09). Log evidence in
+`plan/08-engineering/_progress-A.md`.
 
-## Do next: Plan 6b — the Discuss UI
+Context: the client is rebuilt **native Swift (SwiftUI), iOS 26 + macOS 26, Liquid Glass**
+under `apple/` (UI bible: **`apple/CLAUDE.md`**; reference-video analysis:
+`apple/docs/reference/`). The scaffold is live on `main` (P0 ✅ — depth-stack library with
+static books, tests green both platforms). **The Flutter client is FROZEN** (ADR-007): it
+stays green as the behavioral reference; all new feature work is Swift-only. Ambition is
+**App Store product** (ADR-008) with a **hosted GPU narration service** in final scope
+(ADR-009).
+
+## Superseded: Plan 6b — the Discuss UI (now roadmap bucket P5, built natively)
 
 - **Spec:** `docs/superpowers/specs/2026-06-10-vimarsha-deep-dive-conversation-design.md`
   (read §4 UI + the pause-on-audio-conflict note).
