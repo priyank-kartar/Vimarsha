@@ -18,7 +18,8 @@
 3. **Recede-and-clip** — top-exiting cards shrink/dim/tuck **upward** and dissolve under the
    glass top-scrim. *Implemented (V03; direction locked by test after the review caught the
    inverted sign).*
-4. **Slot-emit staircase fan-up** — covers rise from the shelf anchor, scroll-driven. *V08.*
+4. **Slot-emit staircase fan-up** — covers rise from the shelf anchor, scroll-driven.
+   *Implemented (V08); live scrubbing feel → V09.*
 5. **Coupled scroll+zoom hero settle** — header exits while the stack scales as one rigid
    group. *Post-V09 tuning candidate.*
 6. **Inertial flick with dwell** — soft landings, no bounce, stacking velocity. *Native

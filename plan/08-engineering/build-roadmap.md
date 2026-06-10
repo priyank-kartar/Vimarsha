@@ -82,8 +82,15 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   morph **feel + glass cost** → V09 motion review._
   ↳ [apple/CLAUDE.md §Glass moments #5](../../apple/CLAUDE.md) ·
   [screen-flows](../03-design/screen-flows.md)
-- **V08** · Slot-emit staircase entrance: covers rise from the bottom shelf anchor on first
-  appearance, scroll-driven (scrubbable), no overshoot. (needs V03)
+- **V08** ✅ · Slot-emit staircase entrance: covers rise from the bottom shelf anchor on first
+  appearance, scroll-driven (scrubbable), no overshoot. (needs V03) — _Done 2026-06-11, commit
+  `4d06e01`; `SlotEmit` pure math (9 tests) — the emit band runs from the viewport bottom edge
+  (anchor) up to the front slot (arrived), so `progress = clamp((vh−midY)/((1−frontSlot)·vh),0,1)`
+  and a cover travels its full rise as it scrolls into the slot. Ease-out soft landing (no
+  overshoot past identity); composed with `StackTransform` in `BookTower` — emit owns below the
+  slot, recede owns above, they meet at the slot with no jump. Stagger is intrinsic (staggered
+  midYs). Both suites green + anchored/arrived snapshot + live launch. Live scrubbing **feel** (the
+  springy-no-overshoot landing at flick velocity) → V09 motion review._
   ↳ [motion-grammar #4](../03-design/motion-grammar.md)
 - **V09** · **[verify]** Motion review vs the reference: record scroll/flick/focus on the
   iPhone simulator + a device if available; check each named pattern against

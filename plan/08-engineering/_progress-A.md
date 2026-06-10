@@ -15,6 +15,56 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V08 — Slot-emit staircase fan-up ✅ both suites green + snapshot + live launch verified
+
+**What:** `Library/SlotEmit.swift` — pure `midY → {scale, opacity, yOffset}` for the entrance
+(motion grammar #4 / apple/CLAUDE.md §Motion grammar #4). The counterpart to `StackTransform`'s
+recede: the emit band runs from the viewport **bottom edge** (anchor, progress 0) up to the
+front slot (arrived, progress 1), so `progress = clamp((vh − midY) / ((1 − frontSlot)·vh), 0, 1)`
+— a cover travels its full rise exactly as it scrolls from first appearance to the slot. An
+**ease-out** soft landing (`1 − (1 − p)²`, strictly monotonic, **no overshoot past identity**)
+lifts the cover from the shelf anchor (`scale 0.86`, `opacity 0` → rises into existence,
+`yOffset +0.12·vh` sunk toward the shelf) to identity at the slot. Above the slot emit is
+identity and `StackTransform` owns the recede — the two meet at the slot with no jump, so the
+staircase is one continuous surface. **Stagger is intrinsic** (no scripted per-item phase):
+overlapping cards have staggered midYs, so each emits just after the one below it — the stepped
+fan-up falls out of the geometry. No state, no time — scrubbable like the rest of the library
+math.
+
+**Wiring:** `BookTower`'s `visualEffect` composes `SlotEmit.at(...)` with the existing
+`StackTransform` + grow-to-front promotion in one pass — `scale = t.scale·emit.scale·(1 +
+promotion·scaleBoost)` (bottom anchor, so the cover grows up off the shelf), `opacity =
+t.opacity·emit.opacity`, `offset = t.yOffset + emit.yOffset`. At the slot the focused card is
+fully opaque/full-size (emit identity there), so V06/V07 focus + cluster are untouched. Reduce
+Motion's flat full-size list is the other `card(...)` branch — emit only runs in the depth-stack
+branch, so the static fallback is unchanged.
+
+**Evidence:**
+- 9/9 `SlotEmitTests` green on macOS + iPhone 17 Pro sim (degenerate viewport → identity; at/above
+  the slot → identity; bottom edge → anchor with the exact `riseFraction·vh` sink; clamp below the
+  edge — no sinking past the shelf; monotonic rise as midY climbs; **no overshoot** across the band
+  — scale ≤ 1, opacity ∈ [0,1], yOffset ≥ 0; ease-out front-loaded past the linear midpoint;
+  continuity at the slot).
+- `SlotEmitSnapshotTests` (macOS `ImageRenderer`): a real `HardbackCoverView` rendered anchored
+  vs arrived; rasters differ. PNGs in `.agent-loop/artifacts/V08/08-slot-emit-anchored.png` +
+  `09-slot-emit-arrived.png` — **looked at:** anchored is the blank ink canvas (the cover hasn't
+  appeared — opacity 0 at the shelf); arrived is the full *Design by Accident* blue hardback,
+  full size + opacity + gilt edge. The rise-into-view is unmistakable.
+- Live launch on iPhone 17 Pro sim (dark): `.agent-loop/artifacts/V08/01-rest-launch.png` —
+  **looked at:** the staircase renders intact (OPTIC receding at top → DAVID CROW → HEY pink →
+  DESIGN BY ACCIDENT blue at the front) with a faint cover just emerging from the bottom shelf
+  edge (the emit anchor). Binary mtime confirmed fresh (02:18) before the shot — not the stale-binary
+  trap. Both full suites `** TEST SUCCEEDED **` on macOS + iPhone 17 Pro.
+- Commits `2cd8766` (math+tests) + `be98e98` (wiring+snapshot), merged `4d06e01`.
+
+**Device-gated:** the live *feel* of scrubbing the fan-up — scrolling down and watching covers
+rise sequentially from the shelf into the staircase, the ease-out landing reading as "springy but
+no overshoot" at flick velocity — needs an injectable scroll the agent-loop env lacks (no
+idb/assistive gesture injection), so it's math-tested + snapshot-rendered + verified at the rest
+position rather than captured mid-scroll. Folds into the **V09** motion review (record a scroll-down
+on device/sim, confirm covers emit cleanly with no bounce and stay on the 120Hz deadline). The
+math, the seamless slot handoff, and the rise-into-view are proven here.
+
 ## V07 — Glass control cluster ✅ both suites green + live glass verified
 
 **What:** `Library/ControlCluster.swift` — pure `promotion → {emerge}` (glass moment #5 /
