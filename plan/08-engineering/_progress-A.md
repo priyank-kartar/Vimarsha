@@ -15,6 +15,48 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V04 — Settle contrast shift ✅ both suites green + snapshot-verified
+
+**What:** `Library/HeaderContrast.swift` — pure `distanceToRest → {ghost, label, headline}`
+opacities (motion grammar #7). Full contrast at rest (the V03 editorial baseline: ghost
+0.26 / label 0.6 / headline 1.0); as the header scrolls away from the top it lerps to light
+floors over a settle span of 0.5 viewport-heights, with the **ghost display title fading
+furthest** (floor 0.05 vs label 0.18 vs headline 0.32 — the headline keeps the most
+contrast). Negative/overscroll distance and degenerate viewport clamp to rest. No timers,
+fully scrubbable, settle-darkens on the loop-back to top.
+
+**Wiring:** `LibraryStackView` drives it via `onScrollGeometryChange(for: CGFloat)` reading
+`contentOffset.y` (clamped ≥ 0) into a `@State distanceToRest`; the header is the only thing
+that depends on it, so the depth-stack `ForEach` is extracted into a `BookTower` subview
+(stable `size`/`reduceMotion` inputs → SwiftUI skips re-rendering it on the per-frame scroll
+tick — the heavy `visualEffect` path is untouched). Header pulled into a parameterized
+`LibraryHeader(contrast:)` so it renders identically from the live scroll state and from
+tests. **Reduce Motion pins `.rest`** (no scroll-driven dimming — continuous-effect fallback
+rule). Scope note: kept the header *in* the scroll content (matches the reference, where the
+header exits the top); the full "covers bloom color through the ghosted serif" glass
+header-plane refraction (glass moment #3) is the deferred V04 *extension*, a candidate for
+V09/polish — not built here.
+
+**Evidence:**
+- 7/7 `HeaderContrastTests` green on macOS + iPhone 17 Pro sim (rest = baseline, overscroll
+  clamp, degenerate viewport, monotonic dimming away from rest, floors reached at the span +
+  clamp beyond, ghost-dims-most floor ordering, continuity near rest).
+- `HeaderContrastSnapshotTests` (macOS-only, `ImageRenderer`) renders the real `LibraryHeader`
+  at rest vs `distanceToRest: 600/800` and asserts the rasters differ; PNGs in
+  `.agent-loop/artifacts/V04/02-header-rest.png` + `03-header-scrolled.png` — **looked at:**
+  rest shows bright off-white MY BOOKS + legible ghost; scrolled shows the ghost nearly
+  dissolved into the canvas, LIBRARY faint, MY BOOKS dimmed-but-most-legible. Exactly #7.
+- Live launch on iPhone 17 Pro sim (dark) rest state screenshot:
+  `.agent-loop/artifacts/V04/01-rest-top.png`.
+- Commits `46883a1` + `57f0a84`, merged `532ffd2`.
+
+**Device-gated:** the live *scroll feel* of the shift (and any covers-bloom-through glass
+extension) folds into the **V09** human motion review — gesture injection into the simulator
+isn't available in the agent-loop environment (no idb/assistive access), so the dimmed state
+is math-tested + snapshot-rendered rather than captured mid-flick.
+
+---
+
 ## V03 — Depth-stack parallax scroll (static books) ✅ verified both platforms
 
 **What:** `Library/StackTransform.swift` — pure `midY → {scale, opacity, yOffset}` with

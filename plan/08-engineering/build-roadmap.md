@@ -46,9 +46,12 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
 > Goal: the library stops being a render and becomes the signature *interaction* — every
 > motion-grammar pattern present and tuned against the reference.
 
-- **V04** · Settle contrast shift: header ghost→full contrast as a function of
+- **V04** ✅ · Settle contrast shift: header ghost→full contrast as a function of
   distance-to-rest (scroll-driven, no timers); ghost title also dims as the tower scrolls
-  under the glass plane. ↳ [motion-grammar](../03-design/motion-grammar.md) ·
+  under the glass plane. — _Done 2026-06-11, commit `532ffd2`; `HeaderContrast` pure math
+  (7 tests) + ImageRenderer snapshot, both suites green. Glass-header-plane refraction
+  (covers bloom through ghost) deferred to V09/polish; live scroll feel → V09 motion review._
+  ↳ [motion-grammar](../03-design/motion-grammar.md) ·
   [apple/CLAUDE.md §Motion grammar #7](../../apple/CLAUDE.md)
 - **V05** · **[SPIKE]** Lensing drag puck: a small `glassEffect` drop tracking the active
   drag, refracting the cover beneath; prove the look + cost on device. (needs V03)
