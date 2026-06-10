@@ -15,6 +15,46 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V09 — Motion review vs the reference 🚧 needs human review (motion feel + 1 gap)
+
+**What:** the **[verify]** checkpoint for Phase P1 — audit every named motion-grammar
+pattern against [the reference analysis](../../apple/docs/reference/ref-books-video-analysis.md)
+and file deviations. This is a human-judgement gate (the agent-loop environment **cannot
+inject scroll/drag gestures into the simulator** — no idb/assistive access — so *feel in
+motion* is fundamentally a human scrub). The agent loop did every machine-verifiable part and
+left a full findings doc for the human.
+
+**Wiring:** no code changed. **No `StackTransform`/`SlotEmit`/`BookFocus`/`HeaderContrast`
+constants were touched** — they sit within the reference-described ranges and tuning the
+*feel* is exactly the decision this gate exists for, so proposed tweaks are filed as findings
+rather than applied blind.
+
+**Evidence:**
+- Both suites green this run: `xcodebuild … -destination 'platform=macOS' test` and
+  `… 'platform=iOS Simulator,name=iPhone 17 Pro' test` → both `** TEST SUCCEEDED **`.
+- Rest/hero state captured on iPhone 17 Pro (dark + light) →
+  `.agent-loop/artifacts/V09/01-rest-hero-dark.png`, `02-rest-hero-light.png`; read back and
+  confirmed: editorial header + glass top-scrim + clean depth staircase, front slot at 0.72
+  reads right.
+- Static audit of all **7** named patterns → constants → reference expectation in
+  [`.agent-loop/artifacts/V09-review-notes.md`](../../.agent-loop/artifacts/V09-review-notes.md)
+  (table + suggested-but-unapplied tweaks + the live how-to-run script).
+- **6/7 patterns implemented.** Screenshot-confirmed finding: **V07 double-title** (front
+  cover's debossed title + the metadata reveal overlap in one eyeline) is visible even at
+  plain rest. Carried-forward monitoring notes (V05 puck flatness, V07 butter tint, V07
+  cluster placement) folded into the same doc for the live check.
+
+**Device-gated → NEEDS HUMAN:** (1) live scroll/flick/focus scrub for motion *feel* —
+grow-to-front promotion (#2), recede-and-clip dissolve (#3), slot-emit landing springiness
+(#4), inertial flick dwell/no-overshoot (#6), and whether #1 needs the reference's
+desaturation; (2) the V05 glass puck + V07 tint/double-title/placement fixes; (3) one genuine
+**gap** — **motion grammar #5 (coupled scroll+zoom hero settle) is NOT implemented** (the
+per-card scaleEffect at `LibraryStackView:203` is the depth-stack, not a rigid-group hero
+zoom); the reference's signature opening zoom should be scoped as its own future V-item. Item
+left 🚧; `V09` written to `.agent-loop/NEEDS_HUMAN`.
+
+---
+
 ## V08 — Slot-emit staircase fan-up ✅ both suites green + snapshot + live launch verified
 
 **What:** `Library/SlotEmit.swift` — pure `midY → {scale, opacity, yOffset}` for the entrance

@@ -92,10 +92,17 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   midYs). Both suites green + anchored/arrived snapshot + live launch. Live scrubbing **feel** (the
   springy-no-overshoot landing at flick velocity) → V09 motion review._
   ↳ [motion-grammar #4](../03-design/motion-grammar.md)
-- **V09** · **[verify]** Motion review vs the reference: record scroll/flick/focus on the
+- **V09** 🚧 · **[verify]** Motion review vs the reference: record scroll/flick/focus on the
   iPhone simulator + a device if available; check each named pattern against
   [the reference analysis](../../apple/docs/reference/ref-books-video-analysis.md); tune
   `StackTransform` constants; file deviations as findings. (needs V04–V08)
+  — _Machine-verifiable parts done 2026-06-11: both suites green, rest/hero captured (dark +
+  light), all 7 named patterns statically audited vs the reference (constants in range; **no
+  constants changed** — tuning the feel is this gate's human call). **Needs human review:** a
+  live scroll/flick/focus scrub for motion feel (#2/#3/#4/#6 + #1 desaturation), the V05 puck
+  glass + V07 tint/double-title/placement items, and one genuine gap — **motion grammar #5
+  (coupled scroll+zoom hero settle) is NOT implemented** (file as a future V-item). Full
+  findings + how-to-run: [`.agent-loop/artifacts/V09-review-notes.md`](../../.agent-loop/artifacts/V09-review-notes.md)._
 
 ## Phase P2 — Real books
 
