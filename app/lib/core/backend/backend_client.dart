@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import '../models/chapter_bundle.dart';
+import '../models/chat_context.dart';
+import '../models/chat_message.dart';
 import '../models/toc_response.dart';
 
 /// The seam over the network. Real impl: [DioBackendClient]; tests use a fake.
@@ -19,4 +21,10 @@ abstract class BackendClient {
 
   /// Upload an audio clip and get its transcript text.
   Future<String> transcribe(File audio);
+
+  /// Ask the LLM, grounded in [context], given the running conversation.
+  Future<String> chat(List<ChatMessage> messages, ChatContext context);
+
+  /// Synthesize [text] to speech; returns MP3 bytes.
+  Future<List<int>> speak(String text);
 }
