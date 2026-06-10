@@ -15,6 +15,51 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V05 — Lensing drag puck [SPIKE] ✅ both suites green + look snapshot-verified
+
+**What:** `Library/LensingPuck.swift` — pure `drag location + speed → {center, diameter,
+opacity}` for the glass drop (glass moment #2 / motion grammar #6). The lens lifts above the
+touch point (`lift` 30pt) so the finger doesn't occlude the refraction, clamps fully inside
+the viewport at every edge, and swells with drag velocity (`speedDiameterGain` 0.04, clamped
+at `maxDiameter` 132). `hidden` default = opacity 0. No state, no time — fully scrubbable.
+`Library/LensingPuckView.swift` renders it: an interactive `glassEffect` circle with an
+`aqua` meniscus rim, plus the Reduce Transparency opaque fallback (token-tinted matte). The
+view is decorative — `allowsHitTesting(false)` + `accessibilityHidden(true)`.
+
+**Wiring:** `LibraryStackView` drives the puck from a zero-distance `simultaneousGesture` on
+the ScrollView (`DragGesture(minimumDistance: 0)`) so it rides *alongside* the scroll —
+appears on finger-down, tracks the fling (`value.location` + `value.velocity`), and on
+release fades out **in place** (keeps the last center/diameter, opacity → 0; only opacity is
+animated so the position tracks the finger directly without sliding). The puck floats in
+viewport space, so both the gesture and the `LensingPuckView` overlay live on the ScrollView,
+outside the scrolling tower. **Reduce Motion suppresses it** (decorative continuous effect —
+`onChanged` early-returns, puck stays hidden). At rest the puck is `diameter 0`/opacity 0, so
+no live glass effect persists when idle.
+
+**Evidence:**
+- 7/7 `LensingPuckTests` green on macOS + iPhone 17 Pro sim (hidden invisible, active drag
+  visible at base diameter, lift above touch, clamp at all four edges, velocity swell, max
+  clamp on a hard flick, degenerate-bounds no-invert).
+- `LensingPuckSnapshotTests` (macOS `ImageRenderer`): puck-present vs puck-absent rasters
+  differ; PNGs in `.agent-loop/artifacts/V05/01-puck-absent.png` + `02-puck-present.png` —
+  **looked at:** the present raster shows the lifted, sky-rimmed drop sitting above the cover
+  title; the absent raster has no drop. (Opaque fallback used — `ImageRenderer` can't
+  composite live Liquid Glass refraction.)
+- Live launch on iPhone 17 Pro sim (dark): `.agent-loop/artifacts/V05/03-rest-launch.png` —
+  app builds/installs/launches with the wiring; library + glass top-scrim render, puck hidden
+  at rest (correct, no drag).
+- Commits `a9c8dd4` + `b72deaf`, merged `c904379`.
+
+**Device-gated:** the SPIKE's second half — the live **glass refraction look** under a moving
+finger and its **cost** (the 120Hz flick budget, Instruments profiling) — needs a real drag
+the agent-loop environment can't inject (no idb/assistive gesture injection) and a live glass
+compositor `ImageRenderer` doesn't run. Both fold into the **V09** motion review (record a
+flick on device/sim, confirm the lens reads + stays on the frame deadline). The geometry,
+the opaque fallback, and that the drop draws over a cover are proven here; the glass *feel* is
+the V09 sign-off.
+
+---
+
 ## V04 — Settle contrast shift ✅ both suites green + snapshot-verified
 
 **What:** `Library/HeaderContrast.swift` — pure `distanceToRest → {ghost, label, headline}`

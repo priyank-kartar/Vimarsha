@@ -53,8 +53,13 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   (covers bloom through ghost) deferred to V09/polish; live scroll feel → V09 motion review._
   ↳ [motion-grammar](../03-design/motion-grammar.md) ·
   [apple/CLAUDE.md §Motion grammar #7](../../apple/CLAUDE.md)
-- **V05** · **[SPIKE]** Lensing drag puck: a small `glassEffect` drop tracking the active
+- **V05** ✅ · **[SPIKE]** Lensing drag puck: a small `glassEffect` drop tracking the active
   drag, refracting the cover beneath; prove the look + cost on device. (needs V03)
+  — _Done 2026-06-11, commit `c904379`; `LensingPuck` pure geometry (7 tests) +
+  `LensingPuckView` (interactive glass circle + opaque fallback) wired via a zero-distance
+  `simultaneousGesture` (rides alongside scroll, Reduce Motion suppresses). Both suites green
+  + present/absent overlay snapshot. The live glass-refraction **feel + cost** (120Hz flick
+  budget, Instruments) needs an injectable drag the agent loop lacks → folded into V09._
   ↳ [apple/CLAUDE.md §Glass moments #2](../../apple/CLAUDE.md)
 - **V06** · Book-focus state: scroll-settle detection (which book owns the front slot),
   grow-to-front emphasis curve + deepening contact shadow, focused-book metadata reveal.
