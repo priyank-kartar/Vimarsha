@@ -19,6 +19,12 @@ struct LibraryStackView: View {
     /// tracks the drag, refracts the cover beneath; fades out on release.
     @State private var puck: LensingPuck = .hidden
 
+    /// Which book owns the front slot, and how settled it is (motion grammar #2). Recomputed
+    /// from each card's measured midY as the tower scrolls; drives the grow-to-front bump,
+    /// the deepening contact shadow, and the focused-book metadata reveal. Reduce Motion (a
+    /// flat list with no front slot) leaves this at `.none`.
+    @State private var focus: BookFocus = .none
+
     var body: some View {
         GeometryReader { geo in
             ScrollView(.vertical, showsIndicators: false) {
@@ -26,7 +32,7 @@ struct LibraryStackView: View {
                     LibraryHeader(contrast: contrast(in: geo.size))
                         .padding(.top, 64)
                         .padding(.bottom, 72)
-                    BookTower(size: geo.size, reduceMotion: reduceMotion)
+                    BookTower(size: geo.size, reduceMotion: reduceMotion, focus: focus)
                 }
                 .padding(.bottom, geo.size.height * 0.22)
                 .frame(width: geo.size.width)
@@ -34,12 +40,33 @@ struct LibraryStackView: View {
             .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, y in
                 distanceToRest = max(0, y)
             }
+            // Scroll-settle detection (motion grammar #2): each card publishes its viewport
+            // midY; the nearest to the front slot owns focus. Suppressed under Reduce Motion.
+            .onPreferenceChange(CardMidYKey.self) { midYs in
+                focus = reduceMotion
+                    ? .none
+                    : BookFocus.at(midYs: midYs, viewportHeight: geo.size.height)
+            }
             .background(Palette.canvas.ignoresSafeArea())
             // The puck floats in viewport space (it follows the finger, not the content),
             // so the gesture + overlay live on the ScrollView, outside the scrolling tower.
             .simultaneousGesture(lensingDrag(in: geo.size))
             .overlay { LensingPuckView(puck: puck, reduceTransparency: reduceTransparency) }
             .overlay(alignment: .top) { topScrim }
+            .overlay(alignment: .bottom) { focusMetadata }
+        }
+    }
+
+    // MARK: Focused-book metadata reveal (motion grammar #2)
+
+    /// The focused book's title/author fades up on the matte canvas (content is paper) as it
+    /// settles onto the front slot — the "now reading this" affordance the glass control
+    /// cluster (V07) will grow from. Hidden when nothing is settled or under Reduce Motion.
+    @ViewBuilder
+    private var focusMetadata: some View {
+        if focus.index >= 0, focus.index < BookSeed.shelf.count {
+            FocusMetadataView(book: BookSeed.shelf[focus.index], reveal: focus.promotion)
+                .padding(.bottom, 40)
         }
     }
 
@@ -124,13 +151,16 @@ struct LibraryHeader: View {
     }
 }
 
-/// The depth-stacked book tower (motion grammar #1). Extracted so the library's
-/// scroll-driven header state changes don't re-evaluate this ForEach every frame — its
-/// inputs (`size`, `reduceMotion`) are stable during a scroll, so SwiftUI skips it. The
-/// per-card transforms run render-side only (`visualEffect`), no layout thrash.
+/// The depth-stacked book tower (motion grammar #1 + #2). Each card publishes its viewport
+/// midY (`CardMidYKey`) so the library can detect which book owns the front slot; the focused
+/// card then gets a grow-to-front scale bump and a deepening contact shadow on top of the
+/// depth-stack transform. Per-card transforms still run render-side only (`visualEffect`), no
+/// layout thrash.
 private struct BookTower: View {
     let size: CGSize
     let reduceMotion: Bool
+    /// Active front-slot focus (motion grammar #2); `.none` under Reduce Motion / at the top.
+    let focus: BookFocus
 
     var body: some View {
         ForEach(Array(BookSeed.shelf.enumerated()), id: \.element.id) { index, book in
@@ -148,6 +178,9 @@ private struct BookTower: View {
                 .shadow(color: .black.opacity(0.25), radius: 14, y: 10)
         } else {
             let viewportHeight = size.height
+            // Grow-to-front promotion (motion grammar #2): only the focused card grows, and
+            // its eased `promotion` deepens the contact shadow as it settles onto the slot.
+            let promotion = focus.index == index ? focus.promotion : 0
             HardbackCoverView(book: book)
                 .frame(width: min(size.width * widthFactor(at: index), 460))
                 .visualEffect { content, proxy in
@@ -156,18 +189,73 @@ private struct BookTower: View {
                         viewportHeight: viewportHeight
                     )
                     return content
-                        .scaleEffect(t.scale, anchor: .bottom)
+                        .scaleEffect(t.scale * (1 + promotion * BookFocus.scaleBoost), anchor: .bottom)
                         .opacity(t.opacity)
                         .offset(y: t.yOffset)
                 }
-                // Contact shadow; deepens via scale → reads strongest on the front card.
-                .shadow(color: .black.opacity(0.30), radius: 16, y: 12)
+                // Publish this card's viewport midY for front-slot detection.
+                .background {
+                    GeometryReader { proxy in
+                        Color.clear.preference(
+                            key: CardMidYKey.self,
+                            value: [index: proxy.frame(in: .scrollView).midY]
+                        )
+                    }
+                }
+                // Contact shadow; deepens with the grow-to-front promotion → strongest on the
+                // settled front card (motion grammar #2 "contact shadow deepens as scale → 1").
+                .shadow(
+                    color: .black.opacity(0.30 + promotion * 0.18),
+                    radius: 16 + promotion * 10,
+                    y: 12 + promotion * 6
+                )
         }
     }
 
     /// Slight per-position width variation gives the staircase its hand-stacked rhythm.
     private func widthFactor(at index: Int) -> CGFloat {
         0.62 + CGFloat((index + 1) % 4) * 0.05
+    }
+}
+
+/// Collects each card's viewport midY (keyed by shelf index) so `BookFocus` can find the card
+/// nearest the front slot. Merges partial maps as cards report during layout.
+private struct CardMidYKey: PreferenceKey {
+    static let defaultValue: [Int: CGFloat] = [:]
+    static func reduce(value: inout [Int: CGFloat], nextValue: () -> [Int: CGFloat]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
+/// Focused-book metadata reveal (motion grammar #2): the settling book's title + author fade
+/// up in the editorial serif on the matte canvas (content is paper, never glass). `reveal` is
+/// the eased focus emphasis (0 = hidden, 1 = fully settled). Parameterized so it renders
+/// identically from the live scroll state and from snapshot tests.
+struct FocusMetadataView: View {
+    let book: BookSeed
+    let reveal: CGFloat
+
+    @ScaledMetric(relativeTo: .title3) private var titleSize: CGFloat = 22
+    @ScaledMetric(relativeTo: .caption2) private var authorSize: CGFloat = 10
+
+    var body: some View {
+        VStack(spacing: 5) {
+            Text(book.title)
+                .font(.system(size: titleSize, weight: .regular, design: .serif))
+                .tracking(1)
+                .foregroundStyle(Palette.textPrimary)
+            Text(book.author.uppercased())
+                .font(.system(size: authorSize, weight: .medium))
+                .tracking(2.5)
+                .foregroundStyle(Palette.textPrimary.opacity(0.6))
+        }
+        .multilineTextAlignment(.center)
+        .lineLimit(1)
+        .minimumScaleFactor(0.6)
+        .padding(.horizontal, 32)
+        .opacity(reveal)
+        // The cover already carries an accessibility label; this reveal is decorative.
+        .accessibilityHidden(true)
     }
 }
 
