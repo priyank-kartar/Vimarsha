@@ -77,3 +77,26 @@ class TocResponse(BaseModel):
 
     book: BookMeta
     chapters: list[ChapterSummary]
+
+
+class ChatMessageIn(BaseModel):
+    role: str
+    text: str
+
+
+class ChatContextModel(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    passage: str
+    figure_caption: Optional[str] = Field(default=None, alias="figureCaption")
+    book_title: str = Field(alias="bookTitle")
+    chapter_title: str = Field(alias="chapterTitle")
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessageIn]
+    context: ChatContextModel
+
+
+class SpeakRequest(BaseModel):
+    text: str
