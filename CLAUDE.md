@@ -10,6 +10,28 @@ surfaces the right figure/diagram/quote on screen at the moment it's discussed,
 and lets the reader record voice notes (and optionally hold a spoken AI
 conversation) about the passage. Flutter client + local GPU Python backend.
 
+## Client direction: native Swift (`apple/`) — 2026-06-10
+
+The client is being rebuilt **native Swift (SwiftUI) with Apple Liquid Glass**, UI as the
+main selling point — iOS 26 + macOS 26, full feature parity, same backend contract. The
+Flutter client (`app/`) stays as the working reference implementation; new client work
+happens in `apple/`. **Everything UI — palette, motion grammar, Liquid Glass rules,
+conventions — lives in [`apple/CLAUDE.md`](apple/CLAUDE.md)**; the reference-video analysis
+it's built from is in `apple/docs/reference/`.
+
+**Canonical color palette** (the app's canvas; both modes ship, designed dark-first —
+roles and the derived dark `ink` ramp are in `apple/CLAUDE.md`):
+
+| Token | Hex | |
+|---|---|---|
+| `butter` | `#F4F48F` | pale yellow |
+| `aqua` | `#8FE5DC` | light aqua |
+| `sky` | `#6FAFD0` | sky blue |
+| `slate` | `#5A8C9D` | slate teal |
+
+(Hexes are sampled estimates from the user's palette image; correct them in one place —
+`Palette.swift` — if exact values arrive.)
+
 ## Repo layout
 
 ```
@@ -19,11 +41,13 @@ backend/        Python 3.13 FastAPI service (EPUB parsing, figure detection, Cha
                 narrate.py metadata.py server.py
   tests/        pytest (TDD); tests/fakes.py = FakeSynth; conftest.py builds a fixture EPUB
   Dockerfile    CUDA image for RunPod; docs/runpod.md for run instructions
-app/            Flutter app (macOS dev target; portable for a future phone client)
+app/            Flutter app (reference implementation; superseded by apple/ for new client work)
   lib/core/     models/ (freezed) backend/ audio/ db/ (drift) storage/ settings/ providers.dart
   lib/features/ library/ book/ player/  (each: repository + screen [+ controller])
   test/         widget + unit tests; test/support/ = fakes
   test_integration/  opt-in real-Chatterbox test (NOT run by `flutter test`)
+apple/          Native Swift client (SwiftUI, iOS 26 + macOS 26, Liquid Glass) — see apple/CLAUDE.md
+  docs/reference/  ref-books video analysis + frame stills (the UI/motion reference)
 shared/         bundle.schema.json (cross-language contract) + fixtures/ (sample.bundle.json, sample.epub)
 docs/superpowers/  specs/ (designs) and plans/ (TDD implementation plans)
 ```
@@ -50,7 +74,9 @@ is stateless and touched only at **import** and (later) **conversation**.
   re-uploads it with a `chapter_index` to download each chapter on demand.
 
 Endpoints: `POST /toc` (book meta + chapters, no audio, fast), `POST /import?chapter_index=N`
-(narrate one chapter → full bundle), `GET /audio/{name}` (MP3 bytes).
+(narrate one chapter → full bundle), `GET /audio/{name}` (MP3 bytes), `GET /image/{name}`
+(figure image bytes), `POST /transcribe` (Whisper STT for memos), `POST /chat` (grounded LLM
+reply), `POST /speak` (Chatterbox TTS of arbitrary text).
 
 ## How to run
 
@@ -129,6 +155,11 @@ Done and merged to `main` (each verified + code-reviewed):
   (save-on-demand), `ChatController` (in-memory live chat).
 
 Test counts on `main`: ~55 backend, ~85 app, `flutter analyze` clean.
+
+**Pivot (2026-06-10):** the client is being rebuilt in native Swift + Liquid Glass under
+`apple/` (see "Client direction" above and `apple/CLAUDE.md`). Whether Plan 6b still lands
+in Flutter first or goes straight into the Swift client is the user's call — ask before
+starting it.
 
 Remaining (each its own spec → plan → implement cycle):
 - **Plan 6b — Discuss UI (NEXT):** record-button dual gesture (long-press = memo,
