@@ -15,6 +15,60 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V07 — Glass control cluster ✅ both suites green + live glass verified
+
+**What:** `Library/ControlCluster.swift` — pure `promotion → {emerge}` (glass moment #5 /
+apple/CLAUDE.md §UI map state 2). `emerge` is a smoothstep above an `emergeThreshold` (0.3):
+the four controls stay melded into one glass blob (absorbed into the cover) until the focused
+book is meaningfully settled, then fan apart; scrolling away reverses it. `xOffset(forControl:
+of:spacing:)` fans the controls symmetrically about the centre, scaled by `emerge` (offset 0
+when absorbed). A nested `Control` enum (`play, figures, memo, discuss`) carries each control's
+SF Symbol + VoiceOver label. No state, no timers — scrubbable like `StackTransform`/`BookFocus`.
+`Library/ControlClusterView.swift` renders it: a `GlassEffectContainer` of four controls, each
+with a `glassEffectID`, so low emerge melds them into one blob and rising emerge splits them
+(the glass analogue of grow-to-front). Play is tinted `aqua` (active), the rest `sky`
+(interactive); Reduce Transparency swaps token-tinted matte fallbacks; the cluster is inert +
+`accessibilityHidden` until `emerge > 0.5`. Stub `onActivate` (the reading/figures/memo/discuss
+morphs land in later items).
+
+**Wiring:** `LibraryStackView`'s bottom overlay became `focusAffordances` — a `VStack` of the
+V06 `FocusMetadataView` reveal with the `ControlClusterView` beneath it, both fed the same eased
+`focus.promotion`, so metadata + controls grow and recede together. This hosts the metadata with
+the cluster (addressing the V06 note that the bare caption grazed the next rising cover). Under
+Reduce Motion `focus` is `.none`, so the whole affordance (and cluster) is absent — consistent
+with V06.
+
+**Evidence:**
+- 11/11 `ControlClusterTests` green on macOS + iPhone 17 Pro sim (control order; at/below
+  threshold absorbed; full promotion → emerge 1; clamp ≤1 past full; monotonic across the band;
+  smoothstep-eased mid-band; melded-at-centre when absorbed; symmetric fan summing to zero;
+  spread scales with emerge; degenerate single-control = no offset).
+- `ControlClusterSnapshotTests` (macOS `ImageRenderer`, opaque fallback): absorbed vs emerged
+  rasters differ; PNGs in `.agent-loop/artifacts/V07/06-cluster-absorbed.png` +
+  `07-cluster-emerged.png` — **looked at:** emerged shows the four controls (play ▶ w/ aqua rim,
+  figures, mic, discuss bubbles w/ sky rims) fanned out; absorbed is the melded near-empty state.
+- Live on iPhone 17 Pro sim (dark): `03-cluster-emerged-live.png` (cluster temporarily forced
+  `emerge: 1` to capture the **real Liquid Glass** controls, since scroll-settle injection isn't
+  available in the agent-loop) — **looked at:** four tinted glass circles fanned beneath the
+  focused *Design by Accident* cover, paper-coloured icons, play left. `01-rest-launch.png` (real
+  wiring) — **looked at:** at the imperfect launch rest-alignment the focused book's promotion is
+  partial, so the cluster is correctly absorbed/faint (re-absorbed). Both full suites
+  `** TEST SUCCEEDED **`.
+- Commits `025b0e1` (math+tests) + `4b98b0b` (view+wiring+snapshot), merged `780b36b`.
+
+**Device-gated:** the live *feel* of the controls morphing out as you scroll-settle a book onto
+the slot — the meld→split timing, the emerge ramp, the 120Hz glass cost — needs an injectable
+scroll the agent-loop env lacks (no idb/assistive gesture injection) and a live glass compositor
+`ImageRenderer` doesn't run. Folds into the **V09** motion review (record a settle on device/sim,
+confirm the cluster melds/splits cleanly and stays on the frame deadline). **Gotcha logged for
+the next agent:** `xcodebuild … build` was repeatedly reporting `BUILD SUCCEEDED` **without
+recompiling** edited Swift (stale binary, old mtime) — every "nothing renders" screenshot was a
+stale install. Confirm the app binary mtime updated (or grep the build log for `Compiling
+<File>.swift`) before trusting a simulator screenshot. **Tuning note for V09:** metadata +
+cluster together (~y600–735 at launch) overlap the focused cover's lower third and the next
+rising cover's top — revisit vertical placement / the cover→controls emergence anchor when V17
+opens the cover into the reading surface.
+
 ## V06 — Book-focus state ✅ both suites green + live focus verified
 
 **What:** `Library/BookFocus.swift` — pure `at(midYs: [Int: CGFloat], viewportHeight:) →

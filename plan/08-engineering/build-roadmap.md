@@ -70,9 +70,17 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   green; live launch focus verified. Live grow-to-front **feel** → V09 motion review._
   ↳ [screen-flows §Book focus](../03-design/screen-flows.md) ·
   [apple/CLAUDE.md §Motion grammar #2](../../apple/CLAUDE.md)
-- **V07** · Glass control cluster: Play/Figures/Memo/Discuss controls morph out of the
+- **V07** ✅ · Glass control cluster: Play/Figures/Memo/Discuss controls morph out of the
   focused cover (`GlassEffectContainer` + `glassEffectID`), re-absorb on scroll; stub
-  actions. (needs V06) ↳ [apple/CLAUDE.md §Glass moments #5](../../apple/CLAUDE.md) ·
+  actions. (needs V06) — _Done 2026-06-11, commit `780b36b`; `ControlCluster` pure math
+  (11 tests) — `promotion → emerge` (smoothstep above a settle threshold) + symmetric fan-out
+  offsets. `ControlClusterView` melds the four glass controls into one blob when absorbed and
+  splits them as `emerge` rises (`GlassEffectContainer` + `glassEffectID`); play tinted aqua,
+  rest sky; Reduce Transparency matte fallback; inert + accessibilityHidden until emerged.
+  Wired into `LibraryStackView`'s bottom `focusAffordances` (hosts the V06 metadata reveal).
+  Both suites green + emerged/absorbed snapshot + live real-glass capture. Live scroll-settle
+  morph **feel + glass cost** → V09 motion review._
+  ↳ [apple/CLAUDE.md §Glass moments #5](../../apple/CLAUDE.md) ·
   [screen-flows](../03-design/screen-flows.md)
 - **V08** · Slot-emit staircase entrance: covers rise from the bottom shelf anchor on first
   appearance, scroll-driven (scrubbable), no overshoot. (needs V03)
