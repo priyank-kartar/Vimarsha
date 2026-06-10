@@ -10,32 +10,74 @@ struct LibraryStackView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
-    @ScaledMetric(relativeTo: .largeTitle) private var ghostSize: CGFloat = 52
-    @ScaledMetric(relativeTo: .caption) private var labelSize: CGFloat = 11
-    @ScaledMetric(relativeTo: .title) private var headlineSize: CGFloat = 34
+    /// Scroll distance-to-rest (≥ 0; 0 at the top). Drives the settle contrast shift
+    /// (motion grammar #7) via `HeaderContrast` — header-only state, so the book tower is
+    /// extracted into `BookTower` to keep this scroll tick off the heavy ForEach.
+    @State private var distanceToRest: CGFloat = 0
 
     var body: some View {
         GeometryReader { geo in
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: reduceMotion ? 24 : -geo.size.height * 0.04) {
-                    header
+                    LibraryHeader(contrast: contrast(in: geo.size))
                         .padding(.top, 64)
                         .padding(.bottom, 72)
-                    ForEach(Array(BookSeed.shelf.enumerated()), id: \.element.id) { index, book in
-                        card(book, at: index, in: geo.size)
-                    }
+                    BookTower(size: geo.size, reduceMotion: reduceMotion)
                 }
                 .padding(.bottom, geo.size.height * 0.22)
                 .frame(width: geo.size.width)
+            }
+            .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, y in
+                distanceToRest = max(0, y)
             }
             .background(Palette.canvas.ignoresSafeArea())
             .overlay(alignment: .top) { topScrim }
         }
     }
 
-    // MARK: Header — ghost serif title / small-caps label / headline (settle shift later)
+    /// Settle contrast shift (motion grammar #7): full at the top, fading as the tower
+    /// scrolls under the glass plane. Reduce Motion pins it to the resting baseline.
+    private func contrast(in size: CGSize) -> HeaderContrast {
+        reduceMotion
+            ? .rest
+            : .at(distanceToRest: distanceToRest, viewportHeight: size.height)
+    }
 
-    private var header: some View {
+    // MARK: Glass top scrim (glass moment #1 — receding covers dissolve under it)
+
+    @ViewBuilder
+    private var topScrim: some View {
+        Group {
+            if reduceTransparency {
+                // Opaque fallback (apple/CLAUDE.md §Accessibility): token-tinted matte.
+                Capsule().fill(Palette.surface)
+                    .frame(height: 54)
+            } else {
+                Color.clear
+                    .frame(height: 54)
+                    .glassEffect(.regular.tint(Palette.sky.opacity(0.18)), in: Capsule())
+            }
+        }
+        .padding(.horizontal, 100)
+        .padding(.top, 6)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+/// The editorial header: ghost serif title / small-caps label / headline. Its type
+/// contrast is supplied by `HeaderContrast` (settle contrast shift, motion grammar #7) —
+/// full at rest, fading as the tower scrolls under the glass plane, the ghost fading
+/// furthest. Parameterized (not self-tracking) so it renders identically from the live
+/// scroll state and from snapshot tests.
+struct LibraryHeader: View {
+    let contrast: HeaderContrast
+
+    @ScaledMetric(relativeTo: .largeTitle) private var ghostSize: CGFloat = 52
+    @ScaledMetric(relativeTo: .caption) private var labelSize: CGFloat = 11
+    @ScaledMetric(relativeTo: .title) private var headlineSize: CGFloat = 34
+
+    var body: some View {
         VStack(spacing: 14) {
             Text("VIMARSHA")
                 .font(.system(size: ghostSize, weight: .light, design: .serif))
@@ -43,24 +85,37 @@ struct LibraryStackView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 .padding(.horizontal, 24)
-                .foregroundStyle(Palette.textPrimary.opacity(0.26))
+                .foregroundStyle(Palette.textPrimary.opacity(contrast.ghost))
             Text("LIBRARY")
                 .font(.system(size: labelSize, weight: .medium))
                 .tracking(5)
-                .foregroundStyle(Palette.textPrimary.opacity(0.6))
+                .foregroundStyle(Palette.textPrimary.opacity(contrast.label))
             Text("MY BOOKS")
                 .font(.system(size: headlineSize, weight: .regular, design: .serif))
                 .tracking(2)
-                .foregroundStyle(Palette.textPrimary)
+                .foregroundStyle(Palette.textPrimary.opacity(contrast.headline))
         }
         .multilineTextAlignment(.center)
         .accessibilityAddTraits(.isHeader)
     }
+}
 
-    // MARK: Cards
+/// The depth-stacked book tower (motion grammar #1). Extracted so the library's
+/// scroll-driven header state changes don't re-evaluate this ForEach every frame — its
+/// inputs (`size`, `reduceMotion`) are stable during a scroll, so SwiftUI skips it. The
+/// per-card transforms run render-side only (`visualEffect`), no layout thrash.
+private struct BookTower: View {
+    let size: CGSize
+    let reduceMotion: Bool
+
+    var body: some View {
+        ForEach(Array(BookSeed.shelf.enumerated()), id: \.element.id) { index, book in
+            card(book, at: index)
+        }
+    }
 
     @ViewBuilder
-    private func card(_ book: BookSeed, at index: Int, in size: CGSize) -> some View {
+    private func card(_ book: BookSeed, at index: Int) -> some View {
         if reduceMotion {
             // Static-layout fallback (apple/CLAUDE.md §Accessibility): flat FULL-SIZE list,
             // no per-book rhythm, no transforms.
@@ -89,27 +144,6 @@ struct LibraryStackView: View {
     /// Slight per-position width variation gives the staircase its hand-stacked rhythm.
     private func widthFactor(at index: Int) -> CGFloat {
         0.62 + CGFloat((index + 1) % 4) * 0.05
-    }
-
-    // MARK: Glass top scrim (glass moment #1 — receding covers dissolve under it)
-
-    @ViewBuilder
-    private var topScrim: some View {
-        Group {
-            if reduceTransparency {
-                // Opaque fallback (apple/CLAUDE.md §Accessibility): token-tinted matte.
-                Capsule().fill(Palette.surface)
-                    .frame(height: 54)
-            } else {
-                Color.clear
-                    .frame(height: 54)
-                    .glassEffect(.regular.tint(Palette.sky.opacity(0.18)), in: Capsule())
-            }
-        }
-        .padding(.horizontal, 100)
-        .padding(.top, 6)
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
     }
 }
 
