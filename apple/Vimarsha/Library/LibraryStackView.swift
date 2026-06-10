@@ -53,20 +53,29 @@ struct LibraryStackView: View {
             .simultaneousGesture(lensingDrag(in: geo.size))
             .overlay { LensingPuckView(puck: puck, reduceTransparency: reduceTransparency) }
             .overlay(alignment: .top) { topScrim }
-            .overlay(alignment: .bottom) { focusMetadata }
+            .overlay(alignment: .bottom) { focusAffordances }
         }
     }
 
-    // MARK: Focused-book metadata reveal (motion grammar #2)
+    // MARK: Focused-book affordances — metadata reveal + glass control cluster
 
-    /// The focused book's title/author fades up on the matte canvas (content is paper) as it
-    /// settles onto the front slot — the "now reading this" affordance the glass control
-    /// cluster (V07) will grow from. Hidden when nothing is settled or under Reduce Motion.
+    /// The settled book's title/author (motion grammar #2) with the glass control cluster
+    /// (glass moment #5) beneath it: Play/Figures/Voice note/Discuss morph out of the focused
+    /// cover and re-absorb on scroll. Both fade with the same eased `promotion`, so they grow
+    /// and recede together. Hosting the metadata here (rather than free-floating) addresses the
+    /// V06 note that the bare caption grazed the next rising cover. Hidden when nothing is
+    /// settled or under Reduce Motion (focus is `.none`).
     @ViewBuilder
-    private var focusMetadata: some View {
+    private var focusAffordances: some View {
         if focus.index >= 0, focus.index < BookSeed.shelf.count {
-            FocusMetadataView(book: BookSeed.shelf[focus.index], reveal: focus.promotion)
-                .padding(.bottom, 40)
+            VStack(spacing: 18) {
+                FocusMetadataView(book: BookSeed.shelf[focus.index], reveal: focus.promotion)
+                ControlClusterView(
+                    cluster: ControlCluster.at(promotion: focus.promotion),
+                    reduceTransparency: reduceTransparency
+                )
+            }
+            .padding(.bottom, 36)
         }
     }
 
