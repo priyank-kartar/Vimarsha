@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import os
 import tempfile
 from pathlib import Path
 
+import numpy as np
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 
+from vimarsha.audio_io import write_mp3
 from vimarsha.epub_reader import read_chapters
 from vimarsha.figure_images import extract_images
 from vimarsha.ingest import ingest_epub
@@ -14,8 +18,9 @@ from vimarsha.llm import LlmClient, OllamaLlmClient
 from vimarsha.metadata import read_book_meta
 from vimarsha.models import ChatContextModel, ChatRequest, ChapterSummary, SpeakRequest, TocResponse
 from vimarsha.narrate import narrate_bundle
+from vimarsha.stitch import assemble
 from vimarsha.transcribe import FasterWhisperTranscriber, Transcriber
-from vimarsha.tts import ChatterboxSynth, Synthesizer
+from vimarsha.tts import ChatterboxSynth, Synthesizer, chunk_text
 
 app = FastAPI(title="Vimarsha backend")
 app.state.audio_dir = tempfile.mkdtemp(prefix="vimarsha-audio-")
@@ -156,3 +161,22 @@ def get_audio(name: str):
     if not path.is_file() or not path.is_relative_to(base):
         raise HTTPException(status_code=404, detail="audio not found")
     return FileResponse(str(path), media_type="audio/mpeg")
+
+
+@app.post("/speak")
+async def speak(req: SpeakRequest, synth: Synthesizer = Depends(get_synth)):
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="empty text")
+
+    def _render() -> str:
+        wav = np.concatenate([synth.synthesize(c) for c in chunk_text(req.text)])
+        full, _timings = assemble([("reply", wav)], synth.sample_rate, 0)
+        out = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
+        out.close()
+        write_mp3(full, synth.sample_rate, out.name)
+        return out.name
+
+    path = await run_in_threadpool(_render)
+    return FileResponse(
+        path, media_type="audio/mpeg", background=BackgroundTask(os.remove, path)
+    )
