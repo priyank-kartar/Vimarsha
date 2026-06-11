@@ -110,10 +110,12 @@ nonisolated enum BackendError: Error {
 }
 
 /// URLSession implementation of the seam. Stateless like the backend itself; the base
-/// URL defaults to the local dev server (repoint for LAN/RunPod — a settings surface
-/// comes later, mirroring the Flutter `AppSettings`).
+/// URL defaults to the LAN address of the dev Mac running the backend so a physical phone
+/// on the same Wi-Fi can reach it (a settings surface comes later, mirroring the Flutter
+/// `AppSettings`). On the simulator `localhost` also works; override per environment.
+/// DEV NOTE: hardcoded Mac LAN IP — update if DHCP reassigns it (`ipconfig getifaddr en0`).
 nonisolated struct URLSessionBackendClient: BackendClient {
-    var baseURL = URL(string: "http://localhost:8000")!
+    var baseURL = URL(string: "http://192.168.1.16:8000")!
     var session = URLSessionBackendClient.narrationSession
 
     /// `URLSession.shared`'s 60s idle timeout kills any real `/import` — Chatterbox

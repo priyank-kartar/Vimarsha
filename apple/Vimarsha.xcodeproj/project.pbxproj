@@ -269,6 +269,9 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Vimarsha uses the microphone to record your voice notes about the passage being narrated.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Vimarsha connects to the Mac on your Wi-Fi that narrates your books.";
+				INFOPLIST_FILE = Config/Info.plist;
+				DEVELOPMENT_TEAM = 7RVZ4J4KKF;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -300,6 +303,9 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Vimarsha uses the microphone to record your voice notes about the passage being narrated.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Vimarsha connects to the Mac on your Wi-Fi that narrates your books.";
+				INFOPLIST_FILE = Config/Info.plist;
+				DEVELOPMENT_TEAM = 7RVZ4J4KKF;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
