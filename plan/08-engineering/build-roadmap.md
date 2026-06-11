@@ -195,8 +195,14 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
 > Goal: the stack shows *your* EPUBs; chapters fetch from the (local) backend through the
 > real seam. Mirrors the proven Flutter data-layer design — port the design, not the code.
 
-- **V10** · EPUB import: document picker (iOS + macOS), security-scoped bookmark, copy into
-  the app container; entitlements. ↳ [app-architecture](../04-architecture/app-architecture.md) ·
+- **V10** ✅ · EPUB import: document picker (iOS + macOS), security-scoped bookmark, copy into
+  the app container; entitlements. — _Done 2026-06-11, merged `bd67c3b`; `EpubImporter`
+  (3 tests, real file IO): picked EPUB → `Library/Books/<id>/book.epub`, container-relative
+  result, scoped access released after copy, half-state rollback. Glass "+" → `fileImporter`
+  (UTType.epub) in `LibraryStackView`; `Config/Vimarsha.entitlements` (macOS app-sandbox +
+  user-selected read-only + network client) wired `sdk=macosx*`. Both suites green with the
+  sandbox ON; live pick is device-gated → V15._
+  ↳ [app-architecture](../04-architecture/app-architecture.md) ·
   Flutter reference: `app/lib/features/library/`
 - **V11** · **[SPIKE]** Client-side cover extraction from EPUB (container.xml → OPF →
   cover-image manifest item; fall back to first image / generated cloth cover). Proves

@@ -15,6 +15,60 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V10 — EPUB import (picker → container copy → entitlements) ✅ (P2 opens)
+
+**What:** the first real-books item — a user-picked EPUB lands in the app container.
+- `Import/EpubImporter.swift` — `importEpub(at:)` copies the picked file into the
+  data-model cache layout `Library/Books/<bookId>/book.epub` and returns a
+  **container-relative** path (`ImportedEpub`); the security-scoped origin is accessed only
+  for the copy and released after (no persistent bookmark — we keep our own copy, per
+  app-architecture.md). Failure rolls back the half-created book dir (Flutter
+  `LibraryRepository` parity). `nonisolated` struct (file IO off the main actor),
+  injectable `makeId` for tests, `.live` rooted at `.applicationSupportDirectory`.
+- `LibraryStackView`: a glass **"+"** at top-trailing (sky `0.26` interactive tint, matte +
+  sky-stroke Reduce Transparency fallback, `accessibilityLabel("Add book")`) presents
+  `.fileImporter(allowedContentTypes: [.epub])`. The system document picker is OS-driven
+  chrome (keyboard-style exemption from the morph rule) and the only sandbox-sanctioned
+  path to a user file. Import failure surfaces as a small status line under the button
+  (honest states, no alerts); success is silent until V12 wires persistence → shelf.
+- `Config/Vimarsha.entitlements` (NEW, outside the synced groups so it isn't bundled as a
+  resource), wired `"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]"` on both app configs:
+  app-sandbox + `files.user-selected.read-only` + `network.client` — the exact pair the
+  Flutter macOS client needed (root CLAUDE.md gotcha), network for the V13 seam. iOS needs
+  none of these (always sandboxed; `fileImporter` grants per-pick access).
+
+**Wiring:** `handlePickedEpub` runs the copy in `Task.detached` (importer is `Sendable`;
+compiles clean under Swift 6 strict concurrency). No interaction with the motion system —
+the button is a static overlay above the scrim plane.
+
+**Evidence:**
+- 3/3 `EpubImporterTests` green on macOS + iPhone 17 Pro sim (container layout + byte-equal
+  copy, distinct dirs per import, failed import leaves no half-state) — real temp-dir IO,
+  no doubles (house rule: only `BackendClient`/audio get doubles).
+- Full suites green on both destinations **with the sandbox entitlements applied** (test
+  host is the sandboxed app; snapshot tests write to `temporaryDirectory`, which stays
+  writable in-sandbox — checked before enabling).
+- Fresh-binary launch captures (dark + light) in `.agent-loop/artifacts/V10/` — looked at:
+  the glass "+" floats in the top-trailing corner inside the safe area in both modes;
+  scrim still invisible at rest (V27 holds).
+- Commits `40edc6e` + `abd998a`, merged `bd67c3b`.
+
+**Visual audit findings (whole frame, both modes):**
+1. **Faint metadata ghost mid-stack at rest** — "Hey / DESIGN & ILLUSTRATION" floats over
+   the David Crow/Hey card seam at low opacity in BOTH modes (a second rendering of the
+   HEY title in the same eyeline). This is the focus affordance leaking at rest via a
+   small nonzero promotion on the behind-stack book — the open `frontSlot 0.72` vs
+   dominant-cover calibration carried from V24/V26. Out of V10 scope; belongs to the
+   V15/V21 review-debt pile (or a P1.5 follow-up if it grates earlier).
+2. The "+" button overlaps the top-scrim band's area; at rest the scrim is invisible so it
+   reads clean, but mid-recede both glass layers will stack at the corner — eyeball at V15.
+
+**Device-gated:** the document picker itself (an OS surface — can't be driven by simctl):
+pick-an-EPUB → file lands in `Library/Books/` needs a human (or the V15 verify) to run
+live. The copy path, rollback, and entitlements wiring are test/build-verified.
+
+---
+
 ## V27 — Glass top-scrim redesign (contextual visibility) ✅
 
 **What:** the top-scrim no longer reads as a giant empty pill dangling at the top at rest
