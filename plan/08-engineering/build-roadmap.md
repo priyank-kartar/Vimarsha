@@ -145,10 +145,17 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   sky/aqua cluster on the focused cover. **Out-of-scope finding for V25/V26:** front-slot 0.72
   can focus the behind-stack book, not the dominant front cover._
   ↳ [V09-motion-review](V09-motion-review.md) · [apple/CLAUDE.md §Liquid Glass rules](../../apple/CLAUDE.md)
-- **V25** · Coupled scroll+zoom hero settle — the missing motion grammar **#5**: a
+- **V25** ✅ · Coupled scroll+zoom hero settle — the missing motion grammar **#5**: a
   scroll-progress-driven rigid-group scale of the whole tower coupled to the header
   translate-off, anchored on a fixed point; scrubbable, ease-in-out, no timers; Reduce
-  Motion exempt. (needs V23) ↳ [apple/CLAUDE.md §Motion grammar #5](../../apple/CLAUDE.md) ·
+  Motion exempt. (needs V23) — _Done 2026-06-11, commits `c7b4d86`+`7df43b3`, merged `1c31b84`;
+  `HeroSettle` pure math (10 tests): `distanceToRest` → smoothstep ease-in-out from `baseScale`
+  1.0 (zoomed-out hero, header visible) to `peakScale` 1.06 over `settleBand` 0.55 vh, then
+  holding; one `scaleEffect` on `BookTower` as a rigid group (per-card parallax rides inside),
+  anchored on the front slot (0.72) so the front cover holds; Reduce Motion pins to rest. Both
+  suites green + rest capture (no-op at distance 0). Live zoom **feel** + the in-bounds anchor
+  approximation → V26 re-review._
+  ↳ [apple/CLAUDE.md §Motion grammar #5](../../apple/CLAUDE.md) ·
   [reference analysis](../../apple/docs/reference/ref-books-video-analysis.md)
 - **V26** · **[verify]** Library quality re-review: rebuild; capture rest / mid-scroll /
   focused states (dark + light) + a scroll recording if possible; check uniform sizing,

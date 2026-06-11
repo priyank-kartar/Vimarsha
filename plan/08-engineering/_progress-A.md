@@ -15,6 +15,43 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V25 — Coupled scroll+zoom hero settle (motion grammar #5) ✅
+
+**What:** Phase P1.5 #4 — the missing motion grammar **#5**. As the editorial header
+translates off the top, the whole book tower scales toward the viewer **as one rigid group**.
+New `HeroSettle` pure math maps the scroll **distance-to-rest** → a tower scale: `baseScale`
+1.0 at the top (the zoomed-out hero state) easing **in-out** (smoothstep) up to `peakScale`
+1.06 once the header has scrolled off (`settleBand` 0.55 vh), then holding at peak through the
+browsing scroll. No timers, fully scrubbable, and it un-zooms on the loop-back to top
+(distance → 0). The zoom is anchored on the front slot (`StackTransform.frontSlot` 0.72) so
+the dominant front cover holds while the receding stack grows toward the viewer — the
+reference's fixed-point zoom.
+
+**Wiring:** one `scaleEffect(_:anchor:)` on `BookTower` *as a whole* (the per-card depth-stack
+parallax + slot-emit ride inside the group), driven by the already-tracked `distanceToRest`
+and anchored at `UnitPoint(0.5, frontSlot)` via new `heroSettle(in:)` / `heroAnchor(in:)`
+helpers in `LibraryStackView`. **Reduce Motion exempt** — pinned to `.rest` (no hero zoom, per
+the accessibility static fallback). At rest the scale is exactly 1.0, so the effect is a no-op
+until scroll engages it — no change to the resting layout. `HeroSettle.swift` + its tests are
+new files; no other library math touched.
+
+**Evidence:** both suites `** TEST SUCCEEDED **` (macOS + iPhone 17 Pro sim); 10 new
+`HeroSettleTests` (degenerate viewport, base/peak clamps, overscroll→rest, hold-past-band,
+monotonic growth, no-overshoot, ease-in-out shape + symmetric midpoint, front-slot anchor,
+viewport-fraction scaling), all prior suites stayed green. Rest capture reviewed in
+[`artifacts/V25/v25-rest-dark.png`](artifacts/V25/) — **looked at:** the editorial header +
+uniform-card staircase render identically to V24 (confirming the rest no-op). Commits
+`c7b4d86` (math+tests) + `7df43b3` (wiring), merged `1c31b84`.
+
+**Device-gated:** the scroll-driven zoom **feel** (does the front cover read as held? is the
+1.06 peak the right strength? does it couple cleanly with the header translate-off and the
+slot-emit landing?) and the anchor approximation — `scaleEffect`'s anchor is in the tower's
+*own* bounds, not viewport space, so the "fixed point" drifts slightly across a long scroll;
+kept subtle and flagged for **V26** live re-review (where hero zoom is on the checklist). A
+scrolled/zoomed capture could not be produced headless (simctl injects no scroll gesture).
+
+---
+
 ## V24 — Focus & cluster fixes (from V09) ✅
 
 **What:** Phase P1.5 #3 — the four focus/cluster deviations the V09 human review filed
