@@ -105,14 +105,15 @@ A narration-first, figure-synced, AI-conversational book reader. iOS/macOS-nativ
 
 ---
 
-## ⚡ Latest direction — native Swift pivot + scaffold (2026-06-10/11)
+## ⚡ Latest direction — v1 feature loop COMPLETE (machine), final human review pending (2026-06-11)
 
-> The client is rebuilt **native SwiftUI (iOS 26 + macOS 26) with Liquid Glass**, UI-first
-> ([ADR-004](00-overview/decision-log.md#adr-004--client-pivot-native-swiftui--liquid-glass-ios-26--macos-26)–[ADR-007](00-overview/decision-log.md#adr-007--freeze-the-flutter-client-all-new-feature-work-is-swift-only));
-> the Flutter client is **frozen** as the behavioral reference. The scaffold is live: depth-stack
-> library rendering with static books, merged to `main` (P0 ✅, see
-> [_progress-A](08-engineering/_progress-A.md)). Ambition set: **App Store product**
-> ([ADR-008](00-overview/decision-log.md#adr-008--ambition-app-store-product)) with a
-> **hosted GPU narration service** as the final-scope backend
-> ([ADR-009](00-overview/decision-log.md#adr-009--final-scope-backend-hosted-gpu-narration-service)).
-> Next build: [Phase P1 — the living library](08-engineering/build-roadmap.md#phase-p1--the-living-library).
+> **M0–M4 done in one day** by the autonomous agent loop (`scripts/agent-loop/`): the full
+> v1 loop exists natively — living library (all 7 motion patterns + glass moments), real
+> EPUB import with client-side covers, narrated reading with live highlight + figures on
+> cue, voice memos (22/22 live), and Discuss (28/28 live vs Ollama + Chatterbox). 47
+> V-items merged across P0–P5 + three independent UI-audit fix rounds. **What remains
+> before M5 (hosted backend):** the consolidated human review —
+> [final-review-checklist](08-engineering/final-review-checklist.md) (~21 feel/UX checks)
+> — then polish items it spawns. Pivot history: ADR-004–ADR-011 in the
+> [decision log](00-overview/decision-log.md); per-item evidence in
+> [_progress-A](08-engineering/_progress-A.md) + [ui-audit-log](08-engineering/ui-audit-log.md).
