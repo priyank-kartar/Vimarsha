@@ -234,7 +234,10 @@ struct LibraryStackView: View {
                 VStack(spacing: 12) {
                     FocusMetadataView(
                         book: shelf[focus.index],
-                        reveal: focus.promotion,
+                        // Saturating ramp (V43): fully opaque by the resting promotion —
+                        // `reveal == promotion` left the band (text included) half-faded
+                        // at rest, which is what actually failed WCAG over the blue cover.
+                        reveal: BookFocus.metadataRevealOpacity(promotion: focus.promotion),
                         reduceTransparency: reduceTransparency
                     )
                     controlCluster
@@ -669,6 +672,16 @@ struct FocusMetadataView: View {
     let reveal: CGFloat
     var reduceTransparency: Bool = false
 
+    /// The matte token underlay beneath the band's glass (V43, ui-audit round 2): glass
+    /// tint alone let mid-luminance covers bloom through (blue cover measured ≈1.4–2.6:1).
+    /// At this opacity `BandContrast.guaranteedContrast` clears WCAG AA (≥4.5:1) for title
+    /// AND subtitle over ANY cover, both modes — pinned by `BandContrastTests`.
+    static let plateUnderlayOpacity: Double = 0.85
+
+    /// Subtitle alpha (V43): raised 0.7 → 0.8 — at 0.7 the worst-case cover dipped the
+    /// translucent author line just under 4.5:1 in light mode.
+    static let subtitleOpacity: Double = 0.8
+
     @ScaledMetric(relativeTo: .title3) private var titleSize: CGFloat = 22
     @ScaledMetric(relativeTo: .caption2) private var authorSize: CGFloat = 10
 
@@ -683,7 +696,7 @@ struct FocusMetadataView: View {
             Text(book.author.uppercased())
                 .font(.system(size: authorSize, weight: .medium))
                 .tracking(2.5)
-                .foregroundStyle(Palette.textPrimary.opacity(0.7))
+                .foregroundStyle(Palette.textPrimary.opacity(Self.subtitleOpacity))
         }
         .multilineTextAlignment(.center)
         .lineLimit(1)
@@ -695,9 +708,15 @@ struct FocusMetadataView: View {
                 // Opaque fallback (apple/CLAUDE.md §Accessibility): token-tinted matte plate.
                 plateShape.fill(Palette.surface)
             } else {
-                // Sky glass (interactive-tint family) so the token text reads on ANY cover
-                // beneath; deliberately not `.interactive()` — the reveal is not a control.
-                Color.clear.glassEffect(.regular.tint(Palette.sky.opacity(0.30)), in: plateShape)
+                // A matte `surface` underlay GUARANTEES the band's backdrop (V43 — tint-only
+                // glass let cover art bloom through to WCAG failure); the sky glass above it
+                // keeps the refracting rim. Deliberately not `.interactive()` — not a control.
+                plateShape.fill(Palette.surface.opacity(Self.plateUnderlayOpacity))
+                    .overlay(
+                        Color.clear.glassEffect(
+                            .regular.tint(Palette.sky.opacity(0.30)), in: plateShape
+                        )
+                    )
             }
         }
         .padding(.horizontal, 32)

@@ -129,6 +129,53 @@ struct DebossTitleFadeTests {
     }
 }
 
+/// V43 — ui-audit round 2: the metadata band measured below WCAG because the WHOLE reveal
+/// (plate + text) rendered at `opacity == promotion`, and launch rest only reaches ~0.5 —
+/// the band (text included) sat half-transparent forever. The reveal ramp must SATURATE:
+/// fully opaque by the resting promotion, so the plate/text contrast guarantee
+/// (`BandContrast`) actually holds on screen.
+@Suite("BookFocus — metadata reveal saturates before rest (V43)")
+struct MetadataRevealOpacityTests {
+    @Test("hidden when nothing is promoted")
+    func zeroAtZero() {
+        #expect(BookFocus.metadataRevealOpacity(promotion: 0) == 0)
+        #expect(BookFocus.metadataRevealOpacity(promotion: -0.1) == 0)  // clamped
+    }
+
+    @Test("fully opaque at the saturation point, at launch rest, and beyond")
+    func saturates() {
+        #expect(BookFocus.metadataRevealOpacity(
+            promotion: BookFocus.metadataRevealSaturation) == 1)
+        #expect(BookFocus.metadataRevealOpacity(promotion: 0.5) == 1)  // the audit rest state
+        #expect(BookFocus.metadataRevealOpacity(promotion: 1) == 1)
+    }
+
+    @Test("fully opaque before the control cluster becomes visible (no half-faded band under controls)")
+    func opaqueBeforeCluster() {
+        for promotion in stride(from: 0.0, through: 1.0, by: 0.01) {
+            let p = CGFloat(promotion)
+            if ControlCluster.at(promotion: p).isVisible {
+                #expect(BookFocus.metadataRevealOpacity(promotion: p) == 1)
+            }
+        }
+    }
+
+    @Test("monotone, scrubbable ramp")
+    func monotone() {
+        let samples = stride(from: 0.0, through: 1.0, by: 0.05).map {
+            BookFocus.metadataRevealOpacity(promotion: CGFloat($0))
+        }
+        for (a, b) in zip(samples, samples.dropFirst()) {
+            #expect(b >= a)
+        }
+    }
+
+    @Test("eases in gently (a barely-promoted card barely reveals)")
+    func easedNearZero() {
+        #expect(BookFocus.metadataRevealOpacity(promotion: 0.02) < 0.05)
+    }
+}
+
 /// V42 — ui-audit round 2: when the focused cover's visible band is too short for the
 /// metadata reveal (XXXL type → `ViewThatFits` yields to the cluster-only branch), the
 /// deboss fade must NOT engage — the printed title is the focused book's only label, and
