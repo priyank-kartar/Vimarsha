@@ -14,26 +14,39 @@ struct PlayerControllerTests {
         let context: ModelContext
     }
 
-    /// A persisted book + `ready` chapter and a controller wired to a fake engine.
-    private func makeFixture(progressMs: Int = 0, status: ChapterStatus = .ready) throws -> Fixture {
+    /// A persisted book + `ready` chapter (with a REAL cached bundle.json on disk — V18
+    /// decodes it at load) and a controller wired to a fake engine.
+    private func makeFixture(
+        progressMs: Int = 0, status: ChapterStatus = .ready,
+        bundle: ChapterBundleDTO = .timedFixture, writeBundle: Bool = true
+    ) throws -> Fixture {
         let container = try ModelContainer(
             for: Book.self, Chapter.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         let context = ModelContext(container)
+        let root = FileManager.default.temporaryDirectory
+            .appending(path: "PlayerControllerTests-\(UUID().uuidString)")
         let book = Book(title: "T", author: "A", epubPath: "Library/Books/x/book.epub")
         let chapter = Chapter(index: 0, title: "One")
         chapter.status = status
-        chapter.audioPath = status == .ready ? "Library/Books/x/chapters/0/chapter.mp3" : nil
+        if status == .ready {
+            chapter.audioPath = "Library/Books/x/chapters/0/chapter.mp3"
+            chapter.bundlePath = "Library/Books/x/chapters/0/bundle.json"
+            if writeBundle {
+                let bundleURL = root.appending(path: chapter.bundlePath!)
+                try FileManager.default.createDirectory(
+                    at: bundleURL.deletingLastPathComponent(), withIntermediateDirectories: true
+                )
+                try JSONEncoder().encode(bundle).write(to: bundleURL)
+            }
+        }
         chapter.progressMs = progressMs
         book.chapters = [chapter]
         context.insert(book)
         try context.save()
         let engine = FakeAudioEngine()
-        let controller = PlayerController(
-            engine: engine, context: context,
-            containerRoot: FileManager.default.temporaryDirectory
-        )
+        let controller = PlayerController(engine: engine, context: context, containerRoot: root)
         return Fixture(controller: controller, engine: engine, chapter: chapter, context: context)
     }
 
@@ -135,6 +148,36 @@ struct PlayerControllerTests {
         #expect(f.engine.rate == 1.5)
     }
 
+    @Test func loadDecodesTheCachedBundleAndBuildsTiming() throws {
+        let f = try makeFixture()
+        try f.controller.load(f.chapter)
+        #expect(f.controller.bundle?.blocks.count == 3)
+        #expect(f.controller.currentBlockId == "b1")  // playhead 0 → first timed block
+    }
+
+    @Test func currentBlockIdFollowsThePlayhead() throws {
+        let f = try makeFixture()
+        try f.controller.load(f.chapter)
+        f.controller.play()
+        f.engine.advance(byMs: 1_500)
+        f.controller.tick()
+        #expect(f.controller.currentBlockId == "b2")
+        f.controller.seek(toMs: 2_500)
+        #expect(f.controller.currentBlockId == "b3")
+    }
+
+    @Test func loadResumesIntoTheRightBlock() throws {
+        let f = try makeFixture(progressMs: 1_200)
+        try f.controller.load(f.chapter)
+        #expect(f.controller.currentBlockId == "b2")
+    }
+
+    @Test func missingBundleFileFailsTheLoad() throws {
+        let f = try makeFixture(writeBundle: false)
+        #expect(throws: (any Error).self) { try f.controller.load(f.chapter) }
+        #expect(f.controller.bundle == nil)
+    }
+
     @Test func naturalFinishStopsAndPersistsAtTheEnd() throws {
         let f = try makeFixture()
         f.engine.stubbedDurationMs = 8_000
@@ -145,4 +188,19 @@ struct PlayerControllerTests {
         #expect(f.controller.positionMs == 8_000)
         #expect(f.chapter.progressMs == 8_000)
     }
+}
+
+nonisolated extension ChapterBundleDTO {
+    /// Three timed paragraphs — enough to watch the live block move.
+    static let timedFixture = ChapterBundleDTO(
+        chapterId: "chap1", title: "Chapter One",
+        blocks: [
+            BlockDTO(id: "b1", index: 0, kind: "paragraph", text: "First."),
+            BlockDTO(id: "b2", index: 1, kind: "paragraph", text: "Second."),
+            BlockDTO(id: "b3", index: 2, kind: "paragraph", text: "Third."),
+        ],
+        figureMap: [],
+        audio: "chap1.mp3",
+        paraTimings: ["b1": [0, 1_000], "b2": [1_000, 2_000], "b3": [2_000, 3_000]]
+    )
 }
