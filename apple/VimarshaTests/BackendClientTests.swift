@@ -99,6 +99,13 @@ struct BackendClientTests {
         #expect(url.absoluteString == "http://localhost:8000/import?chapter_index=3")
     }
 
+    @Test func defaultSessionOutlivesRealNarrationTimes() {
+        // The V21 live harness caught this: `URLSession.shared`'s 60s request timeout
+        // killed every real `/import` (MPS narration is minutes of server silence).
+        let client = URLSessionBackendClient()
+        #expect(client.session.configuration.timeoutIntervalForRequest >= 600)
+    }
+
     // MARK: multipart encoding
 
     @Test func buildsAWellFormedMultipartUpload() throws {
