@@ -15,6 +15,63 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V17 — Cover→reading-surface morph ✅
+
+**What:** the Prime-Directive transition — the focused hardback opens into the reading
+canvas as a state of the one surface (screen-flows: "the cover is the shared element —
+hardback opens into the canvas (matched geometry); back-morph on close, never a
+dismiss-pop").
+- `Reading/ReadingSurfaceView.swift` — the opened-book shell: small cover plate (the
+  shared element, ~0.40w cap 200), "CHAPTER NN" small-caps + chapter title in the
+  editorial serif (matte paper), glass close-chevron (sky interactive tint, matte
+  fallback), and an honest aqua-waveform "NARRATION READY" mark holding the spot the
+  narrated body (V18) + transport (V19) fill next.
+- **The morph:** `@Namespace coverMorph` in `LibraryStackView`; each tower card carries
+  `matchedGeometryEffect(id: "cover-<shelfId>", isSource: openedBookId != book.id)` and
+  hides (`opacity 0`) while its book is open — the hardback "leaves" the stack, flies to
+  the plate, and back-morphs on close (card regains source). The canvas itself
+  cross-fades (`.opacity` transition); spring `response 0.5 / damping 0.88`,
+  interruptible. **Reduce Motion:** cross-dissolve only (no matched geometry, `nil`
+  namespace), per the discrete-state-morph fallback rule.
+- **Trigger:** `ChapterListView` ready rows are now actionable (`onOpen`); pending stays
+  inert (the spinner is the story). Opening closes the chapter plane in the same
+  animation beat (`openReadingSurface`: only `ready` chapters pass). VoiceOver: ready
+  rows read "ready, double-tap to read".
+- `ReadingContext` carries `{book, chapter, shelfBook}` from the opening moment — V18
+  loads the cached bundle + audio off those rows.
+
+**Wiring:** one new full-viewport overlay above the chapter plane; nothing else moved.
+Seeds never reach it (no chapters → no plane → no open).
+
+**Evidence:**
+- Both suites `** TEST SUCCEEDED **` (macOS + iPhone 17 Pro sim).
+  `ReadingSurfaceSnapshotTests` (ImageRenderer): distinct chapters render distinct
+  rasters; PNG written + looked at.
+- Forced-state sim captures (V07 precedent: root temporarily swapped to the surface,
+  reverted after): [`artifacts/V17/01-reading-forced-dark.png` + `02-…-light.png`]
+  (../../.agent-loop/artifacts/V17/) — **looked at:** glass chevron top-left, blue
+  hardback plate with fore-edge + gilt, serif masthead, aqua ready mark; clean on both
+  ink and butter canvases.
+- Rest regression capture (`03-rest-dark.png`, fresh binary 16:38): the stack renders
+  identically with the matched-geometry modifiers attached — no rest-state change.
+- Commits `c6d1f4f` (surface) `2924665` (morph wiring), merged `bc125a2`.
+
+**Visual audit findings (whole frame):**
+- The cover plate's debossed *subtitle* truncates with an ellipsis at plate width
+  ("FOR A NEW HISTORY OF DE…") — `HardbackCoverView` prints full subtitle regardless of
+  width. Candidate polish: hide/scale the subtitle below a width threshold (also affects
+  V18's persistent plate if kept).
+- Carried (pre-existing): faint "Hey / DESIGN & ILLUSTRATION" metadata ghost mid-stack
+  at rest — the reveal's missing emerge threshold; unchanged by V17.
+
+**Device-gated (→ V21 verify):** the morph *feel* — card→plate flight, interruptibility,
+back-morph landing — needs a real tap (no sim gesture injection); the matched frame is
+the card's **layout** frame (visualEffect transforms are render-only), so the flight
+origin can sit slightly off the visually-transformed cover when promotion < 1 — judge
+live whether it reads as "the cover opening".
+
+---
+
 ## V16 — Audio engine (seam + player controller) ✅ (P3 opens)
 
 **What:** the playback half of the core loop, design-ported from the frozen Flutter

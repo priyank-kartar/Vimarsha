@@ -268,8 +268,13 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   `FakeAudioEngine` double. +16 tests, both suites green. UI wiring lands V18._
   ↳ [app-architecture §Seams](../04-architecture/app-architecture.md) · Flutter reference:
   `app/lib/features/player/`
-- **V17** · Cover→reading-surface morph: the focused hardback opens into the reading canvas
+- **V17** ✅ · Cover→reading-surface morph: the focused hardback opens into the reading canvas
   (matched geometry; the cover art is the shared element); back-morph on close. (needs V07)
+  — _Done 2026-06-11, merged `bc125a2`; `ReadingSurfaceView` shell (cover plate + serif
+  masthead + glass close + ready mark) opened from a now-actionable READY chapter row; the
+  tower card hands matched-geometry source to the plate and hides while open; Reduce Motion
+  cross-dissolves. Both suites green + forced-state captures (dark/light) + rest regression.
+  Live morph feel → V21._
   ↳ [screen-flows §Reading](../03-design/screen-flows.md) · [apple/CLAUDE.md §Prime Directive](../../apple/CLAUDE.md)
 - **V18** · Reading surface: blocks rendered (serif body, figures inline as paper),
   paragraph highlight + auto-scroll driven by `paraTimings`. (needs V16, V17)
