@@ -15,6 +15,51 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V23 — Stack depth polish ✅
+
+**What:** Phase P1.5 #2 — make depth read strong now that cards are one uniform size
+(ADR-011), addressing V09 audit rows #1 (no desaturation) and #3 (opacity floored, didn't
+dissolve). Two new `StackTransform` behaviours on recede + a tuning pass:
+1. **Desaturation** (motion grammar #1 / §Physical book rendering "recessed covers may
+   desaturate slightly; the front cover is full-chroma"): new `saturation` field lerps
+   full chroma `1.0` at the front → `rearSaturationFloor 0.85` at the floor (`saturationFalloff
+   0.25`). Applied via `.saturation(t.saturation)` in the `visualEffect` chain (render-side,
+   no layout thrash).
+2. **Scrim dissolve** (recede-and-clip #3 / glass moment #1): over the last `dissolveBand`
+   (0.15vh) of travel — the cover passing under the glass top-scrim, ending at the top edge
+   where `travel == frontSlot` — the (already floored) opacity ramps **below the 0.35 floor
+   to 0**, so a cover melts into the scrim instead of clipping at the floor. Below the band
+   the mid-recede plateau is untouched.
+3. **Tuning:** `rearScaleFloor 0.62 → 0.60` so the staircase reads deeper now that size
+   carries no meaning (within the reference's 0.75→0.6 rear-shrink range). Tuck/falloffs
+   unchanged (already in range); the per-card contact shadows (keyed to promotion, in the
+   view) left as-is — out of this item's scope.
+
+**Wiring:** `StackTransform.at(...)` gains the `saturation` field + the dissolve term;
+`identity` carries `saturation: 1`. `LibraryStackView`'s `BookTower` visualEffect adds one
+`.saturation(t.saturation)` between opacity and offset. No other call sites; Reduce-Motion
+branch (flat list, no transforms) untouched.
+
+**Evidence:** both suites `** TEST SUCCEEDED **` (macOS + iPhone 17 Pro sim). `StackTransformTests`
+gained `desaturatesOnRecede` (full→floor lerp + clamp) and `dissolvesUnderScrim` (plateau
+before the band, below-floor inside it, ~0 at the top edge); `floorsClamp` updated (opacity now
+dissolves far above, so it asserts the scale + saturation floors). Rest screenshots reviewed in
+[`artifacts/V23/`](artifacts/V23/): `01-rest-dark.png` + `02-rest-light.png` — **looked at:** the
+top **OPTIC** cover dissolves/dims under the glass scrim capsule (fading toward the canvas, no
+longer a solid floored slab) and the receded covers read slightly muted; the staircase below
+is intact in both modes. Binary mtime confirmed fresh (13:50) before the shots — not the
+stale-binary trap. Commit `2559eb1`, merged `76ca193`.
+
+**Device-gated:** the full dissolve-to-0 at the very top edge and the live *feel* of covers
+desaturating/melting under the scrim mid-scroll need an injectable scroll the agent-loop env
+lacks (no idb/assistive gesture injection) — math-tested + verified at the rest position
+(OPTIC already visibly dissolving). Folds into the **V26** library quality re-review (scroll a
+cover up under the scrim, confirm it melts cleanly with no hard edge; judge whether 0.85
+desaturation reads strong enough or wants deepening). V24's double-title + cluster tint still
+visible at rest (its scope, untouched).
+
+---
+
 ## V22 — Uniform book cards ✅
 
 **What:** Phase P1.5 #1 ([ADR-011](../00-overview/decision-log.md#adr-011--uniform-book-card-geometry-in-the-library-stack))

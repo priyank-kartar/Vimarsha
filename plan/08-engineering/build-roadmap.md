@@ -121,11 +121,17 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   show an even uniform-width staircase. V09 double-title + cluster tint left for V24._
   ↳ [V09-motion-review](V09-motion-review.md) ·
   [apple/CLAUDE.md §Physical book rendering](../../apple/CLAUDE.md)
-- **V23** · Stack depth polish: receded covers truly **dissolve** under the glass scrim
+- **V23** ✅ · Stack depth polish: receded covers truly **dissolve** under the glass scrim
   (opacity → 0 over the last ~15% of travel, below the rear floor); subtle desaturation on
   recede (full chroma at front → ~0.85 at the floor); re-tune `StackTransform` constants
   (tuck/falloffs/shadows) for the uniform-card stack so depth reads strong with same-size
-  cards. (needs V22) ↳ [V09-motion-review](V09-motion-review.md) audit rows #1/#3
+  cards. (needs V22) — _Done 2026-06-11, commit `2559eb1`, merged `76ca193`; `StackTransform`
+  gains a `saturation` field (1.0→0.85 floor, `saturationFalloff 0.25`) + a scrim-dissolve term
+  (opacity below the 0.35 floor → 0 over the last `dissolveBand 0.15`vh of travel, ending at the
+  top edge); `rearScaleFloor 0.62→0.60` for stronger depth. Wired via `.saturation()` in the
+  `visualEffect` chain. Both suites green + dark/light rest captures show OPTIC dissolving under
+  the scrim. Live mid-scroll melt/desat feel → V26 re-review._
+  ↳ [V09-motion-review](V09-motion-review.md) audit rows #1/#3
 - **V24** · Focus & cluster fixes from V09: fade the cover's debossed title while the
   metadata reveal shows (kill the double title); cluster glass tint butter → **sky** per the
   glass rules; anchor the cluster *inside* the focused cover's bottom edge (no overlap onto
