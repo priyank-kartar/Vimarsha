@@ -174,6 +174,13 @@ final class LibraryStore {
         return task
     }
 
+    /// A player for one ready chapter's reading surface (V18) — same context/container
+    /// as the library; the engine is the app-lifetime device owner handed down from
+    /// `VimarshaApp` (the controller pauses it, never disposes it).
+    func makePlayer(engine: any AudioEngine) -> PlayerController {
+        PlayerController(engine: engine, context: context, containerRoot: importer.containerRoot)
+    }
+
     /// Remove the book row (cascades to chapters) and its container subtree
     /// (data-model.md §Rules — deletion); in-flight chapter downloads are cancelled.
     func deleteBook(_ book: Book) {

@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import SwiftUI
 
 /// Drives playback of one cached chapter through the app-lifetime `AudioEngine`
 /// (V16; the Flutter `PlayerController` design ported, not the code): load + resume,
@@ -20,6 +21,21 @@ final class PlayerController {
     private(set) var isPlaying = false
     private(set) var rate = 1.0
 
+    /// The cached chapter content (V18) — the bundle JSON on disk is the source of
+    /// truth; rows only hold state about it (data-model.md §Rules).
+    private(set) var bundle: ChapterBundleDTO?
+    private(set) var timing: TimingIndex?
+    /// Cached figure images keyed by their source block id (`figureId` IS the image/figure
+    /// block's id) — decoded downsampled off-main at load, never during scroll
+    /// (apple/CLAUDE.md §Performance budget; the `LibraryStore.covers` precedent).
+    private(set) var blockImages: [String: Image] = [:]
+
+    /// The block being narrated at the current playhead — drives the reading highlight
+    /// and auto-scroll (V18).
+    var currentBlockId: String? {
+        timing?.currentBlockId(atMs: positionMs)
+    }
+
     private var lastSavedMs = 0
     private var ticker: Task<Void, Never>?
 
@@ -36,13 +52,21 @@ final class PlayerController {
         self.containerRoot = containerRoot
     }
 
-    /// Load a `ready` chapter's cached audio, restore the saved position, and record the
-    /// true duration on the row (the scrubber length). Playback starts paused.
+    /// Load a `ready` chapter's cached audio + bundle, restore the saved position, and
+    /// record the true duration on the row (the scrubber length). Playback starts paused.
     func load(_ chapter: Chapter) throws {
-        guard chapter.status == .ready, let audioPath = chapter.audioPath
+        guard chapter.status == .ready, let audioPath = chapter.audioPath,
+              let bundlePath = chapter.bundlePath
         else { throw LoadError.chapterNotReady }
         stopTicker()
+        let decoded = try JSONDecoder().decode(
+            ChapterBundleDTO.self,
+            from: Data(contentsOf: containerRoot.appending(path: bundlePath))
+        )
         durationMs = try engine.load(url: containerRoot.appending(path: audioPath))
+        bundle = decoded
+        timing = TimingIndex(bundle: decoded)
+        loadFigureImages(for: decoded, bundlePath: bundlePath)
         self.chapter = chapter
         let resume = min(max(chapter.progressMs, 0), durationMs)
         if resume > 0 { engine.seek(toMs: resume) }
@@ -95,6 +119,27 @@ final class PlayerController {
     func tick() {
         positionMs = engine.positionMs
         if abs(positionMs - lastSavedMs) >= Self.saveIntervalMs { persist() }
+    }
+
+    /// Decode each cached figure image off the main actor; finished decodes land in
+    /// `blockImages` and re-render the affected rows. Best-effort — a missing/broken
+    /// image just renders its caption (the download already treated images that way).
+    private func loadFigureImages(for bundle: ChapterBundleDTO, bundlePath: String) {
+        blockImages = [:]
+        let imagesDir = containerRoot
+            .appending(path: bundlePath)
+            .deletingLastPathComponent()
+            .appending(path: "images")
+        for figure in bundle.figureMap {
+            guard let name = figure.image else { continue }
+            let url = imagesDir.appending(path: URL(filePath: name).lastPathComponent)
+            let blockId = figure.figureId
+            Task { [weak self] in
+                guard let image = await Task.detached(operation: { CoverArt.shelfImage(at: url) }).value
+                else { return }
+                self?.blockImages[blockId] = image
+            }
+        }
     }
 
     private func startTicker() {

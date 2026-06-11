@@ -5,40 +5,120 @@ import SwiftUI
 /// geometry from the tower card to the small cover plate up top); closing back-morphs,
 /// never a dismiss-pop (Prime Directive: states of one surface, no pages).
 ///
-/// V17 ships the morph + the canvas shell: cover plate, chapter masthead, and an honest
-/// ready-state mark. The narrated blocks/highlight/auto-scroll fill the body in V18; the
-/// glass transport cluster lands in V19.
+/// V17 shipped the morph + the canvas shell; V18 fills the body: the cached bundle's
+/// blocks as matte serif paper (`ReadingBlocksView`), the narrated paragraph highlighted
+/// and auto-scrolled on `paraTimings` (via the player's `TimingIndex`). The glass
+/// transport cluster lands in V19.
 struct ReadingSurfaceView: View {
     /// The opened book as the shelf renders it (real art or generated cloth).
     let book: ShelfBook
     let chapterIndex: Int
     let chapterTitle: String
+    /// The chapter's player (owns the bundle + playhead). Nil (previews/snapshots/no
+    /// engine) renders the V17 shell.
+    var player: PlayerController?
     var reduceTransparency: Bool = false
     var onClose: () -> Void = {}
     /// The cover-morph namespace; nil (snapshots/Reduce Motion) renders without the
     /// shared element.
     var morphNamespace: Namespace.ID?
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @ScaledMetric(relativeTo: .caption) private var labelSize: CGFloat = 10
     @ScaledMetric(relativeTo: .title) private var titleSize: CGFloat = 30
 
+    /// Auto-scroll guards (Flutter `ReadingView` parity): don't re-scroll to the block
+    /// we already centered, and don't yank the view back while the user reads ahead.
+    @State private var lastScrolledTo: String?
+    @State private var lastUserScroll: Date = .distantPast
+    private static let userScrollCooldown: TimeInterval = 4
+
     var body: some View {
         GeometryReader { geo in
-            VStack(spacing: 0) {
+            ZStack(alignment: .topLeading) {
+                if let player, let bundle = player.bundle {
+                    chapterBody(bundle: bundle, player: player, in: geo.size)
+                } else {
+                    shell(in: geo.size)
+                }
                 closeBar
                     .padding(.top, 14)
                     .padding(.horizontal, 20)
-                coverPlate(in: geo.size)
-                    .padding(.top, 6)
-                masthead
-                    .padding(.top, 26)
-                Spacer(minLength: 0)
-                readyMark
-                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity)
         }
         .background(Palette.canvas.ignoresSafeArea())
+    }
+
+    /// The narrated reading body: cover plate + masthead scroll away with the text (the
+    /// chapter opens with its cover, then reads); the live paragraph carries the wash and
+    /// the view follows the narration.
+    private func chapterBody(
+        bundle: ChapterBundleDTO, player: PlayerController, in size: CGSize
+    ) -> some View {
+        ScrollViewReader { proxy in
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    coverPlate(in: size)
+                        .padding(.top, 66)
+                    masthead
+                        .padding(.top, 24)
+                        .padding(.bottom, 36)
+                    ReadingBlocksView(
+                        blocks: bundle.blocks,
+                        activeBlockId: player.currentBlockId,
+                        images: player.blockImages
+                    )
+                    .padding(.horizontal, 22)
+                    // Keep the last lines clear of the transport cluster (V19) zone.
+                    .padding(.bottom, 150)
+                }
+                .frame(maxWidth: 600)
+                .frame(maxWidth: .infinity)
+            }
+            .onScrollPhaseChange { _, newPhase in
+                // A finger on the scroll = the user is reading ahead; back off.
+                if newPhase == .interacting { lastUserScroll = .now }
+            }
+            .onChange(of: player.currentBlockId) { _, id in
+                autoScroll(to: id, proxy: proxy)
+            }
+            .onAppear {
+                // Land on the resume position without animating through the chapter.
+                if let id = player.currentBlockId {
+                    lastScrolledTo = id
+                    proxy.scrollTo(id, anchor: UnitPoint(x: 0.5, y: 0.3))
+                }
+            }
+        }
+    }
+
+    /// Follow the narration: settle the live block ~30% down the viewport. Skips while
+    /// the user recently scrolled (cooldown) or when already there; Reduce Motion jumps
+    /// (position is information — only the glide is decoration).
+    private func autoScroll(to id: String?, proxy: ScrollViewProxy) {
+        guard let id, id != lastScrolledTo,
+              Date.now.timeIntervalSince(lastUserScroll) > Self.userScrollCooldown
+        else { return }
+        lastScrolledTo = id
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35)) {
+            proxy.scrollTo(id, anchor: UnitPoint(x: 0.5, y: 0.3))
+        }
+    }
+
+    /// The V17 shell (no player/bundle — previews, snapshots, forced captures).
+    private func shell(in size: CGSize) -> some View {
+        VStack(spacing: 0) {
+            Color.clear.frame(height: 54)
+            coverPlate(in: size)
+                .padding(.top, 6)
+            masthead
+                .padding(.top, 26)
+            Spacer(minLength: 0)
+            readyMark
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: Pieces

@@ -11,6 +11,9 @@ struct LibraryStackView: View {
     /// The persisted library (V12). `nil` (previews/snapshots) renders the seed shelf
     /// with no import affordance.
     var store: LibraryStore?
+    /// The app-lifetime audio device owner (V16) — handed to each chapter's player.
+    /// `nil` (previews/snapshots) opens the reading shell without playback.
+    var audioEngine: (any AudioEngine)?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -50,6 +53,10 @@ struct LibraryStackView: View {
     /// The opened chapter (V17): a ready chapter row morphs the hardback OPEN into the
     /// reading surface — a state of this same surface, never a push. Closing back-morphs.
     @State private var reading: ReadingContext?
+
+    /// The opened chapter's player (V18): created at open, paused + released at close —
+    /// the shared engine itself lives on in `VimarshaApp`.
+    @State private var player: PlayerController?
 
     /// The cover-morph shared-element namespace (tower card ↔ reading cover plate).
     @Namespace private var coverMorph
@@ -260,14 +267,29 @@ struct LibraryStackView: View {
 
     /// Open a ready chapter: the chapter plane recedes and the focused hardback opens into
     /// the reading canvas in the same gesture-driven beat — the cover art is the shared
-    /// element (matched geometry).
+    /// element (matched geometry). The chapter's player loads (bundle + audio + resume)
+    /// before the morph; an unreadable cache refuses to open a dead surface (the next
+    /// `load()` self-heal will catch the stale row).
     private func openReadingSurface(book: Book, chapter: Chapter) {
         guard chapter.status == .ready else { return }
+        if let store, let audioEngine {
+            let candidate = store.makePlayer(engine: audioEngine)
+            guard (try? candidate.load(chapter)) != nil else { return }
+            player = candidate
+        }
         let shelfBook = ShelfBook(book: book, cover: store?.covers[book.id])
         withAnimation(coverMorphAnimation) {
             chapterBook = nil
             reading = ReadingContext(book: book, chapter: chapter, shelfBook: shelfBook)
         }
+    }
+
+    /// Back-morph and release the player — pausing it persists the resume position; the
+    /// shared engine is never disposed (the Flutter `AudioHandler` lesson).
+    private func closeReadingSurface() {
+        player?.pause()
+        player = nil
+        withAnimation(coverMorphAnimation) { reading = nil }
     }
 
     /// The opened-book state riding above the stack. The canvas itself cross-fades; the
@@ -280,8 +302,9 @@ struct LibraryStackView: View {
                 book: reading.shelfBook,
                 chapterIndex: reading.chapter.index,
                 chapterTitle: reading.chapter.title,
+                player: player,
                 reduceTransparency: reduceTransparency,
-                onClose: { withAnimation(coverMorphAnimation) { self.reading = nil } },
+                onClose: { closeReadingSurface() },
                 morphNamespace: reduceMotion ? nil : coverMorph
             )
             .transition(.opacity)

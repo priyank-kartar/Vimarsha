@@ -19,7 +19,7 @@ struct VimarshaApp: App {
 
     var body: some Scene {
         WindowGroup {
-            LibraryStackView(store: store)
+            LibraryStackView(store: store, audioEngine: audioEngine)
         }
         #if os(macOS)
         .defaultSize(width: 480, height: 920)
