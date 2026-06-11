@@ -17,13 +17,28 @@ struct ControlClusterView: View {
 
     @Namespace private var glassNS
 
-    @ScaledMetric(relativeTo: .title2) private var diameter: CGFloat = 56
-    @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 20
+    @ScaledMetric(relativeTo: .title2) private var rawDiameter: CGFloat = 56
+    @ScaledMetric(relativeTo: .body) private var rawIconSize: CGFloat = 20
 
     private let controls = ControlCluster.Control.allCases
-    /// Centre-to-centre spacing at full emerge (≈ diameter + a hair of gap, so they melt
-    /// cleanly into one blob when stacked at the centre).
-    private let spacing: CGFloat = 64
+
+    /// Control size scales with Dynamic Type but clamps (V40): unclamped, the XXXL diameter
+    /// (~100pt) outgrew the fixed fan spacing, so the four controls could never split — they
+    /// rendered as ONE permanently melded pill (the ui-audit "untinted grey pill"). 68pt keeps
+    /// a generous touch target at every type size while the fan still reads as four controls.
+    private var diameter: CGFloat { min(rawDiameter, 68) }
+    private var iconSize: CGFloat { min(rawIconSize, 24) }
+
+    /// Centre-to-centre spacing at full emerge, derived from the (type-scaled) diameter so the
+    /// controls always split: a 14pt gap — clear of the `GlassEffectContainer` meld radius by
+    /// enough to read separate, close enough to re-meld quickly on absorb.
+    private var spacing: CGFloat { diameter + 14 }
+
+    /// The full fan's layout width. The per-control fan-out is rendered with `offset` (which
+    /// doesn't grow layout), so without an explicit frame the cluster's layout box stays ONE
+    /// circle wide — and V37's `.clipped()` backstop amputated the outer controls at full
+    /// emerge. The frame makes layout match the rendered fan.
+    private var fanWidth: CGFloat { CGFloat(controls.count - 1) * spacing + diameter }
 
     var body: some View {
         // Fully gated below the visibility floor (V39): not just transparent but absent —
@@ -44,6 +59,7 @@ struct ControlClusterView: View {
                             )
                     }
                 }
+                .frame(width: fanWidth, height: diameter)
             }
             // Fade + a subtle lift as the cluster grows out of the cover; re-absorb reverses it.
             .opacity(cluster.opacity)
@@ -63,32 +79,38 @@ struct ControlClusterView: View {
 
     @ViewBuilder
     private func icon(_ control: ControlCluster.Control) -> some View {
-        let glyph = Image(systemName: control.symbol)
-            .font(.system(size: iconSize, weight: .semibold))
-            .foregroundStyle(Palette.textPrimary)
-            .frame(width: diameter, height: diameter)
-
         if reduceTransparency {
             // Opaque fallback (apple/CLAUDE.md §Accessibility): token-tinted matte control.
-            glyph
+            glyph(control, color: Palette.textPrimary)
                 .background(Circle().fill(Palette.surface))
                 .overlay(Circle().strokeBorder(tint(for: control, opaque: true), lineWidth: 1))
         } else {
-            glyph
+            // Ink icons on the glass path (V40): glass adapts its content rendering to the
+            // luminance of whatever cover sits beneath, so the mode-aware `textPrimary`
+            // flipped dark over light covers (the audit's grey-pill icons). Ink-on-sky/aqua
+            // is the palette's own pairing and is cover-independent.
+            glyph(control, color: Palette.ink0)
                 .glassEffect(.regular.tint(tint(for: control)).interactive(), in: Circle())
                 .glassEffectID(control, in: glassNS)
         }
     }
 
+    private func glyph(_ control: ControlCluster.Control, color: Color) -> some View {
+        Image(systemName: control.symbol)
+            .font(.system(size: iconSize, weight: .semibold))
+            .foregroundStyle(color)
+            .frame(width: diameter, height: diameter)
+    }
+
     /// Play is the active action → `aqua` (live); the rest are interactive → `sky`
     /// (apple/CLAUDE.md §Liquid Glass: tint interactive with sky, live/active with aqua).
-    /// V24: the tint opacities were raised (sky 0.16 → 0.26, aqua 0.22 → 0.32) because the
-    /// glass read too weak — the warm cover beneath refracted through and the controls looked
-    /// butter/gold (V09 monitoring note). A stronger tint makes the sky/aqua read regardless of
-    /// the cover beneath.
+    /// V24 raised the tints (0.16/0.22 → 0.26/0.32) but the ui-audit still read the pill as
+    /// untinted grey over the pink cover — V40 raises them to ownership strength (0.45/0.52):
+    /// the pill must read sky/aqua over ANY cover (pink/butter included), per the glass rule
+    /// "tint glass with sky or aqua; avoid untinted grey glass".
     private func tint(for control: ControlCluster.Control, opaque: Bool = false) -> Color {
         let base = control == .play ? Palette.aqua : Palette.sky
-        return base.opacity(opaque ? 0.5 : (control == .play ? 0.32 : 0.26))
+        return base.opacity(opaque ? 0.5 : (control == .play ? 0.52 : 0.45))
     }
 }
 
