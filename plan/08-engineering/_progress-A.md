@@ -15,6 +15,38 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V44 — XXXL deboss block fitted to the cover face ✅
+
+**What:** ui-audit round 2: the blue cover's debossed bottom line ("OF DESIGN") rode
+into the fore-edge page-texture lines at XXXL. Cause: `minimumScaleFactor(0.4)` sat on
+the **title Text alone**, so the un-scalable author/subtitle line pushed the centered
+overlay block past the board face. Fix in `HardbackCoverView.titleBlock`: block-level
+`lineLimit(3) + minimumScaleFactor(0.4)` (covers both texts) + a 12pt vertical inset —
+every glyph stays above the page-edge strip at any type size.
+
+**Wiring:** none beyond the view — pure layout fix.
+
+**Evidence:** new `HardbackCoverDebossFitSnapshotTests` renders the REAL cover at
+`.xxxLarge` and asserts zero title-ink pixels in the fore-edge strip; **red before the
+fix (iOS), green after**. Both suites green both destinations. XXXL captures dark+light
++ seam crops in [`artifacts/V44/`](../../.agent-loop/artifacts/V44/) — looked at:
+"OF DESIGN" sits clear of the fore-edge lines in both modes.
+
+**Gotcha worth keeping:** the regression test is **iOS-destination only** — macOS has
+no Dynamic Type, `@ScaledMetric` never grows under the macOS runner, so the overflow
+*cannot reproduce* there (the first macOS attempt passed spuriously; artifact
+`00-red-attempt.png` documents it). Pixel sampling redraws the `CGImage` into a known
+RGBA8 context (byte-order safe), not raw `dataProvider` bytes.
+
+**Visual audit findings (whole frame):** the V42 nit stands (cluster pill occludes the
+deboss subtitle mid-line at XXXL on the focused cover — readable but scruffy); bottom
+shelf cover still clips at the screen edge (known nit). Nothing new in either mode.
+
+**Device-gated:** nothing — static layout, machine-verified. Commit `6b47e5d`,
+merged `582a35d`. **P-FIX round 2 complete.**
+
+---
+
 ## V43 — metadata band guarantees WCAG AA over any cover (measured) ✅
 
 **What:** ui-audit round 2 measured the band failing on the blue cover (dark ≈2.6/2.0,

@@ -411,12 +411,16 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   **Measured on-sim:** dark 7.63/5.57, light 10.64/6.39 — `.agent-loop/artifacts/V43/`._
   ↳ [ui-audit-log](ui-audit-log.md) §Round 2 ·
   `.agent-loop/artifacts/ui-audit-20260611-1849/crop-light-band.png`
-- **V44** · Debossed subtitle clips the cover's bottom edge at XXXL: the last line
+- **V44** ✅ · Debossed subtitle clips the cover's bottom edge at XXXL: the last line
   ("OF DESIGN") rides into the fore-edge page-texture lines (dark) / sits flush against the
   edge (light) — the deboss text block isn't vertically fitted to the cover face at large
   type. Fix direction: inset the deboss block above the fore-edge strip with
   `minimumScaleFactor`/line-limit so the subtitle never reaches the page-edge texture;
-  verify XXXL × dark+light.
+  verify XXXL × dark+light. — _Done 2026-06-11, merged `582a35d`; the scale factor sat on
+  the title Text alone — block-level `lineLimit+minimumScaleFactor` + 12pt vertical inset.
+  Pixel-asserting regression snapshot (red→green, **iOS-only: macOS has no Dynamic Type so
+  the overflow can't reproduce there**); XXXL dark+light seam crops clean in
+  `.agent-loop/artifacts/V44/`. **P-FIX round 2 complete.**_
   ↳ [ui-audit-log](ui-audit-log.md) §Round 2 ·
   `.agent-loop/artifacts/ui-audit-20260611-1849/crop-xxxl-dark-seam.png`
 
