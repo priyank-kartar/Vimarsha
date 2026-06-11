@@ -12,7 +12,7 @@ glass top-scrim, accessibility fallbacks. (V01–V03)
 **DoD (met):** builds + 7 transform tests green on macOS and the iOS 26.5 simulator; renders
 correct in dark (canonical) + light; merged `0134d10`. Evidence: [_progress-A](_progress-A.md).
 
-## M1 — The living library (V04–V09)
+## M1 — The living library (V04–V09 + P1.5: V22–V26)
 
 Every motion-grammar pattern present and tuned: settle shift, lensing puck, book focus +
 grow-to-front, glass control cluster, slot-emit entrance.
@@ -20,6 +20,10 @@ grow-to-front, glass control cluster, slot-emit entrance.
 [reference analysis](../../apple/docs/reference/ref-books-video-analysis.md) pattern-by-pattern
 on a simulator/device recording; controls cluster morphs out of the focused cover and
 re-absorbs; Reduce Motion path still coherent.
+**Extended 2026-06-11:** V04–V09 built + reviewed; the review verdict
+([V09-motion-review](V09-motion-review.md), ADR-011) added **Phase P1.5 — library visual
+quality** (uniform cards, stack polish, cluster fixes, the missing hero zoom). M1 closes
+when **V26** passes human sign-off.
 
 ## M2 — Real books (V10–V15)
 

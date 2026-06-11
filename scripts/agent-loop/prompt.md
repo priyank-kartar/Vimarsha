@@ -5,8 +5,10 @@ you — leave the repo in a state where it can pick up cold.
 ## Select your item
 
 1. Read `plan/08-engineering/build-roadmap.md` (and `plan/README.md` if you need bearings).
-2. Pick the FIRST item in the detailed phases (P1 → P2 → P3, top to bottom) that is NOT
-   marked ✅ and whose `(needs Vxx)` dependencies are ALL ✅. Skip the expansion buckets.
+2. Pick the FIRST item in the detailed `## Phase P*` sections **in file order, top to
+   bottom** (phases may be numbered out of sequence, e.g. P1.5 sits before P2 — file order
+   wins) that is NOT marked ✅ and whose `(needs Vxx)` dependencies are ALL ✅. Skip the
+   expansion buckets.
 3. If an eligible item is marked 🚧, read `plan/08-engineering/_progress-A.md` for its
    half-done state and CONTINUE it rather than starting over.
 4. If NO item is eligible: write the single word DONE to `.agent-loop/COMPLETE` and stop.

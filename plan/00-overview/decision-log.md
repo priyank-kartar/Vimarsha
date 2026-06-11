@@ -135,3 +135,15 @@
   that makes it demoable but isn't a user job by itself.
 - Consequences: Scope decisions defend the co-pillars first; messaging leads with all three
   ([positioning](../02-market/positioning.md)).
+
+### ADR-011 — Uniform book-card geometry in the library stack
+- Date: 2026-06-11 · Status: Accepted
+- Context: V09 human review (user verdict): the varied per-book widths/aspects read messy —
+  "books should be the same size and stack better" — not editorial.
+- Decision: every card in the library stack shares ONE geometry (same width, same aspect);
+  visual variety comes from cover art/cloth color only. The reference clip's varied physical
+  book sizes are deliberately NOT copied.
+- Rationale: uniform slabs stack into a calm, neat staircase; per-book size variation added
+  noise without carrying meaning.
+- Consequences: `widthFactor`/per-book aspect leave the stack layout (V22); real cover art
+  (P2) fits inside the uniform card; the V09 findings became Phase P1.5 (V22–V26).

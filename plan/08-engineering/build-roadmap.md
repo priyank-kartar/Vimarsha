@@ -92,17 +92,51 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   midYs). Both suites green + anchored/arrived snapshot + live launch. Live scrubbing **feel** (the
   springy-no-overshoot landing at flick velocity) → V09 motion review._
   ↳ [motion-grammar #4](../03-design/motion-grammar.md)
-- **V09** 🚧 · **[verify]** Motion review vs the reference: record scroll/flick/focus on the
+- **V09** ✅ · **[verify]** Motion review vs the reference: record scroll/flick/focus on the
   iPhone simulator + a device if available; check each named pattern against
   [the reference analysis](../../apple/docs/reference/ref-books-video-analysis.md); tune
   `StackTransform` constants; file deviations as findings. (needs V04–V08)
-  — _Machine-verifiable parts done 2026-06-11: both suites green, rest/hero captured (dark +
-  light), all 7 named patterns statically audited vs the reference (constants in range; **no
-  constants changed** — tuning the feel is this gate's human call). **Needs human review:** a
-  live scroll/flick/focus scrub for motion feel (#2/#3/#4/#6 + #1 desaturation), the V05 puck
-  glass + V07 tint/double-title/placement items, and one genuine gap — **motion grammar #5
-  (coupled scroll+zoom hero settle) is NOT implemented** (file as a future V-item). Full
-  findings + how-to-run: [`.agent-loop/artifacts/V09-review-notes.md`](../../.agent-loop/artifacts/V09-review-notes.md)._
+  — _Machine half done 2026-06-11 (suites green, static audit of all 7 patterns, captures).
+  **Human review done 2026-06-11 (user): verdict = current stack isn't good enough** —
+  cards must be ONE size, stacking tighter/neater, overall UI lifted
+  ([ADR-011](../00-overview/decision-log.md#adr-011--uniform-book-card-geometry-in-the-library-stack)).
+  Verdict + the audit findings (incl. the missing motion grammar #5) filed as
+  **Phase P1.5 (V22–V26)** below. Full findings: [V09-motion-review](V09-motion-review.md)._
+
+## Phase P1.5 — Library visual quality (user review round 1)
+
+> Inserted 2026-06-11 from the V09 verdict — numbered after P3's V21. **Do these before
+> P2:** the stack is the product's face; building real-book plumbing onto a look the owner
+> calls "not good" compounds the rework. Findings source: [V09-motion-review](V09-motion-review.md).
+
+- **V22** · Uniform book cards ([ADR-011](../00-overview/decision-log.md#adr-011--uniform-book-card-geometry-in-the-library-stack)):
+  ONE card geometry for every book — same width (~0.70 of viewport, cap 460) and same
+  aspect (~0.50); delete the per-index `widthFactor` rhythm and stop using `BookSeed.aspect`
+  for card sizing (keep the field for future cover-art fitting). Tighten stack spacing so
+  the overlap is even and the pile reads neat and editorial, not scattered. Update affected
+  tests/snapshots. ↳ [V09-motion-review](V09-motion-review.md) ·
+  [apple/CLAUDE.md §Physical book rendering](../../apple/CLAUDE.md)
+- **V23** · Stack depth polish: receded covers truly **dissolve** under the glass scrim
+  (opacity → 0 over the last ~15% of travel, below the rear floor); subtle desaturation on
+  recede (full chroma at front → ~0.85 at the floor); re-tune `StackTransform` constants
+  (tuck/falloffs/shadows) for the uniform-card stack so depth reads strong with same-size
+  cards. (needs V22) ↳ [V09-motion-review](V09-motion-review.md) audit rows #1/#3
+- **V24** · Focus & cluster fixes from V09: fade the cover's debossed title while the
+  metadata reveal shows (kill the double title); cluster glass tint butter → **sky** per the
+  glass rules; anchor the cluster *inside* the focused cover's bottom edge (no overlap onto
+  the next book); strengthen grow-to-front if it reads weak. (needs V22)
+  ↳ [V09-motion-review](V09-motion-review.md) · [apple/CLAUDE.md §Liquid Glass rules](../../apple/CLAUDE.md)
+- **V25** · Coupled scroll+zoom hero settle — the missing motion grammar **#5**: a
+  scroll-progress-driven rigid-group scale of the whole tower coupled to the header
+  translate-off, anchored on a fixed point; scrubbable, ease-in-out, no timers; Reduce
+  Motion exempt. (needs V23) ↳ [apple/CLAUDE.md §Motion grammar #5](../../apple/CLAUDE.md) ·
+  [reference analysis](../../apple/docs/reference/ref-books-video-analysis.md)
+- **V26** · **[verify]** Library quality re-review: rebuild; capture rest / mid-scroll /
+  focused states (dark + light) + a scroll recording if possible; check uniform sizing,
+  neat stacking, scrim dissolve, hero zoom, and the cluster fixes against
+  [ADR-011](../00-overview/decision-log.md#adr-011--uniform-book-card-geometry-in-the-library-stack)
+  and the V09 findings; also eyeball the V05 puck's glass strength and the slot-emit landing
+  character; then stop for human sign-off. (needs V24, V25)
 
 ## Phase P2 — Real books
 
