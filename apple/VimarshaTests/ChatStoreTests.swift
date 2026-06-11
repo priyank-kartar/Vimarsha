@@ -91,6 +91,14 @@ struct ChatStoreTests {
         #expect(store.messages.isEmpty)
     }
 
+    @Test func anchorPinsWhereDiscussFirstOpened() {
+        let store = ChatStore(backend: FakeBackendClient.returning()) { Self.context }
+        #expect(store.anchorBlockId == nil)
+        store.recordAnchor("b3")
+        store.recordAnchor("b9") // reopening later must not move the anchor
+        #expect(store.anchorBlockId == "b3")
+    }
+
     @Test func secondSendWhileInFlightIsIgnored() async {
         let (gateStream, gate) = AsyncStream<Void>.makeStream()
         var fake = FakeBackendClient.returning()

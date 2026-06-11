@@ -10,6 +10,10 @@ struct MemoRecordControl: View {
     var reduceTransparency: Bool = false
     /// `true` on hold start, `false` on release — the surface drives `MemoCapture`.
     var onHoldChanged: (Bool) -> Void = { _ in }
+    /// The control's second gesture (V33; spec §4 "record button → dual gesture"):
+    /// double-tap opens the Discuss panel — and must NOT touch playback. Two quick
+    /// taps never arm the 0.25s hold, so the gestures coexist.
+    var onDoubleTap: () -> Void = {}
 
     /// Set while the hold gesture is active; resets to false on release/cancel.
     @GestureState private var holding = false
@@ -33,13 +37,15 @@ struct MemoRecordControl: View {
                 }
             }
             .contentShape(Circle())
+            .simultaneousGesture(TapGesture(count: 2).onEnded { onDoubleTap() })
             .gesture(holdGesture)
             .onChange(of: holding) { _, isHolding in onHoldChanged(isHolding) }
             .accessibilityLabel("Voice note")
-            .accessibilityHint("Hold to record")
+            .accessibilityHint("Hold to record, double-tap to discuss")
             .accessibilityAction(named: isRecording ? "Stop recording" : "Start recording") {
                 onHoldChanged(!isRecording)
             }
+            .accessibilityAction(named: "Discuss this passage") { onDoubleTap() }
     }
 
     /// Press-and-hold: a short long-press arms it, then an open-ended press keeps the

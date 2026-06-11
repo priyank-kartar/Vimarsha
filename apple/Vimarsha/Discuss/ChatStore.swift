@@ -13,7 +13,7 @@ final class ChatStore {
 
     /// Where Discuss was opened — recorded on the saved thread for reference
     /// (spec §5); the per-send grounding rides `contextSnapshot`, not this.
-    let anchorBlockId: String?
+    private(set) var anchorBlockId: String?
 
     private(set) var messages: [ChatMessageDTO] = []
     /// A request is in flight — the send affordance is held (the Flutter send-guard).
@@ -34,6 +34,13 @@ final class ChatStore {
     /// Save is meaningful once there's at least one exchange (spec §6).
     var hasExchange: Bool {
         messages.contains { $0.role == "assistant" }
+    }
+
+    /// Pin where Discuss was first opened (V33; the panel calls this on open). The
+    /// first open wins — reopening the panel mid-conversation doesn't move the anchor.
+    func recordAnchor(_ blockId: String?) {
+        guard anchorBlockId == nil else { return }
+        anchorBlockId = blockId
     }
 
     /// Append the user's turn and request a grounded reply. Empty input and

@@ -79,6 +79,11 @@ struct LibraryStackView: View {
     /// engine (the chapter's shared engine keeps its MP3); stopped + released at close.
     @State private var memoNotes: MemoNotes?
 
+    /// The opened chapter's live Discuss conversation (V33): in-memory, created with the
+    /// player so the thread survives the panel closing/reopening; released (discarded —
+    /// save-on-demand) only when the book closes.
+    @State private var chatStore: ChatStore?
+
     /// The cover-morph shared-element namespace (tower card ↔ reading cover plate).
     @Namespace private var coverMorph
 
@@ -342,6 +347,7 @@ struct LibraryStackView: View {
             memoNotes = store.makeMemoNotes(
                 player: candidate, memoEngine: AVFoundationAudioEngine()
             )
+            chatStore = store.makeChatStore(player: candidate)
         }
         let shelfBook = ShelfBook(book: book, cover: store?.covers[book.id])
         withAnimation(coverMorphAnimation) {
@@ -358,6 +364,7 @@ struct LibraryStackView: View {
         memoCapture = nil
         memoNotes?.stopPlayback()
         memoNotes = nil
+        chatStore = nil
         player?.pause()
         player = nil
         withAnimation(coverMorphAnimation) { reading = nil }
@@ -376,6 +383,7 @@ struct LibraryStackView: View {
                 player: player,
                 memoCapture: memoCapture,
                 memoNotes: memoNotes,
+                chatStore: chatStore,
                 reduceTransparency: reduceTransparency,
                 onClose: { closeReadingSurface() },
                 morphNamespace: reduceMotion ? nil : coverMorph
