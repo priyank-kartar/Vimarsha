@@ -24,3 +24,33 @@
 
 <!-- verify agents: append one actionable line per deferred check — what to do, what to
 judge, artifact refs. Never delete completed history; tick instead. -->
+
+### V21 — eyes-free run (P3 core loop; appended 2026-06-11)
+
+- [ ] **Listen to a real chapter with ears + eyes:** backend up → open a ready chapter →
+  Play; judge that the butter/aqua narration wash lands on the paragraph you're HEARING
+  (machine proof only says block ids match `paraTimings`), the auto-scroll glide
+  (anchor 0.3, 0.35s ease, 4s read-ahead cooldown) feels calm not yanky, and deep-resume
+  lands without animating through the chapter. Ref: `artifacts/V18/`, `artifacts/V15/`.
+- [ ] **Figure pop cadence + feel (V20):** during the same listen, judge the carrier's
+  spring pop at `startMs` / recede at `endMs` (response 0.45/0.85 — does it read as
+  "morphs out of the passage"?), page a stacked pair mid-play (wrap-around chevrons),
+  and check the carrier never sits over the line being read (V20 audit flag: forced
+  frame showed overlap; live auto-scroll should hold the live block at ~30% height).
+  Ref: `artifacts/V20/01–04`.
+- [ ] **Figures gallery round-trip:** glass toggle top-right → grid morphs in (narration
+  keeps playing — verify by ear) → tap a timed figure tile → it seeks there and morphs
+  back to reading at that passage. Judge the morph (scale 0.97 + fade) against the
+  Prime Directive bar.
+- [ ] **Transport under fingers (V19):** tap-a-paragraph-to-seek mid-play, skip ±15 at
+  both ends (clamps), speed chip through the ladder while playing (chipmunk check —
+  AVAudioPlayer rate quality), scrub-resume after kill.
+- [ ] **Offline replay:** narrate a chapter, kill the backend, relaunch, replay from
+  cache (machine-proven in `artifacts/V21/harness-run.log`; judge the UX honesty of any
+  unreachable-backend states while offline).
+- [ ] **Real `GET /image` figures:** import a real ILLUSTRATED EPUB (fixture has no
+  images — V15 gap still open) and check real figure images render matte in the carrier,
+  the gallery tiles, and inline paper rows.
+- [ ] **V20 light-mode polish calls:** gallery tiles read loud saturated aqua on butter,
+  and the tiles' aqua waveform glyph is invisible aqua-on-aqua (`artifacts/V20/04`) —
+  decide if a quieter butter-derived tile token is wanted (file a polish V-item if so).

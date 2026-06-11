@@ -33,6 +33,9 @@ lazy `/import` chapter download with status.
 **DoD:** a real EPUB imported on device shows its actual cover in the stack and narrates one
 chapter end-to-end against the local backend; chapter cache survives relaunch; seam test
 doubles in place (network only — everything else real).
+**✅ Done 2026-06-11:** V10–V15 merged; pipeline proven live (toc/import/audio + DTO
+decode); V15 closed under the deferred-review directive — the on-device UX run sits in
+[final-review-checklist](final-review-checklist.md).
 
 ## M3 — Narrated reading (V16–V21)
 
@@ -41,6 +44,11 @@ transport, figure overlay on cue, Figures gallery.
 **DoD:** a full chapter listened eyes-free on device: highlight tracks `paraTimings`,
 figures pop at their spans, seek/speed/resume work, cached chapter replays offline. This is
 **feature core-parity** with the frozen Flutter client's reading loop.
+**✅ Done 2026-06-11 (machine; human feel-review deferred to final):** V16–V21 merged; the
+V21 live harness played a real narrated chapter through the production engine end-to-end
+(highlight 9/9 blocks, figures 3/3 in-span, seek/speed/resume, offline replay — ALL PASS)
+and caught + fixed the 60s `/import` timeout. The ears-and-eyes run is in
+[final-review-checklist](final-review-checklist.md) §V21.
 
 ## M4 — Memos + Discuss (buckets P4–P5)
 

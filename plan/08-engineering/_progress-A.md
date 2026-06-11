@@ -15,6 +15,63 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V21 — [verify] Eyes-free run ✅ (machine half; human review deferred to final)
+
+**What:** the P3-closing verify gate, run as far as a machine can take it. A standalone
+harness (`.agent-loop/artifacts/V21/harness/main.swift`, the V13/V15 spike-harness
+precedent) compiled the **production** client files — `BackendClient.swift`,
+`ChapterBundle.swift`, `ChapterDownloader.swift`, `TimingIndex.swift`,
+`AudioEngine.swift` — and drove the real core loop against the live local backend
+(real Chatterbox on MPS):
+1. **Live pipeline through the production seam:** `/toc` (1 chapter) → `/import` via
+   `ChapterDownloader` (50s warm; all-or-nothing cache layout) → real `bundle.json` +
+   `chapter.mp3` on disk.
+2. **Highlight tracks (machine equivalent):** every timed block (9/9) owns its span
+   midpoint via `TimingIndex.currentBlockId`; a 100ms sweep of the whole chapter is
+   monotonic in reading order.
+3. **Figures pop on cue:** all spanned figures (3/3) active at span midpoints, zero
+   leaks past `endMs`.
+4. **The eyes-free listen:** the real cached MP3 through the real
+   `AVFoundationAudioEngine` — duration matches the last paraTiming (±64ms), seek
+   lands, rate 2.0, then the WHOLE chapter **played through to `onFinish`** with a
+   250ms ticker recording the live block/figures at every tick: every timed block was
+   the live highlight at some tick (9/9), every spanned figure popped (3/3), playhead
+   monotonic mid-play.
+5. **Resume + offline replay:** post-finish reload + mid-chapter seek holds; a fresh
+   engine + TimingIndex replays purely from cache (backend untouched).
+**ALL PASS** — [`harness-run.log`](../../.agent-loop/artifacts/V21/harness-run.log).
+
+**Found + fixed (the gate doing its job):**
+- **Real client bug:** `URLSessionBackendClient` used `URLSession.shared`, whose **60s
+  idle timeout kills any real `/import`** — narration is minutes of server silence
+  (V15's live half went through `curl`, so the production path had never been
+  exercised). First harness run failed with `NSURLErrorDomain -1001`. Fix:
+  `narrationSession` (`timeoutIntervalForRequest = 30min`) as the client default +
+  a guard test (`defaultSessionOutlivesRealNarrationTimes`). Branch
+  `fix/v21-import-timeout`, commit `0e9a007`, merged `187a287`.
+- **Recorded race (not fixed, by scope):** after a natural end `AVAudioPlayer` resets
+  `currentTime` to 0 *before* the delegate's MainActor hop lands — one
+  `PlayerController.tick()` can read position 0 (flicker the highlight to block 1, even
+  persist 0) before `handleFinish` pins the position to the end. Transient and
+  self-correcting (finish persists last), but worth a one-line guard in a polish item:
+  ignore ticks when `!engine.isPlaying`.
+
+**Wiring:** no app code changed beyond the timeout fix. Suites re-run green on merged
+`main` both destinations (macOS + iPhone 17 Pro) — before and after the fix merge.
+
+**Evidence:** [`artifacts/V21/`](../../.agent-loop/artifacts/V21/) — `harness/main.swift`
+(the exact program run) + `harness-run.log` (ALL PASS, 15 checks). Suite outputs in the
+loop transcript. No new captures — no visual surface changed; V20's captures stand.
+
+**Deferred to the final human review** (appended to
+[final-review-checklist §V21](final-review-checklist.md), per the 2026-06-11 directive):
+the with-ears listen (does the wash land on what you HEAR), auto-scroll/figure-pop feel,
+gallery round-trip + V20 morphs, transport under fingers, offline-UX honesty, real
+`GET /image` figures (needs an illustrated EPUB — fixture gap carried from V15), and the
+V20 light-mode polish calls.
+
+---
+
 ## V20 — Figure overlay on the glass carrier + Figures gallery ✅
 
 **What:** the synced-figures half of the core loop (apple/CLAUDE.md §UI map state 4 /

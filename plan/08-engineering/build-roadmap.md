@@ -300,9 +300,19 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   Both suites green + carrier/gallery captures both modes. Live pop cadence → V21._
   ↳ [figure-intelligence](../04-architecture/figure-intelligence.md) ·
   [apple/CLAUDE.md §Glass moments #8](../../apple/CLAUDE.md)
-- **V21** · **[verify]** Eyes-free run: a full real chapter listened end-to-end on device —
+- **V21** ✅ · **[verify]** Eyes-free run: a full real chapter listened end-to-end on device —
   highlight tracks, figures pop on cue, seek/speed/resume all work, offline replay from
-  cache works. (needs V19, V20)
+  cache works. (needs V19, V20) — _Machine half done 2026-06-11, **human review deferred
+  to final** ([checklist](final-review-checklist.md) §V21). Live harness over the
+  PRODUCTION client files (BackendClient/ChapterDownloader/TimingIndex/
+  AVFoundationAudioEngine): real `/toc`→`/import`→cache, the whole chapter **played
+  through to `onFinish` at 2×** with every timed block the live highlight at some tick
+  (9/9) and every spanned figure popping in-span (3/3, 0 leaks), seek/rate/resume +
+  offline replay from cache — **ALL PASS**
+  ([harness-run.log](../../.agent-loop/artifacts/V21/harness-run.log)). **Found + fixed
+  a real bug:** `URLSession.shared`'s 60s idle timeout killed any real `/import`
+  (narration is minutes of server silence) → narration-length session, merged `187a287`.
+  Both suites green on `main`._
 
 ## Phase P4 — Memos (itemized 2026-06-11; behavioral reference = frozen Flutter Plans 5a–5b)
 
