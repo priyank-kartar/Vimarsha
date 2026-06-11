@@ -497,18 +497,23 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   third, so "HEY" prints from its upper half only._
   ↳ [ui-audit-log](ui-audit-log.md) §Round 3 ·
   `.agent-loop/artifacts/ui-audit-20260611-2028/crop-xxxl-dark-cluster.png`
-- **V46** 🚧 · Cluster glass frozen mid-meld at XXXL rest (both modes): the four control
+- **V46** ✅ · Cluster glass frozen mid-meld at XXXL rest (both modes): the four control
   circles render half-merged into a lumpy scalloped blob — neither the discrete circles of
   full emergence (V40 artifacts) nor a clean capsule; at rest the cluster sits between its
   visibility floor and full emergence and freezes in the in-between
   `GlassEffectContainer` merge shape. Fix direction: resolve the rest state to a terminal
   form — snap emergence to a stable endpoint when scroll is at rest (merged capsule or
   fully split circles); mid-meld geometry only while the morph is actually in motion.
+  — _Done 2026-06-11, merged `ea68cdb` (continued the rate-limit WIP `1b2e2df`);
+  `ControlCluster.restResolved` (visible → fully split `emerge 1`, sub-floor → absorbed;
+  terminal forms are fixed points) + `displayed(promotion:scrollAtRest:)` as the one render
+  owner; `onScrollPhaseChange` tracks rest (launch = at rest), retargetable `.smooth(0.35)`
+  snap (instant under RM); the V45 dodge reads the same displayed cluster. +4 tests, both
+  suites green; XXXL+medium × dark+light captures in `.agent-loop/artifacts/V46/` — blob
+  gone, no medium regression. New finding logged: the split fan at XXXL overhangs the
+  cover's side edges._
   ↳ [ui-audit-log](ui-audit-log.md) §Round 3 ·
   `.agent-loop/artifacts/ui-audit-20260611-2028/crop-xxxl-light-cluster.png`
-  — _🚧 2026-06-11: session died at the rate limit mid-TDD. WIP on
-  `feat/v46-cluster-rest-snap` (pushed): failing tests committed (`1b2e2df`), NO impl yet.
-  Continue: checkout the branch, make the tests pass, normal cycle._
 - **V47** · Unfocused cover's deboss title collides with the neighbor's overhanging
   fore-edge strip at XXXL (dark clear, light faint): the focused pink card's page-stack
   lines hang below its cover edge and run straight through the top serifs of the blue

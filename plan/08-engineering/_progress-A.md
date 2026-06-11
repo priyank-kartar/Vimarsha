@@ -15,6 +15,53 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V46 — Cluster rest-snaps to a terminal form (ui-audit round 3) ✅
+
+**What:** at XXXL rest the four control circles froze half-merged into a lumpy scalloped
+blob — launch rest landed between `visibilityFloor` (0.25) and full emergence and the
+`GlassEffectContainer` rendered its in-between meld shape as a *static* state. The fix
+direction taken: **fully split circles** as the rest endpoint (the live, interactive form —
+the merged-capsule alternative would leave inert glass). `ControlCluster.restResolved` (pure
+math): a visible cluster resolves to `emerge 1`, a sub-floor ghost to `.absorbed`; both
+terminal forms are fixed points. `ControlCluster.displayed(promotion:scrollAtRest:)` is the
+one owner of what renders: raw scrubbable emerge while the scroll phase is live, the
+rest-resolved form at `.idle`. (Continued from the rate-limit-interrupted WIP: failing
+tests `1b2e2df` were the session's TDD step 1.)
+
+**Wiring:** `LibraryStackView` tracks `scrollAtRest` via `.onScrollPhaseChange` (launch =
+at rest — exactly the audit's defect state); the flip is wrapped in a retargetable
+`.smooth(0.35)` spring (instant under Reduce Motion), so settle-to-idle animates mid-meld →
+terminal and touch-down animates back before live scroll updates take over (scrubbing is
+the animation). Both consumers — `ControlClusterView` and the V45 `debossDodge` strength —
+read the same `displayedCluster`, so the dodge always matches the rendered glass. Bonus by
+construction: the rest cluster is now `emerge 1`, so it's interactive at rest (previously a
+visible XXXL rest cluster below `emerge 0.5` was inert — `allowsHitTesting` gate).
+
+**Evidence:**
+- 4 new `ControlClusterTests` (rest resolution + fixed points + the displayed decision,
+  written as failing first); both suites green (macOS + iPhone 17 Pro sim).
+- Captures in `.agent-loop/artifacts/V46/`, looked at: `01/02-xxxl-{dark,light}-rest.png`
+  show four cleanly split circles (blob gone, both modes); `03/04-medium-{light,dark}-rest.png`
+  regression-clean (no ghost, V39 holds; metadata band intact).
+- Commits `cb854e5` (restResolved) + `dfd6897` (displayed + wiring), merged `ea68cdb`.
+
+**Visual audit findings (whole frame, beyond scope):**
+- XXXL: the fully split fan (~314pt at clamped diameter 68 + spacing 82) is **wider than
+  the focused cover** (~275pt) — the outer Play/Discuss circles overhang the cover's
+  left/right edges. Reads acceptable on the captures but is new geometry from this fix;
+  candidate audit item if the next round flags it.
+- XXXL both modes: the pink card's fore-edge strip still runs through the blue card's
+  "DESIGN BY" serifs — that's **V47**, next item.
+- Medium rest: metadata band shows with NO controls at rest (raw emerge ≈0.198 < floor →
+  absorbed) — designed V39 behavior, but the focused book at rest having zero visible
+  affordances is a UX observation worth a future audit look.
+
+**Device-gated:** the snap *feel* (settle-to-idle morph, touch-down reversal, flick
+interplay) needs live gestures → carried with the standing motion-review debt into the
+final checklist gates.
+
+---
+
 ## V45 — Deboss dodges the glass cluster (ui-audit round 3) ✅
 
 **What:** at XXXL rest the glass control cluster rendered directly across the focused
