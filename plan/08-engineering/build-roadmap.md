@@ -480,14 +480,21 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
 > [ui-audit-log](ui-audit-log.md) §Round 3. Round-1/2 fixes (V37–V44) verified holding;
 > these are XXXL launch-rest composition defects on/around the focused card.
 
-- **V45** · Control cluster renders on the focused cover's debossed text at XXXL rest (both
+- **V45** ✅ · Control cluster renders on the focused cover's debossed text at XXXL rest (both
   modes): the glass pill row sits across the subtitle — "DESIGN &" reads through the glass
   between the icons, "HEY" partially behind the pill, "ILLUSTRATION" under its lower edge.
   V42 restored the deboss as the focus label; the cluster still emerges over that exact
   spot. Fix direction: keep V42's invariant (the deboss IS the label) but never render
   icons over glyphs — locally fade/dodge only the deboss lines the pill actually covers, or
   offset the cluster's emergence anchor below the deboss block; verify XXXL × dark+light
-  shows label + cluster with zero overlap.
+  shows label + cluster with zero overlap. — _Done 2026-06-11, merged `21d94b7`;
+  `DebossDodge` pure math (8 tests): the cluster's MEASURED frame (`ClusterFrameKey`,
+  global-origin calibrated) maps through `CardVisualTop.scale` into a cover-local band; the
+  deboss mask fades only the covered lines (10pt feather — a 24pt first cut ate the whole
+  label, caught on capture; strength smoothsteps with cluster opacity). Pixel-asserting
+  XXXL snapshot + both suites green; XXXL dark+light + medium-regression captures in
+  `.agent-loop/artifacts/V45/`. Residual by geometry: the pill covers the title's lower
+  third, so "HEY" prints from its upper half only._
   ↳ [ui-audit-log](ui-audit-log.md) §Round 3 ·
   `.agent-loop/artifacts/ui-audit-20260611-2028/crop-xxxl-dark-cluster.png`
 - **V46** · Cluster glass frozen mid-meld at XXXL rest (both modes): the four control

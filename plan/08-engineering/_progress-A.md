@@ -15,6 +15,52 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V45 — Deboss dodges the glass cluster (ui-audit round 3) ✅
+
+**What:** at XXXL rest the glass control cluster rendered directly across the focused
+cover's debossed label ("DESIGN &" reading through the glass between icons, "HEY" behind
+the pill's bulges). The visible band genuinely can't hold both the XXXL deboss block and
+the cluster, so there is no spatial fix — instead the print **yields locally to the
+glass** (the audit's own fix direction): `Library/DebossDodge.swift` (pure math) maps the
+cluster's measured viewport rect into the cover's local space and fades only the deboss
+lines the glass actually covers, with a 10pt feather (the first cut's 24pt feather ate the
+whole title — an anonymous-slab V42 regression caught on the first capture) and a strength
+that smoothsteps with the cluster's own opacity, saturating by its interaction ramp.
+Scrubbable, no state, no time.
+
+**Wiring:** `CardVisualTop.scale(midY:viewportHeight:promotion:)` exposes the composed
+rendered-scale chain (refactored out of `at`, one owner). `ControlClusterView` publishes
+its rendered frame via `ClusterFrameKey` (global space, calibrated by the viewport's
+global origin from `onGeometryChange` — measured, not recomputed, so ScaledMetric/
+ViewThatFits can't drift it; the preference vanishes with the cluster below its
+visibility floor). `LibraryStackView.debossDodge(in:)` builds the band for the focused
+card only (nil under Reduce Motion); `HardbackCoverView` masks the deboss block with the
+`DebossDodge.maskStops` gradient across the full board face.
+
+**Evidence:**
+- 8 `DebossDodgeTests` (viewport→local mapping, strength saturation, degenerate nils,
+  piecewise alpha, clamped/sorted stops) + 2 new `CardVisualTop.scale` tests +
+  `HardbackCoverDodgeSnapshotTests` (XXXL pixel assert: zero title-ink pixels inside the
+  band, label survives outside, vacuous-pass guarded). Red→green; **both suites green**.
+- Captures `.agent-loop/artifacts/V45/`: `01-xxxl-dark` + `02-xxxl-light` (+ cluster
+  crops) — no glyphs read through the glass in either mode, HEY's upper half prints,
+  ILLUSTRATION ghosts only inside the feather; `03-medium-dark` regression — metadata
+  band intact, no dodge on unfocused cards. Commits `6b7da7b`/`09e6dce`/`bd77311`,
+  merged `21d94b7`.
+
+**Visual audit findings (whole-frame):**
+- *Residual, by geometry:* the pill still covers the XXXL title's lower third, so "HEY"
+  prints only from its upper half — legible but compromised. If human review wants more,
+  the options are a smaller XXXL diameter clamp or top-biasing the deboss block.
+- V46 (mid-meld blob) and V47 (fore-edge lines through "DESIGN BY") confirmed still
+  present in these captures — next two items.
+- Carry-over nit (rounds 1–3): bottom shelf card clips its lines at the screen edge.
+
+**Device-gated:** the dodge's scrub feel (band following the cluster through a live
+emerge/absorb) — rides the existing live-scroll review debt (V15/V21 → final checklist).
+
+---
+
 ## V35 — Spoken replies + Save + Conversations ✅
 
 **What:** the rest of the Discuss feature set (spec §4/§6; apple/CLAUDE.md states 6–7).
