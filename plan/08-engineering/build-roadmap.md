@@ -282,8 +282,13 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   player loads bundle/figure-images + `ReadingBlocksView` (typed blocks as paper, narration
   wash) + auto-scroll (anchor 0.3, 4s user cooldown, RM jumps). Both suites green +
   forced-state captures both modes. Live cadence/feel → V21._
-- **V19** · Tap-a-paragraph-to-seek + the compact glass transport cluster (play/pause/
+- **V19** ✅ · Tap-a-paragraph-to-seek + the compact glass transport cluster (play/pause/
   seek/speed) — controls are glass, content is paper. (needs V18)
+  — _Done 2026-06-11, merged `b4b67fb`; `Transport` pure rules (speed ladder/clock, 4
+  tests) + `seekToBlock` (untimed no-op) + one-glass-capsule `TransportClusterView`
+  (butter progress, aqua play pill, speed chip, matte fallback) + "Read from here"
+  VoiceOver action on text rows. Both suites green + forced captures both modes. Live
+  drive → V21._
 - **V20** · Figure overlay on the glass carrier: auto-pop at `startMs`, recede at `endMs`,
   stacked when spans overlap; Figures gallery as a morphed grid state. (needs V18)
   ↳ [figure-intelligence](../04-architecture/figure-intelligence.md) ·

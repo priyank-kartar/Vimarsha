@@ -15,6 +15,49 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V19 — Tap-to-seek + compact glass transport ✅
+
+**What:** the reading surface becomes drivable — seek by touching the text, transport on
+glass (apple/CLAUDE.md §UI map state 3: "transport lives in a compact glass cluster, not
+a chrome bar").
+- `Reading/Transport.swift` — pure rules (4 tests): the speed ladder
+  `[0.75, 1, 1.25, 1.5, 1.75, 2]` cycling/wrapping (off-ladder values recover to the
+  ladder), `skipMs 15_000`, `timeString` (m:ss / h:mm:ss, negative clamps), speed-chip
+  labels ("1×"/"1.25×").
+- `PlayerController.seekToBlock(_:)` — tap-a-paragraph-to-seek through the `TimingIndex`;
+  untimed blocks (figures, un-narrated headings) are not seek targets (no-op). +2 tests.
+- `Reading/TransportClusterView.swift` — ONE glass capsule (deliberately no
+  glass-in-glass nesting): slim **butter** progress line + monospaced clocks (paper
+  readout), back-15 / **aqua play-pause pill** (the live/active accent riding ON the
+  glass) / forward-15 / speed chip. Reduce Transparency = token-tinted matte + sky
+  stroke. Full VoiceOver labels; the speed chip hints its cycling.
+- `ReadingBlocksView` text rows: `contentShape` + tap → `onTapBlock` + an explicit
+  **"Read from here"** accessibility action (gesture-only interactions must have one).
+- Wiring: the cluster floats `overlay(alignment: .bottom)` over the paper body (max 380w)
+  only when a chapter is loaded; play/pause/skip/rate bind straight to the player; the
+  V18 bottom padding (150) keeps the last lines clear of it.
+
+**Evidence:**
+- Both suites `** TEST SUCCEEDED **` (macOS + iPhone 17 Pro). +9 tests (4 Transport, 2
+  seekToBlock, 3 `TransportClusterSnapshotTests`: play/pause glyphs differ, the playhead
+  moves the butter line, the rate chip renders the ladder).
+- Forced-state sim captures (temp root, reverted; fresh binary 17:01):
+  [`artifacts/V19/01-transport-forced-dark.png` + `02-…-light.png`](../../.agent-loop/artifacts/V19/)
+  — **looked at:** real-glass capsule over the serif body in both modes; butter progress
+  + aqua pause pill + "1.25×" chip legible on ink and butter canvases.
+- Commits `b20b20e` (rules) `1aaafc2` (seekToBlock) `6469910` (cluster+wiring),
+  merged `b4b67fb`.
+
+**Visual audit findings (whole frame):** none new — the cluster sits clear of the body
+text; light-mode glass reads pale aqua-green (consistent with the "+"/cluster tints).
+Carried: V17 plate subtitle truncation; rest-state metadata ghost.
+
+**Device-gated (→ V21 verify):** live tap-to-seek + transport over a REAL playing chapter
+(playhead motion, highlight cadence, speed change mid-play, skip clamps at the ends) —
+no sim tap injection; everything is unit/snapshot-proven here.
+
+---
+
 ## V18 — Reading body: blocks + narration highlight + auto-scroll ✅
 
 **What:** the core-loop reading surface — the cached bundle rendered and synced to the
