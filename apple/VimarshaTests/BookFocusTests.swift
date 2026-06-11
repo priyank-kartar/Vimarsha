@@ -81,40 +81,42 @@ struct BookFocusTests {
 
 /// V41 — the debossed-title fade keyed to affordance visibility (ui-audit round 1: the
 /// linear `1 - promotion` left a half-strength double title at launch rest). The printed
-/// title must be GONE while any focus affordance (metadata reveal or control cluster) is
-/// meaningfully visible.
+/// title must be GONE while the metadata reveal repeats it — V42 scopes the fade to
+/// metadata actually being visible (these tests pin the metadata-visible behaviour).
 @Suite("BookFocus — deboss title fade (V41)")
 struct DebossTitleFadeTests {
     @Test("unfocused cover keeps its printed title")
     func fullAtZero() {
-        #expect(BookFocus.debossTitleOpacity(promotion: 0) == 1)
-        #expect(BookFocus.debossTitleOpacity(promotion: -0.2) == 1)  // clamped
+        #expect(BookFocus.debossTitleOpacity(promotion: 0, metadataVisible: true) == 1)
+        #expect(BookFocus.debossTitleOpacity(promotion: -0.2, metadataVisible: true) == 1)  // clamped
     }
 
     @Test("printed title is fully gone at the fade-out promotion and beyond")
     func goneAtFadeOut() {
-        #expect(BookFocus.debossTitleOpacity(promotion: BookFocus.titleFadeOutPromotion) == 0)
-        #expect(BookFocus.debossTitleOpacity(promotion: 0.5) == 0)   // launch-rest regression
-        #expect(BookFocus.debossTitleOpacity(promotion: 1) == 0)
+        #expect(BookFocus.debossTitleOpacity(
+            promotion: BookFocus.titleFadeOutPromotion, metadataVisible: true) == 0)
+        #expect(BookFocus.debossTitleOpacity(promotion: 0.5, metadataVisible: true) == 0)   // launch-rest regression
+        #expect(BookFocus.debossTitleOpacity(promotion: 1, metadataVisible: true) == 0)
     }
 
     @Test("fade is monotonically decreasing across the band")
     func monotone() {
         let samples = stride(from: 0.0, through: 1.0, by: 0.05).map {
-            BookFocus.debossTitleOpacity(promotion: CGFloat($0))
+            BookFocus.debossTitleOpacity(promotion: CGFloat($0), metadataVisible: true)
         }
         for (a, b) in zip(samples, samples.dropFirst()) {
             #expect(b <= a)
         }
     }
 
-    @Test("deboss is already gone whenever the control cluster is visible (no title under the pill)")
+    @Test("deboss is gone under the cluster while the metadata reveal repeats the title")
     func goneBeforeClusterEmerges() {
-        // The exact XXXL-rest audit state: the cluster pill must never sit on a printed title.
+        // The medium-rest audit state: while the metadata band shows, the printed title
+        // must be fully faded before the cluster pill is visible (single title).
         for promotion in stride(from: 0.0, through: 1.0, by: 0.01) {
             let p = CGFloat(promotion)
             if ControlCluster.at(promotion: p).isVisible {
-                #expect(BookFocus.debossTitleOpacity(promotion: p) == 0)
+                #expect(BookFocus.debossTitleOpacity(promotion: p, metadataVisible: true) == 0)
             }
         }
     }
@@ -122,7 +124,36 @@ struct DebossTitleFadeTests {
     @Test("fade eases out gently near rest (smoothstep, not a hard linear edge)")
     func easedNearEdges() {
         // Smoothstep: slope ~0 at both ends, so a barely-promoted card barely fades.
-        let nearZero = BookFocus.debossTitleOpacity(promotion: 0.02)
+        let nearZero = BookFocus.debossTitleOpacity(promotion: 0.02, metadataVisible: true)
         #expect(nearZero > 0.99)
+    }
+}
+
+/// V42 — ui-audit round 2: when the focused cover's visible band is too short for the
+/// metadata reveal (XXXL type → `ViewThatFits` yields to the cluster-only branch), the
+/// deboss fade must NOT engage — the printed title is the focused book's only label, and
+/// fading it left an anonymous empty slab under the icon pill.
+@Suite("BookFocus — deboss title stays when metadata yields (V42)")
+struct DebossTitleMetadataYieldTests {
+    @Test("with no metadata reveal the printed title stays at every promotion")
+    func staysWithoutMetadata() {
+        for promotion in stride(from: 0.0, through: 1.0, by: 0.05) {
+            #expect(BookFocus.debossTitleOpacity(
+                promotion: CGFloat(promotion), metadataVisible: false) == 1)
+        }
+    }
+
+    @Test("the exact XXXL audit state: cluster visible, metadata yielded → title is the label")
+    func xxxlAuditState() {
+        // Launch rest at XXXL: promotion high enough that the cluster shows, but the
+        // band only fits the cluster — the deboss title must stay full strength.
+        let promotion: CGFloat = 0.6
+        #expect(ControlCluster.at(promotion: promotion).isVisible)
+        #expect(BookFocus.debossTitleOpacity(promotion: promotion, metadataVisible: false) == 1)
+    }
+
+    @Test("metadata visible keeps the V41 fade (regression guard)")
+    func metadataVisibleStillFades() {
+        #expect(BookFocus.debossTitleOpacity(promotion: 0.5, metadataVisible: true) == 0)
     }
 }

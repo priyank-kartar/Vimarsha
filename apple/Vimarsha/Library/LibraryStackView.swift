@@ -46,6 +46,12 @@ struct LibraryStackView: View {
     /// the seams the user sees are the rendered ones, not the layout ones (V37).
     @State private var cardVisualTops: [Int: CGFloat] = [:]
 
+    /// Whether the metadata reveal actually renders (V42): `ViewThatFits` yields it when the
+    /// focused cover's band only fits the cluster (XXXL type), and then the cover's deboss
+    /// title must stay printed — it's the focused book's only label. The chosen branch
+    /// reports via `FocusMetadataVisibleKey`; defaults to false (deboss stays) until it does.
+    @State private var metadataRevealShown = false
+
     /// EPUB import (V10). The system document picker is OS-driven chrome (like the
     /// keyboard) — exempt from the morph rule, and the only way the sandbox grants access
     /// to a user-chosen file. The picked EPUB lands in the container and persists via
@@ -96,6 +102,7 @@ struct LibraryStackView: View {
                     // (the static fallback has no hero zoom).
                     BookTower(
                         shelf: shelf, size: geo.size, reduceMotion: reduceMotion, focus: focus,
+                        metadataRevealShown: metadataRevealShown,
                         morphNamespace: coverMorph, openedBookId: reading?.shelfBook.id
                     )
                         .scaleEffect(
@@ -125,6 +132,11 @@ struct LibraryStackView: View {
             .overlay { LensingPuckView(puck: puck, reduceTransparency: reduceTransparency) }
             .overlay(alignment: .top) { topScrim(in: geo.size) }
             .overlay(alignment: .bottom) { focusAffordances(in: geo.size) }
+            // Which `ViewThatFits` branch rendered (V42): only the metadata branch emits
+            // true, so a yielded band (cluster-only, XXXL) reads false — and the focused
+            // cover keeps its printed title. Sits ABOVE the affordance overlay so the
+            // preference actually reaches it.
+            .onPreferenceChange(FocusMetadataVisibleKey.self) { metadataRevealShown = $0 }
             .overlay(alignment: .topTrailing) { addBookButton }
             .overlay { chapterListPlane }
             .overlay { readingSurface }
@@ -227,6 +239,9 @@ struct LibraryStackView: View {
                     )
                     controlCluster
                 }
+                // Only the rendered branch publishes (V42): metadata present → the deboss
+                // fade may engage; yielded (cluster-only) → the printed title stays.
+                .preference(key: FocusMetadataVisibleKey.self, value: true)
                 controlCluster
             }
             .frame(maxHeight: maxHeight, alignment: .bottom)
@@ -494,6 +509,9 @@ private struct BookTower: View {
     let reduceMotion: Bool
     /// Active front-slot focus (motion grammar #2); `.none` under Reduce Motion / at the top.
     let focus: BookFocus
+    /// Whether the metadata reveal is actually rendered (V42): when the affordance band
+    /// yields it (XXXL), the focused cover's deboss title stays — it IS the label.
+    let metadataRevealShown: Bool
     /// Cover-morph shared element (V17): the card whose book is open hands its geometry to
     /// the reading surface's cover plate and hides while open.
     let morphNamespace: Namespace.ID
@@ -522,8 +540,17 @@ private struct BookTower: View {
             // Fade this cover's printed title as it settles, so the metadata reveal isn't a
             // second title in the same eyeline (V24 — kill the double title). Only the focused
             // card promotes, so only it fades. The fade completes BEFORE any focus affordance
-            // is meaningfully visible (V41 — the linear `1 - promotion` double-titled at rest).
-            HardbackCoverView(book: book, titleOpacity: BookFocus.debossTitleOpacity(promotion: promotion))
+            // is meaningfully visible (V41 — the linear `1 - promotion` double-titled at rest)
+            // — but only while the metadata reveal actually renders (V42: a yielded band
+            // keeps the printed title; it's the focused book's only label). The branch flip
+            // is discrete, so the opacity change rides a short ease (no hard cut).
+            HardbackCoverView(
+                book: book,
+                titleOpacity: BookFocus.debossTitleOpacity(
+                    promotion: promotion, metadataVisible: metadataRevealShown
+                )
+            )
+                .animation(.easeInOut(duration: 0.2), value: metadataRevealShown)
                 // Uniform card width (ADR-011) — one size for every book; the depth-stack
                 // transform alone supplies the staircase, no per-index width rhythm.
                 .frame(width: CardGeometry.width(forViewportWidth: size.width))
@@ -608,6 +635,16 @@ private struct CardTopYKey: PreferenceKey {
     static let defaultValue: [Int: CGFloat] = [:]
     static func reduce(value: inout [Int: CGFloat], nextValue: () -> [Int: CGFloat]) {
         value.merge(nextValue()) { $1 }
+    }
+}
+
+/// Whether the metadata reveal is actually rendered (V42): emitted as `true` only by the
+/// metadata branch of the affordance `ViewThatFits`, so a yielded band (cluster-only at
+/// XXXL) resolves to the default `false` — and the focused cover keeps its printed title.
+private struct FocusMetadataVisibleKey: PreferenceKey {
+    static let defaultValue = false
+    static func reduce(value: inout Bool, nextValue: () -> Bool) {
+        value = value || nextValue()
     }
 }
 
