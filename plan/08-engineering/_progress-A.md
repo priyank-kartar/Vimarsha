@@ -15,6 +15,87 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V14 — Lazy chapter download + status UI ✅
+
+**What:** one chapter narrates and caches on demand; the chapter list surfaces the
+lifecycle honestly.
+- `Backend/ChapterBundle.swift` — `ChapterBundleDTO`/`BlockDTO`/`FigureDTO` mirror
+  `shared/bundle.schema.json` exactly (camelCase, nullable `audio`, `paraTimings`
+  defaulting `{}`; block/figure `kind` stays a raw string so a future backend kind
+  degrades instead of failing the decode). Lossless encode round-trip (the cached JSON
+  is the content source of truth, data-model.md §Rules).
+- `BackendClient` grows the download trio: `importChapter(epubAt:chapterIndex:)`
+  (multipart + `chapter_index` query — the FastAPI signature), `downloadAudio(named:)`,
+  `downloadImage(named:)`; shared HTTP-status validation. `FakeBackendClient` grows
+  matching closures + `.narrating()`/`.fixture()` presets (unconfigured endpoints fail
+  loudly; defaults are static funcs — closure-literal defaults get MainActor-inferred
+  under the project's default isolation and won't compile).
+- `Backend/ChapterDownloader.swift` — `/import` → `chapters/<index>/bundle.json` +
+  `chapter.mp3` + best-effort `images/<name>` (backend-supplied names reduced to
+  `lastPathComponent` — never a path), **all-or-nothing**: nil-audio (`noAudio`) and
+  empty-audio (`emptyAudio`) rejected, any failure removes the partial chapter dir.
+- `LibraryStore.downloadChapter` — `none/error → pending → ready/error("Narration
+  failed")`; the job is a **cancellable store-owned Task** (`downloadTasks` by chapter
+  id; `deleteBook` cancels; a cancelled job never touches the row — it may be deleted).
+  `load()` self-heals: `ready` with missing cache files → `none` (+paths nil), orphaned
+  `pending` (relaunch killed the job) → `none`.
+- `Library/ChapterListView.swift` — the chapter plane: a glass-backed list plane
+  (sky-tint `glassEffect`, the sanctioned "morphed list state" — never a sheet) with
+  matte serif rows; status affordances: download arrow (sky) → spinner (aqua, live) →
+  filled check (aqua) / retry + reason. Whole row tappable when actionable;
+  non-actionable rows are NOT disabled Buttons (a disabled plain Button dims the title
+  and `ready` must not read inactive). Reduce Transparency matte fallback.
+
+**Wiring:** the focused book's **Play** control raises the plane (the stand-in trigger
+until the audio engine V16 / reading morph V17 take it over; seeds have no chapters →
+no-op). Backdrop-tap or X closes. Rise/settle is an interruptible spring from the bottom
+(where the cluster lives); Reduce Motion gets the cross-dissolve (discrete-state-morph
+rule). `focusedBook` maps `focus.index` straight into `store.books` (shelf mirrors it
+one-to-one when non-empty).
+
+**Evidence:**
+- Both suites green (macOS + iPhone 17 Pro sim). +18 tests: 5 contract
+  (bundle decode incl. null audio, cache round-trip, import URL query), 6
+  `ChapterDownloaderTests` (cache layout + relative paths, images cached/best-effort,
+  noAudio/emptyAudio/network-failure leave nothing), 7 `LibraryStoreTests` (ready+paths
+  recorded, error+reason, retry-from-error only, **deleteBook cancels in-flight** (60s
+  fake import returns promptly only when cancelled), ready-missing-files heal, orphaned
+  pending heal, healed-ready survives when files exist).
+- `ChapterListSnapshotTests` (macOS `ImageRenderer`): all-four-statuses vs all-fresh
+  rasters differ; PNGs **looked at** — `08-chapters-lifecycle.png` shows arrow/spinner-
+  placeholder/aqua-check/retry+reason rows at full title contrast. Artifacts in
+  [`artifacts/V14/`](../../.agent-loop/artifacts/V14/).
+- Live launch (iPhone 17 Pro sim, fresh binary): rest captures dark+light
+  (`01-rest-dark.png`/`02-rest-light.png`) — stack/header/scrim unchanged, no V14
+  regression at rest.
+- Commits `16b7d77` (seam) `d489112` (downloader) `6105b5b` (store) `bdb4c22` (UI),
+  merged `fd320ed`.
+
+**Gotchas hit (recorded so nobody relearns):**
+- A SwiftData `ModelContainer` created in a test helper and not returned/held got
+  deallocated before `ImageRenderer` ran → `Book.title` getter asserted (crashed the
+  whole parallel test process — unrelated suites "failed" at 0.000s). Hold the container.
+- An **unsaved** to-many relationship can momentarily read back empty → both snapshot
+  variants rendered zero rows and compared equal (flaky). `save()` before rendering.
+- `ImageRenderer` does not rasterize `ScrollView` content (header drew, rows blank) —
+  rows extracted into `ChapterRowsView` and snapshot directly.
+
+**Device-gated (→ V15 verify):** opening the plane needs a real tap on the Play control
+(promotion ~0 at launch rest; no sim gesture injection), live download progress over a
+real backend, and the spinner (ImageRenderer draws a placeholder glyph for
+`ProgressView`).
+
+**Visual audit findings (whole-frame, beyond V14's scope):**
+- Pre-existing (identical in the signed-off V26 captures): at launch rest the focus
+  metadata reveal renders faintly mid-stack — a stray "Hey / DESIGN & ILLUSTRATION"
+  floats over the DAVID CROW/HEY cards (promotion is partial at rest, and the reveal's
+  opacity has no emerge threshold like the cluster's). Reads as accidental double text;
+  carried to the V15 review list.
+- Light mode: same float, plus the seed covers' debossed subtitles double with the
+  reveal text in the same eyeline. Same root cause.
+
+---
+
 ## V13 — `BackendClient` seam + `POST /toc` ✅
 
 **What:** the network seam exists and import talks to the real backend.

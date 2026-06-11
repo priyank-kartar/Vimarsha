@@ -231,9 +231,15 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   ↳ [tech-stack §Contract](../04-architecture/tech-stack.md) ·
   [shared/bundle.schema.json](../../shared/bundle.schema.json) ·
   Flutter reference: `app/lib/core/backend/dio_backend_client.dart`
-- **V14** · Lazy chapter download: `POST /import?chapter_index=N` → bundle JSON + MP3 cached
+- **V14** ✅ · Lazy chapter download: `POST /import?chapter_index=N` → bundle JSON + MP3 cached
   in the container; per-chapter status (none/pending/ready/error) + progress UI on the
-  chapter list. (needs V13) ↳ [app-architecture](../04-architecture/app-architecture.md) ·
+  chapter list. (needs V13) — _Done 2026-06-11, merged `fd320ed`; `ChapterBundle` DTOs
+  (schema-exact) + seam trio (`/import`+`/audio`+`/image`) + `ChapterDownloader`
+  (all-or-nothing cache, best-effort figure images) + `LibraryStore.downloadChapter`
+  (cancellable store-owned job, self-heal on load) + `ChapterListView` (glass-backed
+  chapter plane off the focused book's Play control, full lifecycle affordances).
+  +19 tests, both suites green; live plane open is gesture-gated → V15._
+  ↳ [app-architecture](../04-architecture/app-architecture.md) ·
   [narration-pipeline](../04-architecture/narration-pipeline.md)
 - **V15** · **[verify]** A real EPUB imported on device: its cover renders in the stack,
   chapters list from `/toc`, one chapter narrates end-to-end against the local backend
