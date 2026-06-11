@@ -15,6 +15,43 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V43 — metadata band guarantees WCAG AA over any cover (measured) ✅
+
+**What:** ui-audit round 2 measured the band failing on the blue cover (dark ≈2.6/2.0,
+light ≈1.65/1.44). TWO compounding causes found:
+1. The V38 sky-0.30 glass tint let cover art bloom straight through (plate ≠ guarantee).
+2. **The real killer:** the whole band — text included — rendered at
+   `opacity == promotion`, and launch rest only reaches ~0.5, so the band sat permanently
+   half-transparent. (Proven empirically: with the underlay fix alone the measured title
+   was still 2.98/2.32 — captures `01/02` in the artifacts.)
+
+Fixes: `Design/BandContrast.swift` — pure WCAG math (relative luminance, contrast ratio,
+worst-case-cover blend minimized over the RGB-cube corners; 7 tests) pinning
+`FocusMetadataView.plateUnderlayOpacity 0.85` + `subtitleOpacity 0.7→0.8` to a
+**guaranteed ≥4.5:1 over ANY cover, both modes**; a matte `surface` underlay beneath the
+band's sky glass (Reduce Transparency path unchanged); and
+`BookFocus.metadataRevealOpacity` — smoothstep saturating at promotion 0.5, so the band
+is FULLY opaque at rest and before the cluster shows (5 tests). `Palette.Hex` now holds
+the raw UInt32s (still the one hex place — Color tokens and contrast math share them).
+
+**Evidence:** both suites green both destinations. **Measured on-sim** (blue cover,
+medium rest, [`contrast-measurements.txt`](../../.agent-loop/artifacts/V43/contrast-measurements.txt)):
+dark title **7.63:1** / subtitle **5.57:1**; light **10.64:1** / **6.39:1** — all AA.
+Captures `03/04-medium-*-fixed.png` + crops reviewed: crisp token text on a solid
+slate/aqua plate with a glass rim, both modes. Pink-cover case covered by the
+worst-case guarantee tests (rest always focuses the blue seed; no gesture injection).
+Commit `3c6b01d`, merged `7ec0089`.
+
+**Visual audit findings (whole frame):** dark-mode plate reads slightly blue-shifted
+(sky glass over blue cover) but solidly within AA per the measurements; no new defects
+spotted at medium rest either mode; the XXXL deboss bottom-clip (V44) and shelf-edge
+nits remain as filed.
+
+**Device-gated:** the reveal ramp's live scrub feel (band fading up while a cover
+settles) → deferred final review.
+
+---
+
 ## V42 — XXXL focused card keeps its label (deboss ↔ metadata-yield coupling) ✅
 
 **What:** ui-audit round 2's composition defect: V37's metadata-yield (`ViewThatFits`

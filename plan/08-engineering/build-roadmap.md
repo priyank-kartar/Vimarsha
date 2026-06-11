@@ -398,12 +398,17 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   dark+light captures in `.agent-loop/artifacts/V42/` — one title per state, V41 intact._
   ↳ [ui-audit-log](ui-audit-log.md) §Round 2 ·
   `.agent-loop/artifacts/ui-audit-20260611-1849/crop-xxxl-dark-affordances.png`
-- **V43** · Metadata-reveal contrast fails on mid-luminance covers (measured, medium rest,
+- **V43** ✅ · Metadata-reveal contrast fails on mid-luminance covers (measured, medium rest,
   both modes): the V38 sky-glass plate blooms the blue cover through — light title ≈1.65:1,
   subtitle ≈1.44:1; dark title ≈2.6:1, subtitle ≈2.0:1 — all below WCAG AA. Fix direction:
   raise the plate's opacity floor (or derive text color from sampled plate luminance) so the
   band *guarantees* ≥4.5:1 small / ≥3:1 large over ANY cover art; verify by sampling pixels
-  on the blue and pink covers, both modes.
+  on the blue and pink covers, both modes. — _Done 2026-06-11, merged `7ec0089`; two causes:
+  the weak tint AND the whole band rendering at `opacity == promotion` (~0.5 at rest — text
+  itself half-transparent). `BandContrast` pure WCAG math (worst-case-cover blend, 7 tests)
+  pins matte-underlay 0.85 + subtitle 0.8 to a guaranteed ≥4.5:1 over ANY cover;
+  `metadataRevealOpacity` saturates at promotion 0.5 (band fully opaque at rest, 5 tests).
+  **Measured on-sim:** dark 7.63/5.57, light 10.64/6.39 — `.agent-loop/artifacts/V43/`._
   ↳ [ui-audit-log](ui-audit-log.md) §Round 2 ·
   `.agent-loop/artifacts/ui-audit-20260611-1849/crop-light-band.png`
 - **V44** · Debossed subtitle clips the cover's bottom edge at XXXL: the last line
