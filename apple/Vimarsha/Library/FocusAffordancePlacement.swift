@@ -20,6 +20,10 @@ enum FocusAffordancePlacement {
     /// focused cover rather than grazing the book below it.
     static let insetAboveNext: CGFloat = 14
 
+    /// Keep this much clearance below the focused cover's own top edge — the affordances must
+    /// never touch (let alone cross) the seam with the cover above it (V37).
+    static let insetBelowTop: CGFloat = 8
+
     /// Never lift the affordances past this fraction of the viewport height — they belong on
     /// the lower reading surface, not floating up into the stack.
     static let maxLift: CGFloat = 0.5
@@ -40,5 +44,25 @@ enum FocusAffordancePlacement {
         }
         let padding = viewportHeight - anchorBottom
         return min(max(padding, margin), viewportHeight * maxLift)
+    }
+
+    /// The hard height clamp (V37): the affordance stack may only occupy the focused cover's
+    /// own visible band — from just below its rendered top edge down to the anchor the
+    /// `bottomPadding` establishes. Anything taller (XXXL type, short bands) must drop content
+    /// or clip; it must never spill across the seam onto the cover above.
+    ///
+    /// - Parameters:
+    ///   - focusedTopY: the focused cover's rendered top edge (`CardVisualTop`) in viewport
+    ///     coordinates; `nil` while unmeasured.
+    ///   - bottomPadding: the resolved `bottomPadding(nextTopY:viewportHeight:)` for the same
+    ///     frame, anchoring the stack's bottom.
+    ///   - viewportHeight: the scroll viewport height.
+    /// - Returns: the maximum height for the affordance stack, ≥ 0.
+    static func maxHeight(
+        focusedTopY: CGFloat?, bottomPadding: CGFloat, viewportHeight: CGFloat
+    ) -> CGFloat {
+        let anchorBottom = viewportHeight - bottomPadding
+        guard let focusedTopY else { return max(0, anchorBottom) }
+        return max(0, anchorBottom - focusedTopY - insetBelowTop)
     }
 }

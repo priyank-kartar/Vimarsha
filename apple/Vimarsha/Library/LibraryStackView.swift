@@ -34,10 +34,14 @@ struct LibraryStackView: View {
     /// flat list with no front slot) leaves this at `.none`.
     @State private var focus: BookFocus = .none
 
-    /// Each card's viewport top edge, keyed by shelf index — used to anchor the focus
-    /// affordances just inside the focused cover's visible bottom (the next book's top edge),
-    /// so the cluster sits on the focused cover, not floating over the book below it (V24).
+    /// Each card's viewport LAYOUT top edge, keyed by shelf index — drives the top scrim's
+    /// contextual visibility (V27, tuned against layout tops).
     @State private var cardTops: [Int: CGFloat] = [:]
+
+    /// Each card's RENDERED top edge (`CardVisualTop` — the layout top mapped through the
+    /// card's visualEffect transforms). The focus affordances anchor against these, because
+    /// the seams the user sees are the rendered ones, not the layout ones (V37).
+    @State private var cardVisualTops: [Int: CGFloat] = [:]
 
     /// EPUB import (V10). The system document picker is OS-driven chrome (like the
     /// keyboard) — exempt from the morph rule, and the only way the sandbox grants access
@@ -102,6 +106,7 @@ struct LibraryStackView: View {
                     : BookFocus.at(midYs: midYs, viewportHeight: geo.size.height)
             }
             .onPreferenceChange(CardTopYKey.self) { cardTops = $0 }
+            .onPreferenceChange(CardVisualTopKey.self) { cardVisualTops = $0 }
             .background(Palette.canvas.ignoresSafeArea())
             // The puck floats in viewport space (it follows the finger, not the content),
             // so the gesture + overlay live on the ScrollView, outside the scrolling tower.
@@ -186,29 +191,51 @@ struct LibraryStackView: View {
     @ViewBuilder
     private func focusAffordances(in size: CGSize) -> some View {
         if focus.index >= 0, focus.index < shelf.count {
-            VStack(spacing: 18) {
-                FocusMetadataView(book: shelf[focus.index], reveal: focus.promotion)
-                ControlClusterView(
-                    cluster: ControlCluster.at(promotion: focus.promotion),
-                    reduceTransparency: reduceTransparency,
-                    onActivate: { control in
-                        // Play raises the chapter list plane (V14) — the stand-in until
-                        // the audio engine (V16) and reading morph (V17) take it over.
-                        // Other controls stay stubs; seeds have no chapters to show.
-                        if control == .play, let book = focusedBook {
-                            withAnimation(chapterPlaneAnimation) { chapterBook = book }
-                        }
-                    }
-                )
-            }
             // Anchor inside the focused cover's visible bottom — above the next book that
-            // overlaps it — so the cluster reads as extruded from the cover, not floating over
-            // the book below (V24).
-            .padding(.bottom, FocusAffordancePlacement.bottomPadding(
-                nextTopY: cardTops[focus.index + 1],
+            // overlaps it (V24) — using RENDERED tops (V37): the seams the user sees are the
+            // transformed ones, not the layout ones.
+            let bottomPadding = FocusAffordancePlacement.bottomPadding(
+                nextTopY: cardVisualTops[focus.index + 1],
                 viewportHeight: size.height
-            ))
+            )
+            // Hard clamp (V37, ui-audit blocker): the affordances may only occupy the focused
+            // cover's own visible band. When the band is too short for metadata + cluster
+            // (XXXL type, tight stacks), the metadata yields and the cluster alone shows;
+            // `.clipped()` is the backstop so nothing ever crosses the seam above.
+            let maxHeight = FocusAffordancePlacement.maxHeight(
+                focusedTopY: cardVisualTops[focus.index],
+                bottomPadding: bottomPadding,
+                viewportHeight: size.height
+            )
+            ViewThatFits(in: .vertical) {
+                VStack(spacing: 14) {
+                    FocusMetadataView(book: shelf[focus.index], reveal: focus.promotion)
+                    controlCluster
+                }
+                controlCluster
+            }
+            .frame(maxHeight: maxHeight, alignment: .bottom)
+            .clipped()
+            .padding(.bottom, bottomPadding)
         }
+    }
+
+    /// The glass control cluster (glass moment #5), shared by both `ViewThatFits` branches —
+    /// when the focused cover's visible band can't hold metadata + cluster, the cluster wins
+    /// (it's the affordance; the metadata is decorative).
+    private var controlCluster: some View {
+        ControlClusterView(
+            cluster: ControlCluster.at(promotion: focus.promotion),
+            reduceTransparency: reduceTransparency,
+            onActivate: { control in
+                // Play raises the chapter list plane (V14) — the stand-in until
+                // the audio engine (V16) and reading morph (V17) take it over.
+                // Other controls stay stubs; seeds have no chapters to show.
+                if control == .play, let book = focusedBook {
+                    withAnimation(chapterPlaneAnimation) { chapterBook = book }
+                }
+            }
+        )
     }
 
     /// The focused book as a persisted row — nil for the seed shelf (nothing to narrate).
@@ -489,14 +516,24 @@ private struct BookTower: View {
                         .saturation(t.saturation)
                         .offset(y: t.yOffset + emit.yOffset)
                 }
-                // Publish this card's viewport midY (front-slot detection) and top edge (so the
-                // focus affordances can anchor inside this cover's visible bottom, V24).
+                // Publish this card's viewport midY (front-slot detection), layout top edge
+                // (top-scrim visibility, V27) and RENDERED top edge (focus-affordance
+                // anchoring, V37 — visualEffect transforms don't move the layout frame, so the
+                // rendered top is recomputed from the same pure math the card draws with).
                 .background {
                     GeometryReader { proxy in
                         let frame = proxy.frame(in: .scrollView)
                         Color.clear
                             .preference(key: CardMidYKey.self, value: [index: frame.midY])
                             .preference(key: CardTopYKey.self, value: [index: frame.minY])
+                            .preference(
+                                key: CardVisualTopKey.self,
+                                value: [index: CardVisualTop.at(
+                                    layoutFrame: frame,
+                                    viewportHeight: viewportHeight,
+                                    promotion: promotion
+                                )]
+                            )
                     }
                 }
                 // Contact shadow; deepens with the grow-to-front promotion → strongest on the
@@ -536,9 +573,18 @@ private struct CardMidYKey: PreferenceKey {
     }
 }
 
-/// Collects each card's viewport top edge (keyed by shelf index) so the focus affordances can
-/// anchor inside the focused cover's visible bottom — the next book's top edge (V24).
+/// Collects each card's viewport LAYOUT top edge (keyed by shelf index) — the top scrim's
+/// contextual visibility input (V27).
 private struct CardTopYKey: PreferenceKey {
+    static let defaultValue: [Int: CGFloat] = [:]
+    static func reduce(value: inout [Int: CGFloat], nextValue: () -> [Int: CGFloat]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
+/// Collects each card's RENDERED top edge (`CardVisualTop`, keyed by shelf index) so the
+/// focus affordances anchor against the seams the user actually sees (V37).
+private struct CardVisualTopKey: PreferenceKey {
     static let defaultValue: [Int: CGFloat] = [:]
     static func reduce(value: inout [Int: CGFloat], nextValue: () -> [Int: CGFloat]) {
         value.merge(nextValue()) { $1 }
