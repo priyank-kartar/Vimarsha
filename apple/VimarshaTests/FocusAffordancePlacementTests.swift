@@ -57,4 +57,55 @@ struct FocusAffordancePlacementTests {
         let low = FocusAffordancePlacement.bottomPadding(nextTopY: vh * 0.7, viewportHeight: vh)
         #expect(high >= low)
     }
+
+    // MARK: maxHeight — the hard clamp inside the focused cover's own bounds (V37)
+
+    @Test("unmeasured focused top → bounded only by the anchor (full height above the padding)")
+    func maxHeightWithoutFocusedTop() {
+        let padding = FocusAffordancePlacement.margin
+        let h = FocusAffordancePlacement.maxHeight(
+            focusedTopY: nil, bottomPadding: padding, viewportHeight: vh
+        )
+        #expect(h == vh - padding)
+    }
+
+    @Test("focused top visible → height runs from just below it down to the anchor")
+    func maxHeightInsideFocusedCover() {
+        let focusedTop = vh * 0.55
+        let padding: CGFloat = 120
+        let h = FocusAffordancePlacement.maxHeight(
+            focusedTopY: focusedTop, bottomPadding: padding, viewportHeight: vh
+        )
+        let expected = (vh - padding) - focusedTop - FocusAffordancePlacement.insetBelowTop
+        #expect(abs(h - expected) < 0.001)
+        #expect(h > 0)
+    }
+
+    @Test("degenerate band (focused top at/below the anchor) clamps to zero, never negative")
+    func maxHeightNeverNegative() {
+        let padding: CGFloat = 200
+        let h = FocusAffordancePlacement.maxHeight(
+            focusedTopY: vh - 100, bottomPadding: padding, viewportHeight: vh
+        )
+        #expect(h == 0)
+    }
+
+    @Test("monotonic: a higher focused top (taller visible band) allows at least as much height")
+    func maxHeightMonotonic() {
+        let tall = FocusAffordancePlacement.maxHeight(
+            focusedTopY: vh * 0.4, bottomPadding: 100, viewportHeight: vh
+        )
+        let short = FocusAffordancePlacement.maxHeight(
+            focusedTopY: vh * 0.6, bottomPadding: 100, viewportHeight: vh
+        )
+        #expect(tall >= short)
+    }
+
+    @Test("degenerate viewport → zero height (nothing to place)")
+    func maxHeightDegenerateViewport() {
+        let h = FocusAffordancePlacement.maxHeight(
+            focusedTopY: 100, bottomPadding: 28, viewportHeight: 0
+        )
+        #expect(h == 0)
+    }
 }
