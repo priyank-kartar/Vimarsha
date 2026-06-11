@@ -173,6 +173,26 @@ struct MemoCaptureTests {
         #expect(f.capture.phase == .saved)
     }
 
+    @Test("a successful save hands the memo to onSaved (the V29 transcription hook)")
+    func savedMemoFlowsToOnSaved() async throws {
+        let f = try makeFixture()
+        var handed: Memo?
+        f.capture.onSaved = { handed = $0 }
+        await f.capture.beginHold()
+        f.capture.endHold()
+        #expect(handed != nil)
+        #expect(handed?.id == (try memos(in: f.context).first?.id))
+
+        // Discarded clips never reach the hook.
+        let short = try makeFixture()
+        var leaked = false
+        short.capture.onSaved = { _ in leaked = true }
+        short.recorder.stubbedRecordedMs = MemoCapture.minSaveMs - 1
+        await short.capture.beginHold()
+        short.capture.endHold()
+        #expect(!leaked)
+    }
+
     @Test("deleting the chapter cascades its memos (user-content cleanup)")
     func cascadeDelete() async throws {
         let f = try makeFixture()

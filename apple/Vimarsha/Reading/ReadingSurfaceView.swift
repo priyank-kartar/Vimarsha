@@ -234,7 +234,7 @@ struct ReadingSurfaceView: View {
     private var memoStatusChip: some View {
         switch memoCapture?.phase {
         case .saved:
-            chip(text: "Voice note saved", icon: "checkmark")
+            chip(text: "Voice note saved · transcribing…", icon: "checkmark")
         case .denied:
             chip(text: "Microphone access needed — enable it in Settings", icon: "mic.slash")
         default:

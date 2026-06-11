@@ -11,12 +11,17 @@ nonisolated struct FakeBackendClient: BackendClient {
         = Self.unconfiguredImport
     var onDownloadAudio: @Sendable (String) async throws -> Data = Self.unconfiguredDownload
     var onDownloadImage: @Sendable (String) async throws -> Data = Self.unconfiguredDownload
+    var onTranscribe: @Sendable (URL) async throws -> String = Self.unconfiguredTranscribe
 
     private static func unconfiguredImport(_: URL, _: Int) async throws -> ChapterBundleDTO {
         throw URLError(.unsupportedURL)
     }
 
     private static func unconfiguredDownload(_: String) async throws -> Data {
+        throw URLError(.unsupportedURL)
+    }
+
+    private static func unconfiguredTranscribe(_: URL) async throws -> String {
         throw URLError(.unsupportedURL)
     }
 
@@ -34,6 +39,10 @@ nonisolated struct FakeBackendClient: BackendClient {
 
     func downloadImage(named name: String) async throws -> Data {
         try await onDownloadImage(name)
+    }
+
+    func transcribe(audioAt url: URL) async throws -> String {
+        try await onTranscribe(url)
     }
 }
 
