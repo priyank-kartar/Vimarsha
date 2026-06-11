@@ -37,7 +37,16 @@ struct LibraryStackView: View {
                     LibraryHeader(contrast: contrast(in: geo.size))
                         .padding(.top, 64)
                         .padding(.bottom, 72)
+                    // Coupled scroll+zoom hero settle (motion grammar #5): as the header above
+                    // translates off, the whole tower scales toward the viewer as one rigid
+                    // group, anchored on the front slot. One scale on the tower as a whole —
+                    // the per-card depth-stack parallax rides inside it. Reduce Motion exempt
+                    // (the static fallback has no hero zoom).
                     BookTower(size: geo.size, reduceMotion: reduceMotion, focus: focus)
+                        .scaleEffect(
+                            heroSettle(in: geo.size).scale,
+                            anchor: heroAnchor(in: geo.size)
+                        )
                 }
                 .padding(.bottom, geo.size.height * 0.22)
                 .frame(width: geo.size.width)
@@ -105,6 +114,21 @@ struct LibraryStackView: View {
                 // Fade out in place — keep the last center/diameter so it doesn't jump.
                 puck = LensingPuck(center: puck.center, diameter: puck.diameter, opacity: 0)
             }
+    }
+
+    /// Coupled scroll+zoom hero settle (motion grammar #5): the rigid-group tower zoom as a
+    /// pure function of distance-to-rest. Reduce Motion pins it to rest (no hero zoom).
+    private func heroSettle(in size: CGSize) -> HeroSettle {
+        reduceMotion
+            ? .rest
+            : .at(distanceToRest: distanceToRest, viewportHeight: size.height)
+    }
+
+    /// The hero zoom's fixed anchor as a SwiftUI `UnitPoint` (front slot — the dominant front
+    /// cover holds while the receding stack grows toward the viewer).
+    private func heroAnchor(in size: CGSize) -> UnitPoint {
+        let p = heroSettle(in: size).anchor
+        return UnitPoint(x: p.x, y: p.y)
     }
 
     /// Settle contrast shift (motion grammar #7): full at the top, fading as the tower
