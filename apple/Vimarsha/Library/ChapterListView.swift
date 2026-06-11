@@ -8,11 +8,12 @@ import SwiftUI
 /// Each row surfaces the chapter's narration lifecycle honestly (none → pending → ready /
 /// error, app-architecture.md §Error posture): tap to narrate+download, a live progress
 /// spinner while the backend synthesizes (minutes on a dev backend — the status *is* the
-/// story), retry on error. Playing a ready chapter is V16 (audio engine).
+/// story), retry on error. A ready row opens the reading surface (V17 cover morph).
 struct ChapterListView: View {
     let book: Book
     var reduceTransparency: Bool = false
     var onDownload: (Chapter) -> Void = { _ in }
+    var onOpen: (Chapter) -> Void = { _ in }
     var onClose: () -> Void = {}
 
     @ScaledMetric(relativeTo: .title3) private var titleSize: CGFloat = 20
@@ -28,7 +29,7 @@ struct ChapterListView: View {
                 .padding(.top, 22)
                 .padding(.bottom, 14)
             ScrollView {
-                ChapterRowsView(chapters: chapters, onDownload: onDownload)
+                ChapterRowsView(chapters: chapters, onDownload: onDownload, onOpen: onOpen)
                     .padding(.horizontal, 20)
                     .padding(.bottom, 18)
             }
@@ -82,11 +83,12 @@ struct ChapterListView: View {
 struct ChapterRowsView: View {
     let chapters: [Chapter]
     var onDownload: (Chapter) -> Void = { _ in }
+    var onOpen: (Chapter) -> Void = { _ in }
 
     var body: some View {
         VStack(spacing: 0) {
             ForEach(chapters) { chapter in
-                ChapterRow(chapter: chapter, onDownload: onDownload)
+                ChapterRow(chapter: chapter, onDownload: onDownload, onOpen: onOpen)
                 if chapter.id != chapters.last?.id {
                     Divider().overlay(Palette.textPrimary.opacity(0.08))
                 }
@@ -100,22 +102,24 @@ struct ChapterRowsView: View {
 private struct ChapterRow: View {
     let chapter: Chapter
     var onDownload: (Chapter) -> Void
+    var onOpen: (Chapter) -> Void
 
     @ScaledMetric(relativeTo: .caption2) private var indexSize: CGFloat = 10
     @ScaledMetric(relativeTo: .body) private var rowTitleSize: CGFloat = 15
 
-    private var actionable: Bool {
-        chapter.status == .none || chapter.status == .error
-    }
-
     var body: some View {
         // Only actionable rows are buttons — a disabled Button would dim the title, and a
-        // ready chapter must not read as inactive (it's the good state).
+        // pending chapter must not read as broken (the spinner is the story). A ready row
+        // opens the reading surface (V17); none/error rows narrate/retry.
         Group {
-            if actionable {
+            switch chapter.status {
+            case .none, .error:
                 Button { onDownload(chapter) } label: { rowContent }
                     .buttonStyle(.plain)
-            } else {
+            case .ready:
+                Button { onOpen(chapter) } label: { rowContent }
+                    .buttonStyle(.plain)
+            case .pending:
                 rowContent
             }
         }
@@ -175,7 +179,7 @@ private struct ChapterRow: View {
         let state = switch chapter.status {
         case .none: "not downloaded, double-tap to narrate"
         case .pending: "narrating"
-        case .ready: "ready"
+        case .ready: "ready, double-tap to read"
         case .error: "failed, double-tap to retry"
         }
         return "Chapter \(chapter.index + 1), \(chapter.title), \(state)"
