@@ -195,6 +195,26 @@ struct PlayerControllerTests {
         #expect(f.controller.bundle == nil)
     }
 
+    @Test func activeFiguresFollowThePlayhead() throws {
+        let f = try makeFixture(bundle: .figuredFixture)
+        try f.controller.load(f.chapter)
+        #expect(f.controller.activeFigures.isEmpty)  // playhead 0, span starts at 500
+        f.controller.play()
+        f.engine.advance(byMs: 700)
+        f.controller.tick()
+        #expect(f.controller.activeFigures.map(\.figureId) == ["f1"])
+        f.controller.seek(toMs: 2_600)
+        #expect(f.controller.activeFigures.isEmpty)  // past endMs → carrier recedes
+    }
+
+    @Test func allFiguresListsTheWholeMapRegardlessOfTiming() throws {
+        let f = try makeFixture(bundle: .figuredFixture)
+        try f.controller.load(f.chapter)
+        // The gallery's source: every figure, including the unresolved (nil-ms) one
+        // that never auto-pops.
+        #expect(f.controller.allFigures.map(\.figureId) == ["f1", "f2"])
+    }
+
     @Test func naturalFinishStopsAndPersistsAtTheEnd() throws {
         let f = try makeFixture()
         f.engine.stubbedDurationMs = 8_000
@@ -219,5 +239,29 @@ nonisolated extension ChapterBundleDTO {
         figureMap: [],
         audio: "chap1.mp3",
         paraTimings: ["b1": [0, 1_000], "b2": [1_000, 2_000], "b3": [2_000, 3_000]]
+    )
+
+    /// `timedFixture` plus a figure map: one resolved span (auto-pops) and one
+    /// unresolved (nil ms — gallery-only, never activates).
+    static let figuredFixture = ChapterBundleDTO(
+        chapterId: "chap1", title: "Chapter One",
+        blocks: timedFixture.blocks + [
+            BlockDTO(id: "fig1", index: 3, kind: "figure", caption: "A diagram"),
+            BlockDTO(id: "fig2", index: 4, kind: "figure", caption: "Unresolved"),
+        ],
+        figureMap: [
+            FigureDTO(
+                figureId: "f1", kind: "figure", asset: nil, caption: "A diagram",
+                label: "Figure 1", startPara: "b1", endPara: "b2",
+                startMs: 500, endMs: 2_500, image: nil
+            ),
+            FigureDTO(
+                figureId: "f2", kind: "figure", asset: nil, caption: "Unresolved",
+                label: "Figure 2", startPara: "b3", endPara: "b3",
+                startMs: nil, endMs: nil, image: nil
+            ),
+        ],
+        audio: "chap1.mp3",
+        paraTimings: timedFixture.paraTimings
     )
 }

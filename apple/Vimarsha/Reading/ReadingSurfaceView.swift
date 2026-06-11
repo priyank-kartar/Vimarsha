@@ -34,35 +34,75 @@ struct ReadingSurfaceView: View {
     @State private var lastUserScroll: Date = .distantPast
     private static let userScrollCooldown: TimeInterval = 4
 
+    /// The figure carrier's paging memory (V20). The rendered selection is *derived*
+    /// (`FigureOverlaySelection.reconciled`) every frame — this only remembers which
+    /// stacked card the user paged to while the active set stays stable.
+    @State private var figurePaging: FigureOverlaySelection?
+
+    /// The Figures gallery — a morphed grid state of this same surface (V20), never
+    /// a sheet. Narration keeps playing underneath.
+    @State private var showGallery = false
+
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
                 if let player, let bundle = player.bundle {
-                    chapterBody(bundle: bundle, player: player, in: geo.size)
+                    if showGallery {
+                        // The morphed grid state: the paper body reflows into the
+                        // figure grid on the same canvas; narration keeps playing.
+                        FiguresGalleryView(
+                            figures: player.allFigures,
+                            images: player.blockImages,
+                            onSelect: { figure in
+                                player.seekToBlock(figure.startPara)
+                                showGallery = false
+                            }
+                        )
+                        .transition(galleryTransition)
+                    } else {
+                        chapterBody(bundle: bundle, player: player, in: geo.size)
+                            .transition(galleryTransition)
+                    }
                 } else {
                     shell(in: geo.size)
                 }
-                closeBar
+                closeBar(player: player)
                     .padding(.top, 14)
                     .padding(.horizontal, 20)
             }
+            .animation(
+                reduceMotion ? .easeInOut(duration: 0.15)
+                    : .spring(response: 0.4, dampingFraction: 0.9),
+                value: showGallery
+            )
             // The compact glass transport (V19) floats over the paper body — never a
-            // chrome bar. Only when a chapter is actually loaded.
+            // chrome bar — and the figure carrier (V20) auto-pops above it at each
+            // figure's startMs, recedes at endMs. Only when a chapter is actually loaded.
             .overlay(alignment: .bottom) {
                 if let player, player.bundle != nil {
-                    TransportClusterView(
-                        positionMs: player.positionMs,
-                        durationMs: player.durationMs,
-                        isPlaying: player.isPlaying,
-                        rate: player.rate,
-                        reduceTransparency: reduceTransparency,
-                        onPlayPause: { player.togglePlayPause() },
-                        onSkip: { player.skip(byMs: $0) },
-                        onCycleRate: { player.setRate(Transport.nextRate(after: player.rate)) }
-                    )
+                    VStack(spacing: 14) {
+                        figureCarrier(player: player)
+                        TransportClusterView(
+                            positionMs: player.positionMs,
+                            durationMs: player.durationMs,
+                            isPlaying: player.isPlaying,
+                            rate: player.rate,
+                            reduceTransparency: reduceTransparency,
+                            onPlayPause: { player.togglePlayPause() },
+                            onSkip: { player.skip(byMs: $0) },
+                            onCycleRate: { player.setRate(Transport.nextRate(after: player.rate)) }
+                        )
+                    }
                     .frame(maxWidth: 380)
                     .padding(.horizontal, 24)
                     .padding(.bottom, 18)
+                    // Pop/recede is a discrete state morph: interruptible spring keyed
+                    // on the active set; Reduce Motion cross-dissolves instead.
+                    .animation(
+                        reduceMotion ? .easeInOut(duration: 0.15)
+                            : .spring(response: 0.45, dampingFraction: 0.85),
+                        value: FigureOverlaySelection.key(for: player.activeFigures)
+                    )
                 }
             }
         }
@@ -126,6 +166,29 @@ struct ReadingSurfaceView: View {
         }
     }
 
+    /// The glass figure carrier (V20): present exactly while figures are active at the
+    /// playhead — auto-pop at `startMs`, recede at `endMs` (TimingIndex owns the spans).
+    @ViewBuilder
+    private func figureCarrier(player: PlayerController) -> some View {
+        // The gallery already shows every figure — don't double up the carrier there.
+        let figures = showGallery ? [] : player.activeFigures
+        if let selection = FigureOverlaySelection.reconciled(figurePaging, with: figures) {
+            FigureCarrierView(
+                figures: figures,
+                selectedIndex: selection.index,
+                images: player.blockImages,
+                reduceTransparency: reduceTransparency,
+                onPrevious: { figurePaging = selection.previous(count: figures.count) },
+                onNext: { figurePaging = selection.next(count: figures.count) }
+            )
+            .transition(
+                reduceMotion ? .opacity
+                    : .move(edge: .bottom).combined(with: .opacity)
+                        .combined(with: .scale(scale: 0.92, anchor: .bottom))
+            )
+        }
+    }
+
     /// The V17 shell (no player/bundle — previews, snapshots, forced captures).
     private func shell(in size: CGSize) -> some View {
         VStack(spacing: 0) {
@@ -143,30 +206,50 @@ struct ReadingSurfaceView: View {
 
     // MARK: Pieces
 
-    /// Close = back-morph (chevron pointing back down into the stack). A control, so
+    /// Close = back-morph (chevron pointing back down into the stack); the Figures
+    /// toggle rides the opposite corner when the chapter has figures. Controls, so
     /// glass; matte fallback under Reduce Transparency.
-    private var closeBar: some View {
+    private func closeBar(player: PlayerController?) -> some View {
         HStack {
-            Button(action: onClose) {
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Palette.textPrimary)
-                    .frame(width: 40, height: 40)
-            }
-            .buttonStyle(.plain)
-            .background {
-                if reduceTransparency {
-                    Circle().fill(Palette.surface)
-                        .overlay(Circle().strokeBorder(Palette.sky.opacity(0.5), lineWidth: 1))
-                } else {
-                    Color.clear.glassEffect(
-                        .regular.tint(Palette.sky.opacity(0.26)).interactive(), in: .circle
-                    )
+            glassControl(symbol: "chevron.down", label: "Close book", action: onClose)
+            Spacer()
+            if let player, !player.allFigures.isEmpty {
+                glassControl(
+                    symbol: showGallery ? "text.justify.left" : "photo.on.rectangle.angled",
+                    label: showGallery ? "Back to reading" : "Figures"
+                ) {
+                    showGallery.toggle()
                 }
             }
-            .accessibilityLabel("Close book")
-            Spacer()
         }
+    }
+
+    private func glassControl(
+        symbol: String, label: String, action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Palette.textPrimary)
+                .frame(width: 40, height: 40)
+        }
+        .buttonStyle(.plain)
+        .background {
+            if reduceTransparency {
+                Circle().fill(Palette.surface)
+                    .overlay(Circle().strokeBorder(Palette.sky.opacity(0.5), lineWidth: 1))
+            } else {
+                Color.clear.glassEffect(
+                    .regular.tint(Palette.sky.opacity(0.26)).interactive(), in: .circle
+                )
+            }
+        }
+        .accessibilityLabel(label)
+    }
+
+    private var galleryTransition: AnyTransition {
+        reduceMotion ? .opacity
+            : .opacity.combined(with: .scale(scale: 0.97))
     }
 
     /// The shared element: the same hardback, settled small at the top of the canvas.
