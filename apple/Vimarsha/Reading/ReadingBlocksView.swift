@@ -12,6 +12,8 @@ struct ReadingBlocksView: View {
     let activeBlockId: String?
     /// Cached figure images keyed by source block id (`PlayerController.blockImages`).
     var images: [String: Image] = [:]
+    /// Tap-a-paragraph-to-seek (V19); nil renders an inert body (snapshots/previews).
+    var onTapBlock: ((String) -> Void)?
 
     @ScaledMetric(relativeTo: .body) private var bodySize: CGFloat = 17
     @ScaledMetric(relativeTo: .title2) private var headingSize: CGFloat = 23
@@ -73,7 +75,8 @@ struct ReadingBlocksView: View {
     }
 
     /// Shared text-row chrome: matte ink/paper type + the narration highlight wash when
-    /// this block is the one being read aloud.
+    /// this block is the one being read aloud + tap-to-seek (V19; a gesture-only
+    /// interaction, so VoiceOver gets an explicit action — apple/CLAUDE.md §Accessibility).
     private func textRow(_ block: BlockDTO, @ViewBuilder content: () -> some View) -> some View {
         content()
             .foregroundStyle(Palette.textPrimary.opacity(0.92))
@@ -86,6 +89,9 @@ struct ReadingBlocksView: View {
                         .fill(Palette.narrationHighlight)
                 }
             }
+            .contentShape(Rectangle())
+            .onTapGesture { onTapBlock?(block.id) }
+            .accessibilityAction(named: "Read from here") { onTapBlock?(block.id) }
     }
 
     /// A figure as paper: the cached image matte on the canvas (subtle rounding + contact

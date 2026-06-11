@@ -172,6 +172,23 @@ struct PlayerControllerTests {
         #expect(f.controller.currentBlockId == "b2")
     }
 
+    @Test func tapToSeekJumpsToTheBlockStart() throws {
+        let f = try makeFixture()
+        try f.controller.load(f.chapter)
+        f.controller.seekToBlock("b3")
+        #expect(f.controller.positionMs == 2_000)
+        #expect(f.engine.seeks.last == 2_000)
+        #expect(f.controller.currentBlockId == "b3")
+    }
+
+    @Test func untimedBlocksAreNotSeekTargets() throws {
+        let f = try makeFixture()
+        try f.controller.load(f.chapter)
+        f.controller.seek(toMs: 1_500)
+        f.controller.seekToBlock("not-timed")
+        #expect(f.controller.positionMs == 1_500)  // unchanged
+    }
+
     @Test func missingBundleFileFailsTheLoad() throws {
         let f = try makeFixture(writeBundle: false)
         #expect(throws: (any Error).self) { try f.controller.load(f.chapter) }
