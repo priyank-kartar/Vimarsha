@@ -23,6 +23,9 @@ final class LibraryStore {
     /// screen never orphans a narration job (app-architecture.md §Concurrency model);
     /// deleting a book cancels its downloads.
     private var downloadTasks: [UUID: Task<Void, Never>] = [:]
+    /// In-flight memo transcriptions, keyed by memo id (V29) — store-owned for the same
+    /// reason: closing the reading surface must not kill the transcript fetch.
+    private var transcriptionTasks: [UUID: Task<Void, Never>] = [:]
 
     init(
         context: ModelContext,
@@ -182,12 +185,48 @@ final class LibraryStore {
     }
 
     /// Hold-to-record memos for one open chapter (V28) — same context/container as the
-    /// library; the recorder is the app-lifetime mic owner (the audio-engine rule).
+    /// library; the recorder is the app-lifetime mic owner (the audio-engine rule). A
+    /// saved memo flows straight into transcription (V29).
     func makeMemoCapture(recorder: any RecorderEngine, player: PlayerController) -> MemoCapture {
-        MemoCapture(
+        let capture = MemoCapture(
             recorder: recorder, player: player,
             context: context, containerRoot: importer.containerRoot
         )
+        capture.onSaved = { [weak self] memo in self?.transcribeMemo(memo) }
+        return capture
+    }
+
+    /// Transcribe one memo's audio through the seam (V29): `pending → ready/error`,
+    /// mirroring the chapter-status pattern. Also the retry path — error (or stranded
+    /// pending) rows re-submit; `ready` rows and in-flight jobs are refused. Recording
+    /// never depends on the backend: failure keeps the memo + audio with a reason.
+    @discardableResult
+    func transcribeMemo(_ memo: Memo) -> Task<Void, Never>? {
+        guard memo.status != .ready, transcriptionTasks[memo.id] == nil else { return nil }
+        memo.status = .pending
+        memo.errorReason = nil
+        try? context.save()
+
+        let backend = self.backend
+        let audioURL = importer.containerRoot.appending(path: memo.audioPath)
+        let memoId = memo.id
+        let task = Task { [weak self] in
+            do {
+                let text = try await backend.transcribe(audioAt: audioURL)
+                guard let self, !Task.isCancelled else { return }
+                memo.transcript = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                memo.status = .ready
+                try? self.context.save()
+            } catch {
+                guard let self, !Task.isCancelled, !(error is CancellationError) else { return }
+                memo.status = .error
+                memo.errorReason = "Transcription failed"
+                try? self.context.save()
+            }
+            self?.transcriptionTasks[memoId] = nil
+        }
+        transcriptionTasks[memoId] = task
+        return task
     }
 
     /// Remove the book row (cascades to chapters) and its container subtree

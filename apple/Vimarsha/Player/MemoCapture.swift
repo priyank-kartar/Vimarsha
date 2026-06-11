@@ -27,6 +27,9 @@ final class MemoCapture {
     private(set) var elapsedMs = 0
     /// Live mic level 0…1 for the puck's waveform.
     private(set) var level: CGFloat = 0
+    /// Fired with each successfully saved memo (V29 wires this to transcription —
+    /// discarded clips never reach it).
+    var onSaved: ((Memo) -> Void)?
 
     private var wasPlaying = false
     private var holdActive = false
@@ -115,9 +118,10 @@ final class MemoCapture {
             return
         }
         do {
-            try saveMemo(recordingAt: tempURL)
+            let memo = try saveMemo(recordingAt: tempURL)
             phase = .saved
             scheduleSavedReset()
+            onSaved?(memo)
         } catch {
             try? FileManager.default.removeItem(at: tempURL)
             phase = .idle
@@ -126,7 +130,8 @@ final class MemoCapture {
 
     /// Move the clip into the book's container subtree (so book deletion sweeps it) and
     /// insert the pinned row. The pin is the paragraph being narrated at the hold.
-    private func saveMemo(recordingAt url: URL) throws {
+    @discardableResult
+    private func saveMemo(recordingAt url: URL) throws -> Memo {
         guard let chapter = player.chapter, let book = chapter.book else {
             throw SaveError.noChapter
         }
@@ -147,6 +152,7 @@ final class MemoCapture {
         memo.chapter = chapter
         context.insert(memo)
         try context.save()
+        return memo
     }
 
     /// The narrated block's reading-order index (0 before the first timed block).

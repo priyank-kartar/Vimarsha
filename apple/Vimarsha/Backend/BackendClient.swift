@@ -16,6 +16,9 @@ protocol BackendClient: Sendable {
     func downloadAudio(named name: String) async throws -> Data
     /// `GET /image/{name}` — figure image bytes.
     func downloadImage(named name: String) async throws -> Data
+    /// `POST /transcribe` — multipart audio upload → Whisper transcript (V29). The
+    /// backend decodes any ffmpeg-readable container (our memos are AAC m4a).
+    func transcribe(audioAt url: URL) async throws -> String
 }
 
 // MARK: - /toc contract (mirrors backend/src/vimarsha/models.py; camelCase, no remapping)
@@ -45,6 +48,12 @@ nonisolated struct ChapterSummaryDTO: Codable, Equatable, Sendable {
     let index: Int
     let chapterId: String
     let title: String
+}
+
+// MARK: - /transcribe contract (V29)
+
+nonisolated struct TranscribeResponse: Codable, Equatable, Sendable {
+    let text: String
 }
 
 // MARK: - Real implementation
@@ -91,6 +100,19 @@ nonisolated struct URLSessionBackendClient: BackendClient {
 
     func downloadImage(named name: String) async throws -> Data {
         try await get(baseURL.appending(path: "image").appending(path: name))
+    }
+
+    func transcribe(audioAt url: URL) async throws -> String {
+        let request = Multipart.request(
+            url: baseURL.appending(path: "transcribe"),
+            field: "file",
+            filename: url.lastPathComponent,
+            mimeType: "audio/mp4",
+            fileData: try Data(contentsOf: url)
+        )
+        let (data, response) = try await session.data(for: request)
+        try Self.validate(response)
+        return try JSONDecoder().decode(TranscribeResponse.self, from: data).text
     }
 
     /// `chapter_index` rides as a query parameter (the FastAPI signature), not form data.

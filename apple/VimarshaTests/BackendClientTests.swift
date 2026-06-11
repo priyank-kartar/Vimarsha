@@ -136,6 +136,15 @@ struct BackendClientTests {
         #expect(body == head + fileBytes + tail)
     }
 
+    // MARK: /transcribe contract decode (V29)
+
+    @Test func decodesTheTranscribeContractShape() throws {
+        // Exactly what `POST /transcribe` emits: {"text": "..."}.
+        let json = Data(#"{"text": "A thought about the passage."}"#.utf8)
+        let response = try JSONDecoder().decode(TranscribeResponse.self, from: json)
+        #expect(response.text == "A thought about the passage.")
+    }
+
     @Test func defaultBoundaryIsUniquePerRequest() {
         let url = URL(string: "http://localhost:8000/toc")!
         let a = Multipart.request(
