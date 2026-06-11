@@ -480,10 +480,15 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
 > live (`ollama serve` + `llama3.2:3b`); if absent, do machine-testable parts against the
 > LLM seam's test double and note the live gap in the deferred checklist.
 
-- **V32** · Chat data layer: `ChatContext` snapshot from the player state, grounded
+- **V32** ✅ · Chat data layer: `ChatContext` snapshot from the player state, grounded
   `POST /chat` via `BackendClient`, in-memory `ChatStore` (mirror Flutter `ChatController`
   semantics: send-guard, error states), SwiftData `ChatThread`/`ChatLine` +
-  save-on-demand repository. (needs V13, V16)
+  save-on-demand repository. (needs V13, V16) — _Done 2026-06-11, merged `b446ff4`;
+  seam `chat`/`speak` + contract-asserted DTOs, `ChatContextSnapshot` (live ¶ ±1 + figure
+  caption), `ChatStore` (per-SEND grounding, send-guard, error+retry, `hasExchange`),
+  `ChatThread`/`ChatLine` (book cascade, indexed lines) + `LibraryStore` save/list/delete +
+  `makeChatStore`. 23 tests, both suites green; **live `/chat` (Ollama) + `/speak`
+  (Chatterbox) round-trips** in `.agent-loop/artifacts/V32/`._
   ↳ [conversation-ai](../04-architecture/conversation-ai.md) · [data-model](../04-architecture/data-model.md)
 - **V33** · Discuss panel: glass plane morphs up *within* the canvas (never `.sheet`;
   keyboard is the one sanctioned OS surface) — keyboard-default input + send, replies

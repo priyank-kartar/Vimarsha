@@ -15,6 +15,47 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V32 — Discuss chat data layer ✅
+
+**What:** the P5 foundation, mirroring the frozen Flutter Plan-6a design (port the
+design, not the code). `BackendClient` grows the last two endpoints — `chat(messages:
+context:)` (`POST /chat`, JSON body `{messages, context}` → `{reply}`) and `speak(text:)`
+(`POST /speak` → MP3 bytes); `ChatMessageDTO`/`ChatContextDTO` mirror the backend
+pydantic shapes exactly (camelCase aliases; `figureCaption` omitted when absent —
+contract-asserted in `ChatBackendTests` via raw JSON key inspection).
+`ChatContextSnapshot` is the grounding math (pure, no clocks): live paragraph ± 1
+text-bearing neighbor joined as the passage + the active figure's caption; chapter-edge
+clamps and missing-bundle fallbacks tested. `ChatStore` (@Observable, in-memory) ports
+the Flutter `ChatController` semantics: synchronous send-guard (double-send ignored —
+gated-continuation test), context snapshotted at EACH send so grounding follows playback,
+failure keeps the unanswered user turn behind `error` + `retry()`, `hasExchange` gates
+Save. `ChatThread`/`ChatLine` @Models land the data-model.md "Later" slice (book cascade,
+explicit per-thread line `index` ordering — `createdAt` can tie inside one save);
+`LibraryStore` gains `saveChatThread` (each Save inserts a NEW thread; empty refused),
+`chatThreads(for:chapterIndex:)` (newest first), `deleteChatThread`, and the
+`makeChatStore(player:)` factory (snapshot closure reads the live player; anchor = the
+block at open).
+
+**Wiring:** `VimarshaApp`'s `ModelContainer` adds `ChatThread`/`ChatLine` (additive,
+lightweight migration). No UI yet — the panel is V33. Design note: the spec (§3, Flutter
+parity) grounds **per send**; `conversation-ai.md` says "when the panel opens" — built
+per-send (strictly more capable: follow-ups ride the playhead), with `anchorBlockId`
+recording the open point, per spec §5.
+
+**Evidence:**
+- 23 new tests (`ChatBackendTests` 4, `ChatContextSnapshotTests` 6, `ChatStoreTests` 7,
+  `ChatPersistenceTests` 6); **both suites green** (macOS 278/278, iOS sim suite green).
+- **Live round-trip against the running backend + Ollama `llama3.2:3b`:** `/chat` with a
+  real DOET passage returned a grounded one-sentence reply; `/speak` returned a valid
+  42.4KB 24kHz mono MP3 (real Chatterbox). Request JSON = byte-shape the client builds
+  (the unit-tested `jsonRequest` form). Artifacts: `.agent-loop/artifacts/V32/`
+  (chat-request.json / chat-reply.json / speak-reply.mp3).
+- Commit `cf22429`, merged `b446ff4`.
+
+**Device-gated:** nothing — data layer only; the conversational feel gate is V36.
+
+---
+
 ## V31 — [verify] Memos end-to-end ✅ (machine half; human review deferred to final)
 
 **What:** the P4-closing verify gate, run as far as a machine can take it. A standalone
