@@ -41,13 +41,19 @@ struct BookFocus: Equatable {
     /// affordance is meaningfully visible the printed title is already gone.
     static let titleFadeOutPromotion: CGFloat = 0.4
 
-    /// Opacity of the focused cover's debossed title block (V41, ui-audit round 1). The
-    /// metadata reveal (opacity == promotion) and the control cluster repeat the title in
-    /// the same eyeline, so the printed title must be GONE once either affordance shows —
-    /// the old linear `1 - promotion` left a half-strength double title at launch rest
-    /// (promotion ≈ 0.5), and at XXXL the cluster pill sat on the un-faded deboss.
-    /// Smoothstepped 1 → 0 over `0…titleFadeOutPromotion`: scrubbable, gentle at both ends.
-    static func debossTitleOpacity(promotion: CGFloat) -> CGFloat {
+    /// Opacity of the focused cover's debossed title block (V41, ui-audit round 1; scoped
+    /// in V42, round 2). The metadata reveal (opacity == promotion) repeats the title in
+    /// the same eyeline, so the printed title must be GONE while the reveal shows — the
+    /// old linear `1 - promotion` left a half-strength double title at launch rest
+    /// (promotion ≈ 0.5). Smoothstepped 1 → 0 over `0…titleFadeOutPromotion`: scrubbable,
+    /// gentle at both ends.
+    ///
+    /// `metadataVisible` is whether the metadata reveal actually renders (V42): at XXXL the
+    /// affordance band can only fit the cluster, so `ViewThatFits` yields the metadata —
+    /// and then the deboss title is the focused book's ONLY label and must stay printed.
+    /// Fading it left an anonymous empty slab under the icon pill (ui-audit round 2).
+    static func debossTitleOpacity(promotion: CGFloat, metadataVisible: Bool) -> CGFloat {
+        guard metadataVisible else { return 1 }
         let t = max(0, min(1, promotion / titleFadeOutPromotion))
         let eased = t * t * (3 - 2 * t)
         return 1 - eased
