@@ -6,7 +6,7 @@ import CoreGraphics
 /// scattered heap. Visual variety comes from cover art / cloth color only — per-book size
 /// variation added noise without carrying meaning.
 ///
-/// This replaces the old per-index `widthFactor` rhythm and the use of `BookSeed.aspect`
+/// This replaces the old per-index `widthFactor` rhythm and the use of `ShelfBook.aspect`
 /// for card sizing (the seed's `aspect` field is retained for future cover-art fitting, not
 /// layout). Pure math, no state — same value live and in snapshots.
 enum CardGeometry {

@@ -5,7 +5,7 @@ import SwiftUI
 /// block peeking out below the board, and an optional gilt stripe.
 /// Contact shadow is applied by the stack (it depends on stack position).
 struct HardbackCoverView: View {
-    let book: BookSeed
+    let book: ShelfBook
     /// Opacity of the debossed title block (V24). Defaults to fully printed; the focused card
     /// fades it toward 0 as its metadata reveal rises, so the title never reads twice in one
     /// eyeline (the cover's debossed title + the serif metadata reveal below it).
@@ -22,7 +22,7 @@ struct HardbackCoverView: View {
             board
         }
         // Uniform card aspect (ADR-011) — every book is the same slab; cover art, not size,
-        // carries variety. `BookSeed.aspect` is no longer used for layout.
+        // carries variety. `ShelfBook.aspect` is no longer used for layout.
         .aspectRatio(1 / CardGeometry.aspect, contentMode: .fit)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(book.title), \(book.author)")
@@ -31,9 +31,23 @@ struct HardbackCoverView: View {
     private var board: some View {
         RoundedRectangle(cornerRadius: boardRadius, style: .continuous)
             .fill(book.cloth)
+            .overlay(coverArt)
             .overlay(clothSheen)
             .overlay(titleBlock)
             .padding(.bottom, 7)
+    }
+
+    /// Real cover art (V11/V12) over the board — matte paper, clipped to the board shape;
+    /// the cloth + debossed title remain the missing-art fallback. The sheen stays on top:
+    /// it's the material's light sweep, art or cloth alike.
+    @ViewBuilder
+    private var coverArt: some View {
+        if let cover = book.cover {
+            RoundedRectangle(cornerRadius: boardRadius, style: .continuous)
+                .fill(.clear)
+                .overlay(cover.resizable().scaledToFill())
+                .clipShape(RoundedRectangle(cornerRadius: boardRadius, style: .continuous))
+        }
     }
 
     /// A faint diagonal light sweep so the cloth reads as material, not flat fill.
@@ -66,8 +80,10 @@ struct HardbackCoverView: View {
         .shadow(color: .white.opacity(0.18), radius: 0.5, y: 0.7)
         .padding(.horizontal, 18)
         .lineLimit(3)
-        // Fade the printed title as the metadata reveal takes over (V24 — kill the double title).
-        .opacity(titleOpacity)
+        // Fade the printed title as the metadata reveal takes over (V24 — kill the double
+        // title). Real art carries its own printed title, so the debossed block never
+        // shows over it.
+        .opacity(book.cover == nil ? titleOpacity : 0)
     }
 
     /// The page block under the board: stacked paper lines, optionally gilt.
@@ -86,8 +102,8 @@ struct HardbackCoverView: View {
 
 #Preview("Shelf samples", traits: .sizeThatFitsLayout) {
     VStack(spacing: 16) {
-        HardbackCoverView(book: BookSeed.shelf[3])
-        HardbackCoverView(book: BookSeed.shelf[0])
+        HardbackCoverView(book: ShelfBook.seeds[3])
+        HardbackCoverView(book: ShelfBook.seeds[0])
     }
     .frame(width: 340)
     .padding(24)

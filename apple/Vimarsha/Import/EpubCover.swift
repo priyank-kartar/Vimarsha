@@ -25,17 +25,8 @@ nonisolated enum EpubCover {
     static func extract(fromEpubData epubData: Data) -> ExtractedCover? {
         guard
             let zip = try? ZipArchive(data: epubData),
-            let containerEntry = zip.entry(named: "META-INF/container.xml"),
-            let containerXML = try? zip.contents(of: containerEntry),
-            let opfPath = ContainerParser.rootfilePath(in: containerXML),
-            let opfEntry = zip.entry(named: opfPath),
-            let opfXML = try? zip.contents(of: opfEntry)
+            let (opf, opfDirectory) = EpubPackage.document(in: zip)
         else { return nil }
-
-        let opf = OpfParser.parse(opfXML)
-        let opfDirectory = opfPath.contains("/")
-            ? opfPath.split(separator: "/").dropLast().joined(separator: "/")
-            : ""
 
         for item in candidates(in: opf) {
             let path = resolve(href: item.href, against: opfDirectory)
@@ -92,6 +83,48 @@ nonisolated enum EpubCover {
     }
 }
 
+/// Title/author straight from the OPF `dc:title`/`dc:creator` (V12) — an imported book
+/// has real metadata before any backend call (`/toc` supplies the chapter list in V13).
+nonisolated enum EpubInfo {
+    struct Metadata: Equatable, Sendable {
+        let title: String
+        /// Empty when the EPUB declares no `dc:creator`.
+        let author: String
+    }
+
+    static func extract(fromEpubAt url: URL) -> Metadata? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return extract(fromEpubData: data)
+    }
+
+    static func extract(fromEpubData epubData: Data) -> Metadata? {
+        guard
+            let zip = try? ZipArchive(data: epubData),
+            let (opf, _) = EpubPackage.document(in: zip),
+            let title = opf.title
+        else { return nil }
+        return Metadata(title: title, author: opf.creator ?? "")
+    }
+}
+
+/// Shared container.xml → OPF navigation for `EpubCover`/`EpubInfo`.
+nonisolated enum EpubPackage {
+    /// The parsed OPF document plus the OPF's directory (hrefs resolve against it).
+    static func document(in zip: ZipArchive) -> (document: OpfParser.Document, opfDirectory: String)? {
+        guard
+            let containerEntry = zip.entry(named: "META-INF/container.xml"),
+            let containerXML = try? zip.contents(of: containerEntry),
+            let opfPath = ContainerParser.rootfilePath(in: containerXML),
+            let opfEntry = zip.entry(named: opfPath),
+            let opfXML = try? zip.contents(of: opfEntry)
+        else { return nil }
+        let directory = opfPath.contains("/")
+            ? opfPath.split(separator: "/").dropLast().joined(separator: "/")
+            : ""
+        return (OpfParser.parse(opfXML), directory)
+    }
+}
+
 /// Pulls the first `<rootfile full-path="…">` out of `META-INF/container.xml`.
 nonisolated private final class ContainerParser: NSObject, XMLParserDelegate {
     private var path: String?
@@ -113,8 +146,9 @@ nonisolated private final class ContainerParser: NSObject, XMLParserDelegate {
     }
 }
 
-/// Pulls the manifest items + the EPUB2 `<meta name="cover">` id out of an OPF package.
-nonisolated private final class OpfParser: NSObject, XMLParserDelegate {
+/// Pulls the manifest items, the EPUB2 `<meta name="cover">` id, and the `dc:title`/
+/// `dc:creator` metadata out of an OPF package.
+nonisolated final class OpfParser: NSObject, XMLParserDelegate {
     struct Item {
         let id: String
         let href: String
@@ -125,9 +159,13 @@ nonisolated private final class OpfParser: NSObject, XMLParserDelegate {
     struct Document {
         var items: [Item] = []
         var coverMetaId: String?
+        var title: String?
+        var creator: String?
     }
 
     private var document = Document()
+    /// Element whose text content is being captured (`title`/`creator`), with its buffer.
+    private var capturing: (element: String, text: String)?
 
     static func parse(_ xml: Data) -> Document {
         let delegate = OpfParser()
@@ -152,7 +190,25 @@ nonisolated private final class OpfParser: NSObject, XMLParserDelegate {
         } else if elementName.isXMLElement("meta"), attributes["name"] == "cover",
                   let content = attributes["content"] {
             document.coverMetaId = content
+        } else if elementName.isXMLElement("title"), document.title == nil {
+            capturing = ("title", "")
+        } else if elementName.isXMLElement("creator"), document.creator == nil {
+            capturing = ("creator", "")
         }
+    }
+
+    func parser(_ parser: XMLParser, foundCharacters string: String) {
+        capturing?.text += string
+    }
+
+    func parser(
+        _ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?,
+        qualifiedName: String?
+    ) {
+        guard let (element, text) = capturing, elementName.isXMLElement(element) else { return }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if element == "title" { document.title = trimmed } else { document.creator = trimmed }
+        capturing = nil
     }
 }
 

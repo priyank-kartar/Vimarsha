@@ -8,6 +8,10 @@ import UniformTypeIdentifiers
 /// top, matching the reference staircase. Transforms run in `visualEffect` — render-time
 /// only, no layout thrash — as a pure function of each card's position (`StackTransform`).
 struct LibraryStackView: View {
+    /// The persisted library (V12). `nil` (previews/snapshots) renders the seed shelf
+    /// with no import affordance.
+    var store: LibraryStore?
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorScheme) private var colorScheme
@@ -34,12 +38,15 @@ struct LibraryStackView: View {
 
     /// EPUB import (V10). The system document picker is OS-driven chrome (like the
     /// keyboard) — exempt from the morph rule, and the only way the sandbox grants access
-    /// to a user-chosen file. The picked EPUB is copied into the app container
-    /// (`EpubImporter`); the imported book joins the shelf when V12 wires persistence.
+    /// to a user-chosen file. The picked EPUB lands in the container and persists via
+    /// `LibraryStore.addBook` (V12), joining the shelf live.
     @State private var showsEpubPicker = false
-    /// Honest error posture (app-architecture.md): a failed import surfaces as a small
-    /// status line on the surface — not an alert — cleared on the next attempt.
-    @State private var importError: String?
+
+    /// What the tower renders: the persisted library, or the seed shelf as the
+    /// empty-state/demo path (V12).
+    private var shelf: [ShelfBook] {
+        store?.shelf ?? ShelfBook.seeds
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -53,7 +60,9 @@ struct LibraryStackView: View {
                     // group, anchored on the front slot. One scale on the tower as a whole —
                     // the per-card depth-stack parallax rides inside it. Reduce Motion exempt
                     // (the static fallback has no hero zoom).
-                    BookTower(size: geo.size, reduceMotion: reduceMotion, focus: focus)
+                    BookTower(
+                        shelf: shelf, size: geo.size, reduceMotion: reduceMotion, focus: focus
+                    )
                         .scaleEffect(
                             heroSettle(in: geo.size).scale,
                             anchor: heroAnchor(in: geo.size)
@@ -94,61 +103,54 @@ struct LibraryStackView: View {
 
     /// A small glass "+" floating at the top-trailing corner — interactive → sky tint
     /// (apple/CLAUDE.md §Liquid Glass rules); Reduce Transparency gets the matte fallback.
-    /// The import-error status line rides under it (honest states, no alerts).
+    /// The import-error status line rides under it (honest states, no alerts). Absent
+    /// without a store (previews) — there'd be nowhere to put the book.
+    @ViewBuilder
     private var addBookButton: some View {
-        VStack(alignment: .trailing, spacing: 8) {
-            Button {
-                importError = nil
-                showsEpubPicker = true
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(Palette.textPrimary)
-                    .frame(width: 44, height: 44)
-            }
-            .buttonStyle(.plain)
-            .background {
-                if reduceTransparency {
-                    Circle().fill(Palette.surface)
-                        .overlay(Circle().strokeBorder(Palette.sky.opacity(0.5), lineWidth: 1))
-                } else {
-                    Color.clear.glassEffect(
-                        .regular.tint(Palette.sky.opacity(0.26)).interactive(), in: .circle
-                    )
+        if let store {
+            VStack(alignment: .trailing, spacing: 8) {
+                Button {
+                    store.importError = nil
+                    showsEpubPicker = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(Palette.textPrimary)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .background {
+                    if reduceTransparency {
+                        Circle().fill(Palette.surface)
+                            .overlay(Circle().strokeBorder(Palette.sky.opacity(0.5), lineWidth: 1))
+                    } else {
+                        Color.clear.glassEffect(
+                            .regular.tint(Palette.sky.opacity(0.26)).interactive(), in: .circle
+                        )
+                    }
+                }
+                .accessibilityLabel("Add book")
+
+                if let importError = store.importError {
+                    Text(importError)
+                        .font(.caption2)
+                        .foregroundStyle(Palette.textPrimary.opacity(0.7))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(Palette.surface))
                 }
             }
-            .accessibilityLabel("Add book")
-
-            if let importError {
-                Text(importError)
-                    .font(.caption2)
-                    .foregroundStyle(Palette.textPrimary.opacity(0.7))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Capsule().fill(Palette.surface))
-            }
+            .padding(.trailing, 20)
+            .padding(.top, 8)
         }
-        .padding(.trailing, 20)
-        .padding(.top, 8)
     }
 
-    /// Copy the picked EPUB into the container off the main actor. Until V12 lands
-    /// persistence, success is silent (the file is in `Library/Books/<id>/book.epub`);
-    /// failure surfaces as the status line.
+    /// Import the picked EPUB through the store (container copy + cover + persisted row);
+    /// the shelf re-renders live when `store.books` updates. Failure surfaces as the
+    /// status line.
     private func handlePickedEpub(_ result: Result<URL, any Error>) {
-        switch result {
-        case .success(let url):
-            Task {
-                do {
-                    _ = try await Task.detached { try EpubImporter.live.importEpub(at: url) }.value
-                } catch {
-                    importError = "Couldn't import book"
-                }
-            }
-        case .failure:
-            // User cancelled or the picker failed — nothing to surface.
-            break
-        }
+        guard case .success(let url) = result else { return }  // cancel: nothing to surface
+        Task { await store?.addBook(from: url) }
     }
 
     // MARK: Focused-book affordances — metadata reveal + glass control cluster
@@ -161,9 +163,9 @@ struct LibraryStackView: View {
     /// settled or under Reduce Motion (focus is `.none`).
     @ViewBuilder
     private func focusAffordances(in size: CGSize) -> some View {
-        if focus.index >= 0, focus.index < BookSeed.shelf.count {
+        if focus.index >= 0, focus.index < shelf.count {
             VStack(spacing: 18) {
-                FocusMetadataView(book: BookSeed.shelf[focus.index], reveal: focus.promotion)
+                FocusMetadataView(book: shelf[focus.index], reveal: focus.promotion)
                 ControlClusterView(
                     cluster: ControlCluster.at(promotion: focus.promotion),
                     reduceTransparency: reduceTransparency
@@ -301,19 +303,21 @@ struct LibraryHeader: View {
 /// depth-stack transform. Per-card transforms still run render-side only (`visualEffect`), no
 /// layout thrash.
 private struct BookTower: View {
+    /// The books to render — persisted library or the seed empty-state (V12).
+    let shelf: [ShelfBook]
     let size: CGSize
     let reduceMotion: Bool
     /// Active front-slot focus (motion grammar #2); `.none` under Reduce Motion / at the top.
     let focus: BookFocus
 
     var body: some View {
-        ForEach(Array(BookSeed.shelf.enumerated()), id: \.element.id) { index, book in
+        ForEach(Array(shelf.enumerated()), id: \.element.id) { index, book in
             card(book, at: index)
         }
     }
 
     @ViewBuilder
-    private func card(_ book: BookSeed, at index: Int) -> some View {
+    private func card(_ book: ShelfBook, at index: Int) -> some View {
         if reduceMotion {
             // Static-layout fallback (apple/CLAUDE.md §Accessibility): flat FULL-SIZE list,
             // no per-book rhythm, no transforms.
@@ -394,7 +398,7 @@ private struct CardTopYKey: PreferenceKey {
 /// the eased focus emphasis (0 = hidden, 1 = fully settled). Parameterized so it renders
 /// identically from the live scroll state and from snapshot tests.
 struct FocusMetadataView: View {
-    let book: BookSeed
+    let book: ShelfBook
     let reveal: CGFloat
 
     @ScaledMetric(relativeTo: .title3) private var titleSize: CGFloat = 22
