@@ -2,10 +2,20 @@ import Foundation
 
 /// The network seam (V13) — one of exactly two protocols that get test doubles
 /// (apple/CLAUDE.md §Tech conventions; the other is the audio/mic engine). Grows one
-/// endpoint per V-item; V13 wires `POST /toc`. Mirrors the Flutter `BackendClient` design.
+/// endpoint per V-item; V13 wired `POST /toc`, V14 the chapter-download trio. Mirrors the
+/// Flutter `BackendClient` design.
 protocol BackendClient: Sendable {
     /// `POST /toc` — multipart EPUB upload → book meta + chapter list (no audio, fast).
     func fetchToc(epubAt url: URL) async throws -> TocResponse
+    /// `POST /import?chapter_index=N` — narrate ONE chapter → the full `ChapterBundle`
+    /// (blocks, figureMap with ms spans, audio name, paraTimings). Minutes-long on a dev
+    /// backend (MPS ~7–8× slower than realtime) — callers surface `pending`, never a
+    /// bare spinner (narration-pipeline.md).
+    func importChapter(epubAt url: URL, chapterIndex: Int) async throws -> ChapterBundleDTO
+    /// `GET /audio/{name}` — the stitched chapter MP3 bytes.
+    func downloadAudio(named name: String) async throws -> Data
+    /// `GET /image/{name}` — figure image bytes.
+    func downloadImage(named name: String) async throws -> Data
 }
 
 // MARK: - /toc contract (mirrors backend/src/vimarsha/models.py; camelCase, no remapping)
@@ -51,18 +61,57 @@ nonisolated struct URLSessionBackendClient: BackendClient {
     var session = URLSession.shared
 
     func fetchToc(epubAt url: URL) async throws -> TocResponse {
+        try JSONDecoder().decode(
+            TocResponse.self, from: try await uploadEpub(at: url, to: baseURL.appending(path: "toc"))
+        )
+    }
+
+    func importChapter(epubAt url: URL, chapterIndex: Int) async throws -> ChapterBundleDTO {
+        try JSONDecoder().decode(
+            ChapterBundleDTO.self,
+            from: try await uploadEpub(
+                at: url, to: Self.importURL(baseURL: baseURL, chapterIndex: chapterIndex)
+            )
+        )
+    }
+
+    func downloadAudio(named name: String) async throws -> Data {
+        try await get(baseURL.appending(path: "audio").appending(path: name))
+    }
+
+    func downloadImage(named name: String) async throws -> Data {
+        try await get(baseURL.appending(path: "image").appending(path: name))
+    }
+
+    /// `chapter_index` rides as a query parameter (the FastAPI signature), not form data.
+    static func importURL(baseURL: URL, chapterIndex: Int) -> URL {
+        baseURL.appending(path: "import")
+            .appending(queryItems: [URLQueryItem(name: "chapter_index", value: "\(chapterIndex)")])
+    }
+
+    private func uploadEpub(at url: URL, to endpoint: URL) async throws -> Data {
         let request = Multipart.request(
-            url: baseURL.appending(path: "toc"),
+            url: endpoint,
             field: "file",
             filename: "book.epub",
             mimeType: "application/epub+zip",
             fileData: try Data(contentsOf: url)
         )
         let (data, response) = try await session.data(for: request)
+        try Self.validate(response)
+        return data
+    }
+
+    private func get(_ url: URL) async throws -> Data {
+        let (data, response) = try await session.data(from: url)
+        try Self.validate(response)
+        return data
+    }
+
+    private static func validate(_ response: URLResponse) throws {
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw BackendError.badStatus(http.statusCode)
         }
-        return try JSONDecoder().decode(TocResponse.self, from: data)
     }
 }
 

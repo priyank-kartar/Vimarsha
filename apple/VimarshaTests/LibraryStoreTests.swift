@@ -176,6 +176,131 @@ struct LibraryStoreTests {
         #expect(!FileManager.default.fileExists(atPath: bookDir.path))
     }
 
+    // MARK: chapter download lifecycle (V14)
+
+    /// A persisted book with chapter rows, imported through the normal flow.
+    private func makeStoreWithBook(
+        root: URL, backend: FakeBackendClient
+    ) async throws -> (LibraryStore, Book) {
+        let store = try makeStore(root: root, backend: backend)
+        await store.addBook(from: try makePickedEpub(in: root))
+        return (store, try #require(store.books.first))
+    }
+
+    @Test func downloadChapterCachesAndMarksReady() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        // .narrating() builds on .returning(), so /toc works for the import too.
+        let (store, book) = try await makeStoreWithBook(root: root, backend: .narrating())
+        let chapter = try #require(book.chapters.first(where: { $0.index == 0 }))
+
+        let task = try #require(store.downloadChapter(chapter))
+        #expect(chapter.status == .pending)     // honest in-flight state, synchronously
+        await task.value
+
+        #expect(chapter.status == .ready)
+        #expect(chapter.errorReason == nil)
+        let bundlePath = try #require(chapter.bundlePath)
+        let audioPath = try #require(chapter.audioPath)
+        #expect(FileManager.default.fileExists(atPath: root.appending(path: bundlePath).path))
+        #expect(FileManager.default.fileExists(atPath: root.appending(path: audioPath).path))
+    }
+
+    @Test func downloadFailureMarksErrorWithReason() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        var backend = FakeBackendClient.returning()
+        backend.onImportChapter = { _, _ in throw BackendError.badStatus(500) }
+        let (store, book) = try await makeStoreWithBook(root: root, backend: backend)
+        let chapter = try #require(book.chapters.first)
+
+        await store.downloadChapter(chapter)?.value
+
+        #expect(chapter.status == .error)
+        #expect(chapter.errorReason != nil)
+        #expect(chapter.bundlePath == nil)
+    }
+
+    @Test func errorChaptersCanRetryButReadyAndPendingCannot() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let (store, book) = try await makeStoreWithBook(root: root, backend: .narrating())
+        let chapter = try #require(book.chapters.first)
+
+        chapter.status = .ready
+        #expect(store.downloadChapter(chapter) == nil)
+        chapter.status = .pending
+        #expect(store.downloadChapter(chapter) == nil)
+        chapter.status = .error
+        let retry = store.downloadChapter(chapter)
+        #expect(retry != nil)
+        await retry?.value
+        #expect(chapter.status == .ready)
+    }
+
+    @Test func deleteBookCancelsItsInFlightDownload() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        var backend = FakeBackendClient.narrating()
+        backend.onImportChapter = { _, _ in
+            // Long enough that only cancellation can finish this test promptly.
+            try await Task.sleep(for: .seconds(60))
+            return .fixture()
+        }
+        let (store, book) = try await makeStoreWithBook(root: root, backend: backend)
+        let chapter = try #require(book.chapters.first)
+
+        let task = try #require(store.downloadChapter(chapter))
+        store.deleteBook(book)
+        await task.value                        // returns promptly only if cancelled
+
+        #expect(store.books.isEmpty)            // and the deleted row was never resurrected
+    }
+
+    // MARK: self-heal on load (V14, data-model.md §Rules)
+
+    @Test func readyChapterWithMissingFilesHealsToNone() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let (store, book) = try await makeStoreWithBook(root: root, backend: .narrating())
+        let chapter = try #require(book.chapters.first)
+        chapter.status = .ready                 // claims ready, but no files exist
+        chapter.bundlePath = "Library/Books/x/chapters/0/bundle.json"
+        chapter.audioPath = "Library/Books/x/chapters/0/chapter.mp3"
+
+        store.load()
+
+        #expect(chapter.status == .none)
+        #expect(chapter.bundlePath == nil)
+        #expect(chapter.audioPath == nil)
+    }
+
+    @Test func orphanedPendingChapterHealsToNone() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let (store, book) = try await makeStoreWithBook(root: root, backend: .narrating())
+        let chapter = try #require(book.chapters.first)
+        chapter.status = .pending               // a relaunch orphaned the job
+
+        store.load()
+
+        #expect(chapter.status == .none)
+    }
+
+    @Test func healedReadyChapterSurvivesWhenFilesExist() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let (store, book) = try await makeStoreWithBook(root: root, backend: .narrating())
+        let chapter = try #require(book.chapters.first)
+        await store.downloadChapter(chapter)?.value
+        #expect(chapter.status == .ready)
+
+        store.load()                            // files are real → stays ready
+
+        #expect(chapter.status == .ready)
+        #expect(chapter.bundlePath != nil)
+    }
+
     @Test func booksAreSortedByAddedAt() async throws {
         let root = try makeRoot()
         defer { try? FileManager.default.removeItem(at: root) }
