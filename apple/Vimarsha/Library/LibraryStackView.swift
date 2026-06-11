@@ -42,6 +42,11 @@ struct LibraryStackView: View {
     /// `LibraryStore.addBook` (V12), joining the shelf live.
     @State private var showsEpubPicker = false
 
+    /// The book whose chapter list plane is risen (V14) — a state of the surface, not a
+    /// sheet. Opened from the focused book's Play control (the stand-in trigger until the
+    /// audio engine/reading morph lands in V16/V17); closed by the X or the backdrop.
+    @State private var chapterBook: Book?
+
     /// What the tower renders: the persisted library, or the seed shelf as the
     /// empty-state/demo path (V12).
     private var shelf: [ShelfBook] {
@@ -90,6 +95,7 @@ struct LibraryStackView: View {
             .overlay(alignment: .top) { topScrim(in: geo.size) }
             .overlay(alignment: .bottom) { focusAffordances(in: geo.size) }
             .overlay(alignment: .topTrailing) { addBookButton }
+            .overlay { chapterListPlane }
             .fileImporter(
                 isPresented: $showsEpubPicker,
                 allowedContentTypes: [.epub]
@@ -168,7 +174,15 @@ struct LibraryStackView: View {
                 FocusMetadataView(book: shelf[focus.index], reveal: focus.promotion)
                 ControlClusterView(
                     cluster: ControlCluster.at(promotion: focus.promotion),
-                    reduceTransparency: reduceTransparency
+                    reduceTransparency: reduceTransparency,
+                    onActivate: { control in
+                        // Play raises the chapter list plane (V14) — the stand-in until
+                        // the audio engine (V16) and reading morph (V17) take it over.
+                        // Other controls stay stubs; seeds have no chapters to show.
+                        if control == .play, let book = focusedBook {
+                            withAnimation(chapterPlaneAnimation) { chapterBook = book }
+                        }
+                    }
                 )
             }
             // Anchor inside the focused cover's visible bottom — above the next book that
@@ -178,6 +192,51 @@ struct LibraryStackView: View {
                 nextTopY: cardTops[focus.index + 1],
                 viewportHeight: size.height
             ))
+        }
+    }
+
+    /// The focused book as a persisted row — nil for the seed shelf (nothing to narrate).
+    /// `shelf` mirrors `store.books` one-to-one when any real book exists, so the focus
+    /// index maps straight across.
+    private var focusedBook: Book? {
+        guard let store, !store.books.isEmpty,
+              focus.index >= 0, focus.index < store.books.count
+        else { return nil }
+        return store.books[focus.index]
+    }
+
+    // MARK: Chapter list plane (V14 — a morphed list state, never a sheet)
+
+    /// Interruptible spring for the plane's rise/settle; Reduce Motion gets the
+    /// cross-dissolve (discrete-state-morph fallback rule).
+    private var chapterPlaneAnimation: Animation {
+        reduceMotion ? .easeInOut(duration: 0.18) : .spring(response: 0.42, dampingFraction: 0.86)
+    }
+
+    /// A dimmed backdrop (tap to close) under the glass-backed chapter list. The plane
+    /// rises from the bottom — where the cluster that summoned it lives — and recedes the
+    /// same way; under Reduce Motion both become a dissolve.
+    @ViewBuilder
+    private var chapterListPlane: some View {
+        if let book = chapterBook {
+            ZStack {
+                Palette.ink0.opacity(0.45)
+                    .ignoresSafeArea()
+                    .onTapGesture { withAnimation(chapterPlaneAnimation) { chapterBook = nil } }
+                    .accessibilityLabel("Dismiss chapters")
+                    .accessibilityAddTraits(.isButton)
+                ChapterListView(
+                    book: book,
+                    reduceTransparency: reduceTransparency,
+                    onDownload: { chapter in store?.downloadChapter(chapter) },
+                    onClose: { withAnimation(chapterPlaneAnimation) { chapterBook = nil } }
+                )
+            }
+            .transition(
+                reduceMotion
+                    ? .opacity
+                    : .move(edge: .bottom).combined(with: .opacity)
+            )
         }
     }
 
