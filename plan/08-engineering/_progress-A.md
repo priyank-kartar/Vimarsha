@@ -15,6 +15,52 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V47 — Neighbor bleed-through: emit opacity saturates mid-rise (ui-audit round 3) ✅
+
+**What:** the audit filed "the pink card's fore-edge strip runs through the blue card's
+'DESIGN BY' serifs" with fix directions assuming a paint-OVER problem (top-inset the
+deboss / clip the strip). Instrumented ablation builds (red-painted capsules → no-shadow →
+no-fore-edge → no-overlay, pixel profiles each time) proved the real mechanism is paint-
+**THROUGH**: at rest the card one slot below the front renders ~80% opaque (`SlotEmit`'s
+fade-in ran the whole rise band), and the focused cover's bottom anatomy — bright board
+(a 15pt light band: measured `0.8·blue + 0.2·pink` exactly), fore-edge strip and contact
+shadow — bled through the translucent face as "page lines" across the deboss. Neither
+audit fix direction would have removed the light band. Fix: `SlotEmit.opacitySaturation`
+(0.5) — opacity rides the same ease-out on a remapped progress that completes by mid-rise;
+scale/yOffset keep the full soft landing. Translucency now belongs to the shelf-anchor end
+only, so below-slot covers are solid and NOTHING prints through them, at any seam.
+
+**Wiring:** none — pure-math constant + ramp inside `SlotEmit.at`; the view chain
+(`opacity(t.opacity * emit.opacity)`) is untouched.
+
+**Evidence:**
+- 2 new `SlotEmitTests` (failing first): saturated-at-mid-rise while scale/offset still
+  landing; the audited one-below-front rest geometry (midY 0.81·vh) fully opaque. All
+  existing emit invariants (anchor fade, monotonic, no overshoot, slot continuity) hold.
+- Both suites green (macOS + iPhone 17 Pro sim).
+- Captures in `.agent-loop/artifacts/V47/`, looked at: `02/06-…-bluetop-crop` show a clean
+  "DESIGN BY ACCIDENT" (no lines, no band) XXXL × dark+light; `04/05` medium regression
+  clean. Pixel profile post-fix: the 25-point luminance step is gone (Δ≈2, AA only).
+- Commit `e910a65`, merged `4e41c69`.
+
+**Visual audit findings (whole frame, beyond scope):**
+- The same bleed-through class exists on the RECEDE side (above the slot, `StackTransform`
+  opacity < 1 by design): the OPTIC card's strip ghosts through the navy card's top —
+  only detectable with instrumented colors at medium/XXXL today (pale-on-navy, heavily
+  dimmed), not flagged by any audit. If a future round flags it, the recede ramp needs the
+  same saturation treatment — but recede dim IS the designed depth cue, so it wants a
+  deliberate decision, not a drive-by.
+- The bottom shelf card (gold) reads more solid at rest than before (its fade now
+  completes mid-rise. Judged an improvement — rising covers are full slabs in the
+  reference — but it's a visible rest-composition change worth the next audit's eyes.
+- Carry-over: bottom shelf cover still clips "OF PLACE" mid-glyph at the screen edge
+  (audit round-3 nit, unfixed, unchanged here).
+
+**Device-gated:** the mid-scroll fade-in *feel* (covers now solidify by mid-rise) →
+standing motion-review debt, final checklist.
+
+---
+
 ## V46 — Cluster rest-snaps to a terminal form (ui-audit round 3) ✅
 
 **What:** at XXXL rest the four control circles froze half-merged into a lumpy scalloped

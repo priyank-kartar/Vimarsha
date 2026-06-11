@@ -514,13 +514,21 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   cover's side edges._
   ↳ [ui-audit-log](ui-audit-log.md) §Round 3 ·
   `.agent-loop/artifacts/ui-audit-20260611-2028/crop-xxxl-light-cluster.png`
-- **V47** · Unfocused cover's deboss title collides with the neighbor's overhanging
+- **V47** ✅ · Unfocused cover's deboss title collides with the neighbor's overhanging
   fore-edge strip at XXXL (dark clear, light faint): the focused pink card's page-stack
   lines hang below its cover edge and run straight through the top serifs of the blue
   card's "DESIGN BY". V44 inset the deboss from the bottom edge only. Fix direction:
   top-inset the deboss block below the zone the card above overlaps (mirror V44's bottom
   inset), or clip/z-order the fore-edge strip so it never crosses a neighbor's text area;
-  verify XXXL × dark+light.
+  verify XXXL × dark+light. — _Done 2026-06-11, merged `4e41c69`; ablation builds +
+  pixel forensics re-diagnosed it: not paint-over but **bleed-THROUGH** — the below-front
+  card rendered ~80% opaque at rest (`SlotEmit` faded across the whole rise band) and the
+  focused cover's board/strip/shadow printed through its face (band == 0.8·blue+0.2·pink
+  measured). `SlotEmit.opacitySaturation 0.5`: fade-in completes by mid-rise (same
+  ease-out, remapped progress), soft landing untouched. +2 tests, both suites green;
+  XXXL×dark+light bluetop crops clean + medium regression in `.agent-loop/artifacts/V47/`.
+  Logged: the recede side keeps designed translucency (same class, needs a deliberate
+  call if ever flagged)._
   ↳ [ui-audit-log](ui-audit-log.md) §Round 3 ·
   `.agent-loop/artifacts/ui-audit-20260611-2028/crop-xxxl-dark-bluetop.png`
 
