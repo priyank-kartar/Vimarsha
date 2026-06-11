@@ -15,6 +15,48 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V30 — Notes state: voice memos as a morphed list of the reading surface ✅
+
+**What:** `Player/MemoNotes.swift` (@Observable, 6 tests) — the Notes state's controller:
+- **Playback on its own ephemeral engine** (the Flutter spec's sanctioned "separate
+  handler instance"): the chapter's shared engine keeps its loaded MP3 + resume position
+  untouched (asserted in tests). Play pauses narration (audio-conflict rule,
+  sound-design.md) — but the clip is load-checked FIRST so a missing file never pauses
+  anything (self-review fix). Tap-again stops; another row switches; `onFinish` clears.
+- **Open-at-pin** stops the clip and seeks narration to the memo's exact `positionMs`
+  (more precise than the paragraph start); the view morphs back to reading.
+- **Retry** routes to V29's `store.transcribeMemo`; **delete** = new
+  `LibraryStore.deleteMemo` (cancel in-flight transcript → sweep audio file → delete row).
+`Reading/MemoNotesView.swift` — the morphed list state (the FiguresGallery pattern,
+never a sheet): matte paper rows with the serif transcript (honest Transcribing…/
+Transcription failed states; retry shows on error only), an italic paragraph snippet
+(pin context, derived from the bundle), `¶N · m:ss` pin line, and labeled actions
+(play/stop with aqua live accent, open-at-pin, delete). Empty state = guidance line.
+
+**Wiring:** a glass `note.text` toggle rides the reading surface's closeBar (mutually
+exclusive with the Figures gallery; leaving Notes stops the clip via `onChange`);
+`LibraryStackView` builds `MemoNotes` at chapter open with a fresh
+`AVFoundationAudioEngine` and stops + releases it at close; factory `makeMemoNotes` on
+the store.
+
+**Scope note:** Notes is **chapter-scoped** on the reading surface (every action —
+open-at-pin, the pin snippets — needs the open chapter's bundle/player). The Flutter
+client's *cross-book* top-level Notes screen is a parity gap deliberately not taken
+here; if wanted it's a later item (the library cluster's Memo control, still a stub,
+is its natural opener). Logged for the P9/parity sweep.
+
+**Evidence:** +8 tests (6 `MemoNotesTests` + 2 row snapshots), both suites green both
+destinations. Artifacts in [`artifacts/V30/`](../../.agent-loop/artifacts/V30/):
+`memo-notes-rows/playing.png` (three transcript states, retry-on-error-only, aqua
+playing accent — reviewed) + a clean launch-rest regression capture. Commit `8277c97`,
+merged `5b6568b`.
+
+**Device-gated:** the live morph feel (body ⇄ notes reflow), VoiceOver action sweep on
+device, and the real memo-clip playback path (ephemeral AVAudioPlayer over m4a) — all
+queued for V31's machine run + deferred checklist.
+
+---
+
 ## V29 — Memo transcription wiring (live `/transcribe` proven) ✅
 
 **What:** the seam grows `transcribe(audioAt:) → String` (`POST /transcribe`, multipart

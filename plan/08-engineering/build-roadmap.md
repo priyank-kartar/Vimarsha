@@ -406,9 +406,16 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   + `MemoCapture.onSaved` auto-feed. +8 tests, both suites green. **Live ALL PASS:**
   `/speak` (real Chatterbox) rendered the fixture sentence → production client `/transcribe`
   (faster-whisper) returned it verbatim — `.agent-loop/artifacts/V29/harness-run.log`._
-- **V30** · Notes state: morphed list state on the surface (never a sheet) — play memo,
+- **V30** ✅ · Notes state: morphed list state on the surface (never a sheet) — play memo,
   open-at-pin (jump narration to the paragraph), retry, delete; accessibility per the
-  [matrix](../03-design/accessibility.md). (needs V29)
+  [matrix](../03-design/accessibility.md). (needs V29) — _Done 2026-06-11, merged
+  `5b6568b`; `MemoNotes` (own ephemeral engine — the chapter MP3 survives; audio-conflict
+  pause; open-at-pin seeks the exact pinned ms; delete = `LibraryStore.deleteMemo` w/
+  task-cancel; 6 tests) + `MemoNotesView` morphed list (matte transcript rows, honest
+  pending/error states, retry-on-error-only, aqua playing accent, VO-labeled actions)
+  behind a glass toggle on the reading closeBar. Chapter-scoped by design (cross-book
+  Notes = logged parity gap). Both suites green; row snapshots + rest regression in
+  `.agent-loop/artifacts/V30/`. Live morph/VO/clip-playback feel → V31._
 - **V31** · **[verify]** Memos end-to-end: fixture-audio memo → live transcript → Notes →
   open-at-pin seeks correctly; suites + captures; real-mic hold-to-record feel → deferred
   checklist. (needs V30)
