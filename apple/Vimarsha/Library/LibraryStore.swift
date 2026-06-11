@@ -9,6 +9,7 @@ import SwiftUI
 final class LibraryStore {
     private let context: ModelContext
     private let importer: EpubImporter
+    private let backend: any BackendClient
 
     /// All books, oldest-first (the shelf reads bottom-up like the reference stack).
     private(set) var books: [Book] = []
@@ -19,9 +20,14 @@ final class LibraryStore {
     /// surface (not an alert); cleared on the next attempt.
     var importError: String?
 
-    init(context: ModelContext, importer: EpubImporter = .live) {
+    init(
+        context: ModelContext,
+        importer: EpubImporter = .live,
+        backend: any BackendClient = URLSessionBackendClient()
+    ) {
         self.context = context
         self.importer = importer
+        self.backend = backend
         load()
     }
 
@@ -54,25 +60,38 @@ final class LibraryStore {
         }
     }
 
-    /// Import a picked EPUB: container copy + cover extraction off-main, then persist the
-    /// row. Title/author come straight from the OPF (`EpubInfo`); a metadata-less EPUB
-    /// falls back to its filename. Chapters arrive with V13's `/toc`.
+    /// Import a picked EPUB: container copy + cover extraction off-main, `POST /toc`
+    /// through the seam (V13), then persist the book + its chapter rows in one go.
+    /// All-or-nothing (Flutter `LibraryRepository` parity): if the backend can't read the
+    /// book, the copied files are rolled back and nothing lands. The backend's meta is
+    /// the authority; the OPF-read `EpubInfo` fills any blanks (last resort: filename).
     func addBook(from pickedURL: URL) async {
         importError = nil
         let importer = self.importer
+        let backend = self.backend
         do {
-            let (imported, info) = try await Task.detached {
+            let (imported, info, toc) = try await Task.detached {
+                () -> (ImportedEpub, EpubInfo.Metadata?, TocResponse) in
                 let imported = try importer.importEpub(at: pickedURL)
                 let stored = importer.containerRoot.appending(path: imported.relativePath)
-                return (imported, EpubInfo.extract(fromEpubAt: stored))
+                do {
+                    let toc = try await backend.fetchToc(epubAt: stored)
+                    return (imported, EpubInfo.extract(fromEpubAt: stored), toc)
+                } catch {
+                    // No half-state: a book the backend can't serve never lands.
+                    try? FileManager.default.removeItem(at: stored.deletingLastPathComponent())
+                    throw error
+                }
             }.value
+            let fallbackTitle = info?.title ?? pickedURL.deletingPathExtension().lastPathComponent
             let book = Book(
                 id: imported.bookId,
-                title: info?.title ?? pickedURL.deletingPathExtension().lastPathComponent,
-                author: info?.author ?? "",
+                title: toc.book.title.isEmpty ? fallbackTitle : toc.book.title,
+                author: toc.book.author.isEmpty ? (info?.author ?? "") : toc.book.author,
                 epubPath: imported.relativePath,
                 coverPath: imported.coverRelativePath
             )
+            book.chapters = toc.chapters.map { Chapter(index: $0.index, title: $0.title) }
             context.insert(book)
             try context.save()
             load()
