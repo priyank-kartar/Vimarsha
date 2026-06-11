@@ -59,8 +59,8 @@ playhead (Flutter `ReadingView` design ported, not the code):
   + `02-…-light.png` — **looked at:** masthead, serif body, butter/aqua wash on the live
   paragraph, slate-ruled quote, quiet caption; clean both modes. Rest regression
   `03-rest-dark.png` (fresh binary 16:54): stack unchanged.
-- Commits `0a2a9ed` (TimingIndex) `e2ee031` (player content) `ffa8e4a` (body+wiring),
-  merged `31ad540`. (Hashes from the merged branch; see `git log 31ad540^..31ad540`.)
+- Commits `11a2737` (TimingIndex) `c5fe0f9` (player content) `ffa8e4a` (body+wiring),
+  merged `31ad540`.
 
 **Visual audit findings (whole frame):**
 - Caption-only figure rows (no cached image) read slightly orphaned between text blocks —
