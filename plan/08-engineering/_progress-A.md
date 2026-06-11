@@ -15,6 +15,48 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V34 — Discuss voice input (hold-to-talk) ✅
+
+**What:** the panel's secondary input affordance (spec §4; typed stays the default).
+`VoiceInput` (@Observable, `Discuss/VoiceInput.swift`): finger down = permission (the
+system prompt is the primer) → **pause narration** (pause-on-audio-conflict) → record a
+temp m4a through the shared mic seam, with a 100ms level/elapsed ticker; finger up =
+stop → **resume narration immediately if it was playing** (the design call: the
+transcription *wait* is not an audio conflict — only the open mic is) → `POST
+/transcribe` → the trimmed text lands via `onTranscript`. Tap-length holds (<400ms,
+the MemoCapture rule) discard with no backend round-trip; `denied`/`failed` phases
+drive honest captions ("type your question instead" — spec §6 fallback, panel state
+never lost; failed auto-resets after 2.5s); the begin/end permission race guard is
+ported from MemoCapture. `DiscussPanelView`: `HoldToTalkButton` (the MemoRecordControl
+hold-gesture pattern at 38pt; sky glass → aqua while live; matte under Reduce
+Transparency; VoiceOver start/stop action) sits left of the field; while recording the
+field slot becomes the `Listening…` row (aqua waveform glyph driven by mic level +
+monospaced clock), then `Transcribing…`; the transcript APPENDS to the draft (review
+then send — never auto-sent) and refocuses the field.
+
+**Wiring:** `LibraryStore.makeVoiceInput(recorder:player:)`; `LibraryStackView` creates
+it at surface open with the app-lifetime recorder, `cancelHold()`s + releases at book
+close; the panel's close chevron also cancels a live hold. `ReadingSurfaceView` passes
+it through (nil hides the mic — previews/snapshots).
+
+**Evidence:**
+- 9 `VoiceInputTests` (real `PlayerController` over `FakeAudioEngine`; fake recorder +
+  backend): pause-on-hold, **resume-before-transcript**, paused-stays-paused, denied
+  (playback untouched), too-short discard (no round-trip, `Issue.record` tripwire),
+  failure fallback, recorder-start failure, the release-during-permission-prompt race,
+  cancel mid-record. **Both suites green** (post-revert re-run).
+- Captures (temp `CaptureRoot`, reverted): `01-panel-mic-dark.png` + `02-…-light.png` —
+  the mic in the input row, both modes. `.agent-loop/artifacts/V34/`.
+
+**Visual audit findings (whole-frame):** same pre-existing plate-title ellipsis as the
+V33 entry (filed there); the light-mode mic's sky 0.3 tint over butter is subtle but
+legible. Nothing new.
+
+**Device-gated:** real-mic capture quality + the hold feel inside the panel, and the
+pause/resume seam heard live → V36.
+
+---
+
 ## V33 — Discuss panel ✅
 
 **What:** the Discuss state of the reading surface (apple/CLAUDE.md §UI map state 6;

@@ -500,8 +500,13 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   `LibraryStackView` owns the ChatStore book-close-scoped. Snapshots + dark/light
   forced captures + rest regression in `.agent-loop/artifacts/V33/`; both suites green._
   ↳ [screen-flows §Discuss](../03-design/screen-flows.md)
-- **V34** · Voice input: hold-to-talk → `/transcribe` → input field; **pause-on-audio-
+- **V34** ✅ · Voice input: hold-to-talk → `/transcribe` → input field; **pause-on-audio-
   conflict** while voice-typing (pause narration, resume if it was playing). (needs V33, V28)
+  — _Done 2026-06-11, merged `fbe0373`; `VoiceInput` (pause on open mic, resume at mic
+  close — the transcription wait is no conflict; <400ms discard; denied/failed type-instead
+  fallbacks; permission-race guard) + panel `HoldToTalkButton` with live Listening…/
+  Transcribing… rows; transcript appends to the draft, never auto-sent. 9 tests, both
+  suites green; dark/light captures in `.agent-loop/artifacts/V34/`._
 - **V35** · Spoken replies + persistence: speaker control → `POST /speak` → played on the
   shared audio engine with the same pause/resume rule; **Save** persists the thread;
   Conversations as a morphed list state (reopen read-only, delete). (needs V33)
