@@ -7,6 +7,9 @@ struct VimarshaApp: App {
     /// degrades to the seed shelf with no import affordance rather than crashing —
     /// honest states on the one surface.
     @State private var store: LibraryStore?
+    /// The ONE app-lifetime audio device owner (V16; apple/CLAUDE.md §Seams).
+    /// Player controllers borrow it and pause it — nothing else may create one.
+    @State private var audioEngine = AVFoundationAudioEngine()
 
     init() {
         if let container = try? ModelContainer(for: Book.self, Chapter.self) {
