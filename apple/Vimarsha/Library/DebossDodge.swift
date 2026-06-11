@@ -13,9 +13,11 @@ import CoreGraphics
 /// cluster's own visibility, so the whole thing scrubs with the scroll like every other
 /// library motion. No state, no time.
 enum DebossDodge {
-    /// Soft transition above/below the dodged band, in cover-local points — wide enough
-    /// that a glyph crossing the band edge melts gently instead of appearing cut.
-    static let feather: CGFloat = 24
+    /// Soft transition above/below the dodged band, in cover-local points — enough that a
+    /// glyph crossing the band edge melts instead of appearing cut, but tight: at XXXL the
+    /// label sits immediately above the cluster, and a generous feather (the first cut used
+    /// 24) ate the whole title — the label must stay printed right up close to the glass.
+    static let feather: CGFloat = 10
 
     /// Cluster opacity at which the dodge reaches full strength. Matches the cluster's
     /// interaction ramp: by the time the controls are live (emerge > 0.5), the print under
