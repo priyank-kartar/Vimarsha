@@ -20,6 +20,8 @@ struct ReadingSurfaceView: View {
     /// Hold-to-record voice memos (V28). Nil (previews/snapshots/no recorder) hides
     /// the mic control.
     var memoCapture: MemoCapture?
+    /// The chapter's voice notes (V30). Nil (previews/snapshots) hides the Notes state.
+    var memoNotes: MemoNotes?
     var reduceTransparency: Bool = false
     var onClose: () -> Void = {}
     /// The cover-morph namespace; nil (snapshots/Reduce Motion) renders without the
@@ -46,11 +48,33 @@ struct ReadingSurfaceView: View {
     /// a sheet. Narration keeps playing underneath.
     @State private var showGallery = false
 
+    /// The Notes state — the chapter's voice memos as a morphed list state (V30),
+    /// never a sheet. Mutually exclusive with the gallery; leaving it stops any
+    /// playing memo clip.
+    @State private var showNotes = false
+
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
                 if let player, let bundle = player.bundle {
-                    if showGallery {
+                    if showNotes, let memoNotes {
+                        // The morphed list state (V30): the paper body reflows into
+                        // the chapter's voice notes on the same canvas.
+                        MemoNotesView(
+                            memos: memoNotes.memos,
+                            playingMemoId: memoNotes.playingMemoId,
+                            pinSnippets: pinSnippets(for: memoNotes.memos, bundle: bundle),
+                            reduceTransparency: reduceTransparency,
+                            onPlay: { memoNotes.play($0) },
+                            onOpenAtPin: { memo in
+                                memoNotes.openAtPin(memo)
+                                showNotes = false
+                            },
+                            onRetry: { memoNotes.retry($0) },
+                            onDelete: { memoNotes.delete($0) }
+                        )
+                        .transition(galleryTransition)
+                    } else if showGallery {
                         // The morphed grid state: the paper body reflows into the
                         // figure grid on the same canvas; narration keeps playing.
                         FiguresGalleryView(
@@ -78,6 +102,15 @@ struct ReadingSurfaceView: View {
                     : .spring(response: 0.4, dampingFraction: 0.9),
                 value: showGallery
             )
+            .animation(
+                reduceMotion ? .easeInOut(duration: 0.15)
+                    : .spring(response: 0.4, dampingFraction: 0.9),
+                value: showNotes
+            )
+            // Leaving the Notes state (any route) stops a playing memo clip.
+            .onChange(of: showNotes) { _, showing in
+                if !showing { memoNotes?.stopPlayback() }
+            }
             // The compact glass transport (V19) floats over the paper body — never a
             // chrome bar — and the figure carrier (V20) auto-pops above it at each
             // figure's startMs, recedes at endMs. Only when a chapter is actually loaded.
@@ -228,6 +261,19 @@ struct ReadingSurfaceView: View {
         }
     }
 
+    /// One-line paragraph previews for the Notes rows (the pin's context) — derived
+    /// from the bundle, the source of truth for chapter content.
+    private func pinSnippets(
+        for memos: [Memo], bundle: ChapterBundleDTO
+    ) -> [UUID: String] {
+        Dictionary(uniqueKeysWithValues: memos.compactMap { memo -> (UUID, String)? in
+            guard memo.paragraphIndex >= 0, memo.paragraphIndex < bundle.blocks.count,
+                  let text = bundle.blocks[memo.paragraphIndex].text
+            else { return nil }
+            return (memo.id, String(text.prefix(90)))
+        })
+    }
+
     /// Honest memo states above the transport (V28): the saved confirmation and the
     /// mic-permission guidance — chips on the surface, never alerts.
     @ViewBuilder
@@ -280,11 +326,21 @@ struct ReadingSurfaceView: View {
         HStack {
             glassControl(symbol: "chevron.down", label: "Close book", action: onClose)
             Spacer()
+            if memoNotes != nil, player?.bundle != nil {
+                glassControl(
+                    symbol: showNotes ? "text.justify.left" : "note.text",
+                    label: showNotes ? "Back to reading" : "Voice notes"
+                ) {
+                    showGallery = false
+                    showNotes.toggle()
+                }
+            }
             if let player, !player.allFigures.isEmpty {
                 glassControl(
                     symbol: showGallery ? "text.justify.left" : "photo.on.rectangle.angled",
                     label: showGallery ? "Back to reading" : "Figures"
                 ) {
+                    showNotes = false
                     showGallery.toggle()
                 }
             }

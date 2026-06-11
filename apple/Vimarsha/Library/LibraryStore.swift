@@ -196,6 +196,15 @@ final class LibraryStore {
         return capture
     }
 
+    /// The Notes state's controller for one open chapter (V30) — memo playback on its
+    /// own ephemeral engine so the chapter's shared engine keeps its loaded MP3.
+    func makeMemoNotes(player: PlayerController, memoEngine: any AudioEngine) -> MemoNotes {
+        MemoNotes(
+            player: player, memoEngine: memoEngine,
+            store: self, containerRoot: importer.containerRoot
+        )
+    }
+
     /// Transcribe one memo's audio through the seam (V29): `pending → ready/error`,
     /// mirroring the chapter-status pattern. Also the retry path — error (or stranded
     /// pending) rows re-submit; `ready` rows and in-flight jobs are refused. Recording
@@ -227,6 +236,18 @@ final class LibraryStore {
         }
         transcriptionTasks[memoId] = task
         return task
+    }
+
+    /// Remove one memo (V30): cancel any in-flight transcription, sweep the audio file,
+    /// delete the row (data-model.md §Rules — memos are user content; the confirm lives
+    /// in the UI).
+    func deleteMemo(_ memo: Memo) {
+        transcriptionTasks[memo.id]?.cancel()
+        transcriptionTasks[memo.id] = nil
+        let audioURL = importer.containerRoot.appending(path: memo.audioPath)
+        try? FileManager.default.removeItem(at: audioURL)
+        context.delete(memo)
+        try? context.save()
     }
 
     /// Remove the book row (cascades to chapters) and its container subtree

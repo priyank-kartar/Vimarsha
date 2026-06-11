@@ -69,6 +69,10 @@ struct LibraryStackView: View {
     /// cancelled + released at close — the shared recorder lives on in `VimarshaApp`.
     @State private var memoCapture: MemoCapture?
 
+    /// The opened chapter's Notes state (V30): memo playback rides its own ephemeral
+    /// engine (the chapter's shared engine keeps its MP3); stopped + released at close.
+    @State private var memoNotes: MemoNotes?
+
     /// The cover-morph shared-element namespace (tower card ↔ reading cover plate).
     @Namespace private var coverMorph
 
@@ -317,6 +321,9 @@ struct LibraryStackView: View {
             if let recorder {
                 memoCapture = store.makeMemoCapture(recorder: recorder, player: candidate)
             }
+            memoNotes = store.makeMemoNotes(
+                player: candidate, memoEngine: AVFoundationAudioEngine()
+            )
         }
         let shelfBook = ShelfBook(book: book, cover: store?.covers[book.id])
         withAnimation(coverMorphAnimation) {
@@ -331,6 +338,8 @@ struct LibraryStackView: View {
     private func closeReadingSurface() {
         memoCapture?.cancelHold()
         memoCapture = nil
+        memoNotes?.stopPlayback()
+        memoNotes = nil
         player?.pause()
         player = nil
         withAnimation(coverMorphAnimation) { reading = nil }
@@ -348,6 +357,7 @@ struct LibraryStackView: View {
                 chapterTitle: reading.chapter.title,
                 player: player,
                 memoCapture: memoCapture,
+                memoNotes: memoNotes,
                 reduceTransparency: reduceTransparency,
                 onClose: { closeReadingSurface() },
                 morphNamespace: reduceMotion ? nil : coverMorph
