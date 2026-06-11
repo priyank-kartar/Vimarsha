@@ -343,10 +343,14 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   `.agent-loop/artifacts/V38/`._
   ↳ [ui-audit-log](ui-audit-log.md) ·
   `.agent-loop/artifacts/ui-audit-20260611-1731/crop-light-mid.png`
-- **V39** · Ghost control-cluster residue at rest: a ~20 px icon-pill ghost floats
+- **V39** ✅ · Ghost control-cluster residue at rest: a ~20 px icon-pill ghost floats
   mid-cover on the focused book at promotion≈0 (medium type, both modes). Fix direction:
   fully gate the cluster — opacity 0 AND removed from the hierarchy below an emergence
-  threshold, so partial-promotion states never leak a miniature pill.
+  threshold, so partial-promotion states never leak a miniature pill. — _Done 2026-06-11,
+  merged `e0d2b46`; `ControlCluster.visibilityFloor` (0.25) + `isVisible` + remapped
+  `opacity` (0 at the floor → 1 at full emerge); the view renders nothing below the floor
+  (+4 tests incl. the exact audit-state regression). Suites green; medium-rest dark/light
+  ghost-free + XXXL cluster intact in `.agent-loop/artifacts/V39/`._
   ↳ [ui-audit-log](ui-audit-log.md) ·
   `.agent-loop/artifacts/ui-audit-20260611-1731/crop-dark-mid.png`
 - **V40** · Cluster glass is untinted grey (XXXL rest, both modes): grey pill + monochrome

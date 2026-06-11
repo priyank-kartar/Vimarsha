@@ -88,6 +88,39 @@ live review.
 
 ---
 
+## V39 — Ghost control cluster fully gated ✅
+
+**What:** the ui-audit residual-ghost fix. `ControlCluster.emerge` is a continuous curve,
+so a half-settled book (launch rest, promotion ≈ 0.5 → emerge ≈ 0.2) leaked a ~20px melded
+glass pill mid-cover because the view rendered `opacity == emerge`. `ControlCluster` gains
+`visibilityFloor` (0.25 on emerge), `isVisible`, and a remapped `opacity` (0 exactly at the
+floor → 1 at full emerge, linear); `ControlClusterView` renders **nothing** below the floor
+— opacity 0 AND removed from the hierarchy, per the roadmap fix direction. The insertion
+can't pop: opacity is 0 at the moment the subtree appears. +4 `ControlClusterTests`
+including a regression test pinning the exact audit state (`at(promotion: 0.5)` partially
+emerged but not visible).
+
+**Wiring:** the gate composes with V37's `ViewThatFits` (an invisible cluster leaves just
+the metadata, which bottom-anchors into the band) and doesn't touch the hit-test /
+accessibility guards (emerge > 0.5, unchanged).
+
+**Evidence:** both suites green. Captures in
+[`artifacts/V39/`](../../.agent-loop/artifacts/V39/): medium rest dark + light — ghost
+gone, metadata plate now sits alone near the cover's visible bottom (reads cleaner);
+XXXL light — the legitimately-settled cluster still renders fully fanned. Commit
+`4b95f07`, merged `e0d2b46`.
+
+**Visual audit findings (whole-frame):** with the cluster gated at medium rest, the
+double title (V41) reads less colliding but is still a double title — the V41 fix
+direction ("fade deboss when any focus affordance is visible") should key off the
+metadata reveal too, not just the cluster. XXXL pill tint still grey-over-pink (V40,
+next). Bottom-edge author clipping nit persists.
+
+**Device-gated:** the cluster's appear/disappear during live scroll (crossing the floor
+mid-gesture should read as a clean morph-out, not a pop) — next live review.
+
+---
+
 ## V21 — [verify] Eyes-free run ✅ (machine half; human review deferred to final)
 
 **What:** the P3-closing verify gate, run as far as a machine can take it. A standalone
