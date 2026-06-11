@@ -62,3 +62,39 @@ Format per finding: `severity · state/mode · what · artifact`
   frame is pixel-equivalent to normal dark, including the failing white-on-pink metadata
   text; revisit when more glass surfaces are reachable ·
   `.agent-loop/artifacts/ui-audit-20260611-1731/05-contrast-dark.png`
+
+## Round 2 — 2026-06-11 (independent audit; fresh `main` build 18:49, iPhone 17 Pro sim, rest state only — no gesture injection)
+
+Round-1 fixes **hold at medium rest**: no seam collision (V37), glass plate present (V38),
+no ghost pill (V39), single title (V41). The round-2 findings are new or composed defects.
+
+- should-fix · library rest, XXXL · both modes · the **focused book is completely unlabeled**:
+  the V37 metadata-yield drops the title band AND the V41 deboss-fade blanks the cover's own
+  printed title, so the focused pink card is an empty slab with an anonymous icon pill —
+  while the *unfocused* blue neighbor below shows its full-strength debossed "DESIGN BY
+  ACCIDENT", which reads as the focus label. Not a V37/V41 regression — each behaves exactly
+  as merged; their **composition** is the defect. When metadata yields, the deboss title must
+  stay (it IS the label) ·
+  `.agent-loop/artifacts/ui-audit-20260611-1849/crop-xxxl-dark-affordances.png`,
+  `crop-xxxl-light-affordances.png`, `03-xxxl-light.png`, `04-xxxl-dark.png`
+- should-fix · library rest, medium · both modes (measured) · **metadata-reveal text fails
+  WCAG on the blue cover**: the V38 sky-glass plate blooms the cover's blue and the fixed
+  text roles don't adapt — light mode title ≈1.65:1, subtitle ≈1.44:1 (ink-on-blue glass);
+  dark mode title ≈2.6:1, subtitle ≈2.0:1 (off-white-on-blue glass). All below AA (3:1
+  large / 4.5:1 small). V38 fixed pink; blue (and any mid-luminance cover) still fails —
+  the plate needs enough opacity (or per-plate-luminance text) to *guarantee* the ratio ·
+  `.agent-loop/artifacts/ui-audit-20260611-1849/crop-light-band.png`, `crop-dark-band.png`
+- should-fix · library rest, XXXL · both modes · the blue cover's debossed subtitle bottom
+  line **"OF DESIGN" clips into the cover's bottom edge** — glyph bottoms ride/cut into the
+  fore-edge page-texture lines (dark) or sit flush against the edge (light); the deboss block
+  isn't vertically fitted to the cover face at XXXL ·
+  `.agent-loop/artifacts/ui-audit-20260611-1849/crop-xxxl-dark-seam.png`,
+  `crop-xxxl-light-seam.png`
+- nit · library rest, XXXL · both modes · bottom shelf cover clips its title mid-glyph at the
+  hard screen edge ("OF PLACE" half-cut) — round-1's shelf-edge nit, now the title line at
+  XXXL; still no meniscus/fade treatment at the shelf slot ·
+  `.agent-loop/artifacts/ui-audit-20260611-1849/crop-xxxl-dark-shelf.png`
+- nit · increased contrast · dark · unchanged from round 1 — `increase_contrast enabled`
+  produces a frame pixel-equivalent to normal dark; carry-over, not re-filed ·
+  `.agent-loop/artifacts/ui-audit-20260611-1849/05-contrast-dark.png` vs
+  `06-rest-dark-medium.png`

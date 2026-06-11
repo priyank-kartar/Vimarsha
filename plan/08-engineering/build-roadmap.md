@@ -378,6 +378,39 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   ↳ [ui-audit-log](ui-audit-log.md) ·
   `.agent-loop/artifacts/ui-audit-20260611-1731/crop-dark-mid.png`
 
+## Phase P-FIX — UI audit fixes (round 2)
+
+> Inserted 2026-06-11 by the **independent UI audit** (fresh `main` build 18:49, iPhone 17
+> Pro sim, rest-state captures dark/light/XXXL/increased-contrast). Findings + artifacts:
+> [ui-audit-log](ui-audit-log.md) §Round 2. Round-1 fixes (V37–V41) verified holding at
+> medium rest; these are new/composed defects, all visible at launch rest.
+
+- **V42** · Focused book unlabeled at XXXL rest (V37×V41 composition): the metadata-yield
+  drops the title band while the deboss-fade blanks the cover's printed title — the focused
+  card is an empty slab with an anonymous icon pill, and the unfocused neighbor's
+  full-strength deboss below reads as the focus label. Fix direction: when `ViewThatFits`
+  yields the metadata (cluster-only branch), keep the focused cover's deboss title visible —
+  couple `BookFocus.debossTitleOpacity` to *metadata visibility*, not promotion alone; verify
+  XXXL × dark+light shows exactly one title on the focused cover.
+  ↳ [ui-audit-log](ui-audit-log.md) §Round 2 ·
+  `.agent-loop/artifacts/ui-audit-20260611-1849/crop-xxxl-dark-affordances.png`
+- **V43** · Metadata-reveal contrast fails on mid-luminance covers (measured, medium rest,
+  both modes): the V38 sky-glass plate blooms the blue cover through — light title ≈1.65:1,
+  subtitle ≈1.44:1; dark title ≈2.6:1, subtitle ≈2.0:1 — all below WCAG AA. Fix direction:
+  raise the plate's opacity floor (or derive text color from sampled plate luminance) so the
+  band *guarantees* ≥4.5:1 small / ≥3:1 large over ANY cover art; verify by sampling pixels
+  on the blue and pink covers, both modes.
+  ↳ [ui-audit-log](ui-audit-log.md) §Round 2 ·
+  `.agent-loop/artifacts/ui-audit-20260611-1849/crop-light-band.png`
+- **V44** · Debossed subtitle clips the cover's bottom edge at XXXL: the last line
+  ("OF DESIGN") rides into the fore-edge page-texture lines (dark) / sits flush against the
+  edge (light) — the deboss text block isn't vertically fitted to the cover face at large
+  type. Fix direction: inset the deboss block above the fore-edge strip with
+  `minimumScaleFactor`/line-limit so the subtitle never reaches the page-edge texture;
+  verify XXXL × dark+light.
+  ↳ [ui-audit-log](ui-audit-log.md) §Round 2 ·
+  `.agent-loop/artifacts/ui-audit-20260611-1849/crop-xxxl-dark-seam.png`
+
 ## Phase P4 — Memos (itemized 2026-06-11; behavioral reference = frozen Flutter Plans 5a–5b)
 
 > Voice notes pinned to the paragraph. Port the *design* from the Flutter client
