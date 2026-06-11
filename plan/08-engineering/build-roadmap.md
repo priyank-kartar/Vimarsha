@@ -260,8 +260,12 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
 > Goal: the product's core loop — listen to a chapter with live highlight and figures on
 > cue — entirely on the one morphing surface.
 
-- **V16** · Audio engine: app-lifetime shared playback owner (AVFoundation), play/pause/
+- **V16** ✅ · Audio engine: app-lifetime shared playback owner (AVFoundation), play/pause/
   seek/speed/resume, throttled progress persistence; the audio seam + test double. (needs V14)
+  — _Done 2026-06-11, merged `424264e`; `AudioEngine` seam (ms-int API) +
+  `AVFoundationAudioEngine` (AVAudioPlayer, real-WAV-tested) + `PlayerController`
+  (@Observable: resume-clamp, transport, 250ms ticker, 5s save throttle, finish persist) +
+  `FakeAudioEngine` double. +16 tests, both suites green. UI wiring lands V18._
   ↳ [app-architecture §Seams](../04-architecture/app-architecture.md) · Flutter reference:
   `app/lib/features/player/`
 - **V17** · Cover→reading-surface morph: the focused hardback opens into the reading canvas

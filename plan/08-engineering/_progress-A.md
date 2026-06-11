@@ -15,6 +15,50 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V16 — Audio engine (seam + player controller) ✅ (P3 opens)
+
+**What:** the playback half of the core loop, design-ported from the frozen Flutter
+`PlayerController`/`AudioHandler` pair:
+- `Audio/AudioEngine.swift` — the audio seam (the **second of exactly two** sanctioned
+  doubles): `load(url) → durationMs`, `play/pause/seek(toMs:)/setRate`,
+  `positionMs/durationMs/isPlaying`, `onFinish`. Integer-millisecond API throughout (the
+  contract's unit). Real impl `AVFoundationAudioEngine` = `AVAudioPlayer` over the cached
+  chapter file: `enableRate`, rate persists across loads, delegate finish hops to
+  MainActor; iOS sets the `.playback`/`.spokenAudio` session at load (macOS needs none).
+- `Player/PlayerController.swift` (@Observable) — `load(_ chapter:)` (only `ready` +
+  `audioPath`; throws `LoadError.chapterNotReady`), restores `Chapter.progressMs` clamped
+  to `[0, duration]` (no seek at 0), records true `durationMs` on the row (scrubber
+  length); `play/pause/togglePlayPause/seek/skip/setRate`; a 250ms ticker Task pulls the
+  playhead while playing and persists every **5s of movement** (Flutter's save throttle),
+  plus persist on `pause()` and natural finish (position pinned to the end). Paragraph/
+  figure derivation deliberately NOT here — `TimingIndex` owns that in V18
+  (app-architecture.md §Figure & timing flow).
+- **Shared-player rule honored:** the controller pauses the engine, never disposes it;
+  `VimarshaApp` owns the ONE app-lifetime `AVFoundationAudioEngine` (@State).
+- `VimarshaTests/FakeAudioEngine.swift` — the sanctioned double: hand-advanced playhead
+  (`advance(byMs:)`/`finish()`), recorded seeks/rate/loads.
+
+**Wiring:** none UI-visible yet by design — V17 morphs the surface open, V18 wires the
+controller + bundle into it. The engine instance simply exists app-lifetime from now on.
+
+**Evidence:**
+- Both suites `** TEST SUCCEEDED **` (macOS 155 test cases + iPhone 17 Pro sim). +16
+  tests: 4 `AVFoundationAudioEngineTests` against a **real generated WAV** (spec-minimal
+  PCM bytes — duration ±50ms, missing-file throw, seek, play/pause `isPlaying`; the real
+  impl tests real, the double is for consumers) and 12 `PlayerControllerTests` on real
+  in-memory SwiftData (duration recorded on row, resume/no-seek-at-0/stale-progress
+  clamp, non-ready rejected, play-pause mirror, pause persists, **tick throttling** (3s
+  no save → 6s saved), seek/skip clamps, rate forward, finish persists at end).
+- Review fix: the ticker loop now exits (not just no-ops) when the controller
+  deallocates mid-play — no orphaned forever-loop Task.
+- Commits `01d22b5` (seam+impl) `79122ff` (controller) + ticker fix, merged `424264e`.
+
+**Device-gated (→ V21 verify):** real MP3 playback feel (rate change mid-play,
+AVAudioPlayer seek-while-playing behavior), audio session/route behavior. No captures —
+no visual surface changed this item (rest frames would be byte-identical to V15's).
+
+---
+
 ## V15 — [verify] Real EPUB end-to-end 🚧 (machine half done; NEEDS HUMAN)
 
 **What (machine-verified):** the full P2 pipeline proven against the **live local backend**
