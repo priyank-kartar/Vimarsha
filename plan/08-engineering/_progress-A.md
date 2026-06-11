@@ -15,6 +15,67 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V24 — Focus & cluster fixes (from V09) ✅
+
+**What:** Phase P1.5 #3 — the four focus/cluster deviations the V09 human review filed
+([V09-motion-review](V09-motion-review.md) findings #2 + monitoring notes):
+1. **Double title killed** — the focused front cover printed its own debossed title *and* the
+   serif metadata reveal in the same eyeline. `HardbackCoverView` gains `titleOpacity`
+   (default 1); the focused card passes `1 - promotion`, so the debossed title fades out
+   exactly as the metadata reveal fades in. Only the focused card promotes → only it fades;
+   Reduce Motion (focus `.none`) leaves every title fully printed.
+2. **Cluster glass cooled to sky/aqua** — the controls *looked* butter/gold (V09 monitoring
+   note). Root cause confirmed in `artifacts/V07/03-cluster-emerged-live.png`: the cluster sat
+   over the gold "A SENSE OF PLACE" board and its weak tint (sky 0.16) let that cover refract
+   through. Tint opacities raised (sky 0.16→0.26, aqua/play 0.22→0.32) so the intended tint
+   reads regardless of the cover beneath. (The tint *choice* was already sky/aqua per the glass
+   rules — the bug was strength + substrate, not a butter tint.)
+3. **Cluster anchored inside the focused cover's bottom edge** — new `FocusAffordancePlacement`
+   (pure math, 7 tests) maps the next (occluding) book's top edge → the bottom padding that
+   lifts the metadata + cluster to sit just inside the focused cover's *visible* bottom (the
+   next book's top), above the book that overlaps it; clamped to a resting margin (cover bottom
+   below the fold → rests at the viewport bottom as before) and a mid-viewport ceiling.
+   `BookTower` publishes each card's top edge via a new `CardTopYKey` alongside the existing
+   midY; `LibraryStackView` feeds `cardTops[focus.index + 1]` into the placement function. The
+   metadata + cluster now read as extruded from the focused cover rather than floating over the
+   book below it.
+4. **Grow-to-front strengthened** — `BookFocus.scaleBoost` 0.04 → 0.07; the +4% promotion read
+   too faint against the uniform-card stack.
+
+**Wiring:** `HardbackCoverView(book:titleOpacity:)` (new param, applied to the title block);
+`BookTower` passes `1 - promotion` for the focused card + emits `CardTopYKey`; `LibraryStackView`
+gains `@State cardTops`, an `onPreferenceChange(CardTopYKey)`, and `focusAffordances(in:)` (now a
+function taking the viewport size for the placement math). `FocusAffordancePlacement` + its tests
+are new files. No StackTransform/SlotEmit/HeaderContrast constants touched (the front-slot
+calibration noted below is out of V24 scope).
+
+**Evidence:** both suites `** TEST SUCCEEDED **` (macOS + iPhone 17 Pro sim); `FocusAffordancePlacementTests`
+(7) + `HardbackCoverTitleFadeSnapshotTests` (printed vs faded rasters differ) added, all prior
+suites stayed green. Captures reviewed in [`artifacts/V24/`](artifacts/V24/) — **looked at:**
+- `01-rest-dark.png`: the focused **HEY** (pink) cover's debossed title is now visibly **faded**
+  (cf. V23 where it was bold) and its metadata reveal sits on the cover, not at the viewport
+  bottom over the gold board.
+- `02-cluster-emerged-live.png` (cluster temporarily forced `emerge: 1` to capture real Liquid
+  Glass, then reverted): the four controls read as **cool sky/aqua glass** (play ▶ aqua-rimmed,
+  rest sky) sitting **on the focused pink cover, above the blue book** — no longer the warm
+  butter/gold of `V07/03` over the gold board. Both V24 wins (tint + placement) visible at once.
+- `03-rest-light.png`: title fade holds on the butter canvas too (HEY debossed title dimmed,
+  metadata revealing); the unfocused blue "Design by Accident" keeps its full bold title.
+Binary mtime confirmed fresh before each shot. Merge `899e234` (commits `1654a89` placement,
+`1fd5b4b` title fade, `eb86266` scaleBoost + tint).
+
+**Device-gated:** the live *feel* of grow-to-front at 0.07 and the cluster's cover-anchored
+travel as you scroll a book through the slot need an injectable scroll the agent-loop lacks —
+math-tested + verified at the (partial) rest focus. Folds into **V26**. **Finding logged for
+V26/follow-up (out of V24 scope):** at rest the front-slot (StackTransform.frontSlot 0.72) sits
+*between* HEY and the dominant front cover (Design by Accident), so focus can land on the
+behind-stack book rather than the front-most fully-visible cover. The double-title fix + anchoring
+stay correct (everything is keyed to `focus.index`), but the *dominant* cover isn't always the
+focused one — re-judge whether frontSlot wants nudging toward the front-most card when V25 (hero
+zoom) or V26 tune the stack.
+
+---
+
 ## V23 — Stack depth polish ✅
 
 **What:** Phase P1.5 #2 — make depth read strong now that cards are one uniform size

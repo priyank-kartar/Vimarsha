@@ -132,10 +132,18 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   `visualEffect` chain. Both suites green + dark/light rest captures show OPTIC dissolving under
   the scrim. Live mid-scroll melt/desat feel → V26 re-review._
   ↳ [V09-motion-review](V09-motion-review.md) audit rows #1/#3
-- **V24** · Focus & cluster fixes from V09: fade the cover's debossed title while the
+- **V24** ✅ · Focus & cluster fixes from V09: fade the cover's debossed title while the
   metadata reveal shows (kill the double title); cluster glass tint butter → **sky** per the
   glass rules; anchor the cluster *inside* the focused cover's bottom edge (no overlap onto
-  the next book); strengthen grow-to-front if it reads weak. (needs V22)
+  the next book); strengthen grow-to-front if it reads weak. (needs V22) — _Done 2026-06-11,
+  merged `899e234`; `HardbackCoverView.titleOpacity` fades the focused cover's debossed title
+  by `1 - promotion`; new `FocusAffordancePlacement` (pure math, 7 tests) + `CardTopYKey` anchor
+  the metadata/cluster inside the focused cover's visible bottom (above the next book);
+  `ControlClusterView` tint raised (sky 0.16→0.26 / aqua 0.22→0.32 — the "butter" was the gold
+  cover refracting through weak glass, tint choice was already sky/aqua); `BookFocus.scaleBoost`
+  0.04→0.07. Both suites green + dark/light/forced-emerge captures show the faded title + cool
+  sky/aqua cluster on the focused cover. **Out-of-scope finding for V25/V26:** front-slot 0.72
+  can focus the behind-stack book, not the dominant front cover._
   ↳ [V09-motion-review](V09-motion-review.md) · [apple/CLAUDE.md §Liquid Glass rules](../../apple/CLAUDE.md)
 - **V25** · Coupled scroll+zoom hero settle — the missing motion grammar **#5**: a
   scroll-progress-driven rigid-group scale of the whole tower coupled to the header
