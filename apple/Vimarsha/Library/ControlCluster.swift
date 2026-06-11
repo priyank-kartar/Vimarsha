@@ -49,6 +49,24 @@ struct ControlCluster: Equatable {
     /// smoothstep easing keeps it faint until the book is genuinely settled.
     static let emergeThreshold: CGFloat = 0.3
 
+    /// Emerge below which the cluster renders NOTHING (V39). The emerge curve is continuous,
+    /// so a half-settled book (e.g. launch rest at promotion ≈ 0.5) used to leak a faint
+    /// melded pill mid-cover (`opacity == emerge`, ui-audit round 1). Below this floor the
+    /// cluster is invisible AND removed from the hierarchy; above it `opacity` ramps fast to
+    /// full, so the gate never pops (opacity is exactly 0 at the floor) and stays scrubbable.
+    static let visibilityFloor: CGFloat = 0.25
+
+    /// Whether the cluster renders at all (the hierarchy gate, V39).
+    var isVisible: Bool { emerge >= Self.visibilityFloor }
+
+    /// Rendered opacity (V39): 0 up to the visibility floor, then a linear ramp to 1 at full
+    /// emerge — replaces the raw `opacity == emerge` that ghosted at partial promotion.
+    var opacity: CGFloat {
+        guard isVisible else { return 0 }
+        let ramp = (emerge - Self.visibilityFloor) / (1 - Self.visibilityFloor)
+        return max(0, min(1, ramp))
+    }
+
     /// - Parameter promotion: the eased focus emphasis (`BookFocus.promotion`, 0…1).
     static func at(promotion: CGFloat) -> ControlCluster {
         guard promotion > emergeThreshold else { return .absorbed }

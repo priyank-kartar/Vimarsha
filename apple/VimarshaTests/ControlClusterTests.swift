@@ -79,4 +79,45 @@ struct ControlClusterTests {
     func singleControlNoOffset() {
         #expect(ControlCluster.at(promotion: 1).xOffset(forControl: 0, of: 1, spacing: 64) == 0)
     }
+
+    // MARK: Visibility gate (V39) — no ghost pill below the floor
+
+    @Test("below the visibility floor the cluster is invisible (opacity exactly 0)")
+    func belowFloorIsInvisible() {
+        let ghost = ControlCluster(emerge: ControlCluster.visibilityFloor - 0.01)
+        #expect(!ghost.isVisible)
+        #expect(ghost.opacity == 0)
+        #expect(!ControlCluster.absorbed.isVisible)
+        #expect(ControlCluster.absorbed.opacity == 0)
+    }
+
+    @Test("opacity ramps from 0 at the floor up to 1 at full emerge")
+    func opacityRampsAboveFloor() {
+        let atFloor = ControlCluster(emerge: ControlCluster.visibilityFloor)
+        #expect(atFloor.isVisible)
+        #expect(abs(atFloor.opacity) < 1e-6)
+        let full = ControlCluster(emerge: 1)
+        #expect(abs(full.opacity - 1) < 1e-6)
+        let mid = ControlCluster(emerge: (ControlCluster.visibilityFloor + 1) / 2)
+        #expect(mid.opacity > 0 && mid.opacity < 1)
+    }
+
+    @Test("opacity is monotonic in emerge and clamped to 0…1")
+    func opacityMonotonicClamped() {
+        let lo = ControlCluster(emerge: 0.4)
+        let hi = ControlCluster(emerge: 0.8)
+        #expect(lo.opacity < hi.opacity)
+        #expect(ControlCluster(emerge: 1.2).opacity == 1)
+        #expect(ControlCluster(emerge: -0.2).opacity == 0)
+    }
+
+    @Test("the rest-state ghost is gated: a half-settled book's cluster is not visible")
+    func restGhostGated() {
+        // The ui-audit ghost: launch rest left the focused book at promotion ≈ 0.5, whose
+        // small-but-nonzero emerge leaked a ~20px pill mid-cover. That state must now be
+        // fully invisible.
+        let rest = ControlCluster.at(promotion: 0.5)
+        #expect(rest.emerge > 0)         // it IS partially emerged…
+        #expect(!rest.isVisible)         // …but renders nothing.
+    }
 }
