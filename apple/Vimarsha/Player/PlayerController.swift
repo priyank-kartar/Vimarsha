@@ -36,6 +36,19 @@ final class PlayerController {
         timing?.currentBlockId(atMs: positionMs)
     }
 
+    /// Figures whose span contains the current playhead — drives the glass carrier's
+    /// auto-pop at `startMs` / recede at `endMs` (V20). Unresolved (nil-ms) figures
+    /// never activate.
+    var activeFigures: [FigureDTO] {
+        timing?.activeFigures(atMs: positionMs) ?? []
+    }
+
+    /// Every figure in the chapter regardless of timing — the Figures gallery's source
+    /// (the reliable way to reach any figure, Flutter `FiguresGallery` parity).
+    var allFigures: [FigureDTO] {
+        bundle?.figureMap ?? []
+    }
+
     private var lastSavedMs = 0
     private var ticker: Task<Void, Never>?
 
