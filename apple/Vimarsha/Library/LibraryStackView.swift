@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// The library surface: editorial header scrolling into the depth-stacked book tower
 /// (apple/CLAUDE.md §UI map state 1; motion grammar #1).
@@ -30,6 +31,15 @@ struct LibraryStackView: View {
     /// affordances just inside the focused cover's visible bottom (the next book's top edge),
     /// so the cluster sits on the focused cover, not floating over the book below it (V24).
     @State private var cardTops: [Int: CGFloat] = [:]
+
+    /// EPUB import (V10). The system document picker is OS-driven chrome (like the
+    /// keyboard) — exempt from the morph rule, and the only way the sandbox grants access
+    /// to a user-chosen file. The picked EPUB is copied into the app container
+    /// (`EpubImporter`); the imported book joins the shelf when V12 wires persistence.
+    @State private var showsEpubPicker = false
+    /// Honest error posture (app-architecture.md): a failed import surfaces as a small
+    /// status line on the surface — not an alert — cleared on the next attempt.
+    @State private var importError: String?
 
     var body: some View {
         GeometryReader { geo in
@@ -70,6 +80,74 @@ struct LibraryStackView: View {
             .overlay { LensingPuckView(puck: puck, reduceTransparency: reduceTransparency) }
             .overlay(alignment: .top) { topScrim(in: geo.size) }
             .overlay(alignment: .bottom) { focusAffordances(in: geo.size) }
+            .overlay(alignment: .topTrailing) { addBookButton }
+            .fileImporter(
+                isPresented: $showsEpubPicker,
+                allowedContentTypes: [.epub]
+            ) { result in
+                handlePickedEpub(result)
+            }
+        }
+    }
+
+    // MARK: EPUB import (V10)
+
+    /// A small glass "+" floating at the top-trailing corner — interactive → sky tint
+    /// (apple/CLAUDE.md §Liquid Glass rules); Reduce Transparency gets the matte fallback.
+    /// The import-error status line rides under it (honest states, no alerts).
+    private var addBookButton: some View {
+        VStack(alignment: .trailing, spacing: 8) {
+            Button {
+                importError = nil
+                showsEpubPicker = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(Palette.textPrimary)
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(.plain)
+            .background {
+                if reduceTransparency {
+                    Circle().fill(Palette.surface)
+                        .overlay(Circle().strokeBorder(Palette.sky.opacity(0.5), lineWidth: 1))
+                } else {
+                    Color.clear.glassEffect(
+                        .regular.tint(Palette.sky.opacity(0.26)).interactive(), in: .circle
+                    )
+                }
+            }
+            .accessibilityLabel("Add book")
+
+            if let importError {
+                Text(importError)
+                    .font(.caption2)
+                    .foregroundStyle(Palette.textPrimary.opacity(0.7))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(Palette.surface))
+            }
+        }
+        .padding(.trailing, 20)
+        .padding(.top, 8)
+    }
+
+    /// Copy the picked EPUB into the container off the main actor. Until V12 lands
+    /// persistence, success is silent (the file is in `Library/Books/<id>/book.epub`);
+    /// failure surfaces as the status line.
+    private func handlePickedEpub(_ result: Result<URL, any Error>) {
+        switch result {
+        case .success(let url):
+            Task {
+                do {
+                    _ = try await Task.detached { try EpubImporter.live.importEpub(at: url) }.value
+                } catch {
+                    importError = "Couldn't import book"
+                }
+            }
+        case .failure:
+            // User cancelled or the picker failed — nothing to surface.
+            break
         }
     }
 
