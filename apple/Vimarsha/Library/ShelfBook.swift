@@ -29,7 +29,10 @@ struct ShelfBook: Identifiable {
         self.id = book.id.uuidString
         self.title = book.title
         self.author = book.author
-        let variant = abs(book.id.hashValue) % Self.fallbackCloths.count
+        // Stable across launches (Hashable.hashValue is per-process seeded — it would
+        // reshuffle cloth colors on every run).
+        let variant = book.id.uuidString.unicodeScalars
+            .reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0x7FFF_FFFF } % Self.fallbackCloths.count
         (self.cloth, self.ink) = Self.fallbackCloths[variant]
         self.aspect = CardGeometry.aspect
         self.gilt = false
