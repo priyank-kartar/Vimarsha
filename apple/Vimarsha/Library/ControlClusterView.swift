@@ -26,26 +26,32 @@ struct ControlClusterView: View {
     private let spacing: CGFloat = 64
 
     var body: some View {
-        GlassEffectContainer(spacing: 18) {
-            ZStack {
-                ForEach(controls) { control in
-                    controlButton(control)
-                        .offset(
-                            x: cluster.xOffset(
-                                forControl: control.rawValue,
-                                of: controls.count,
-                                spacing: spacing
+        // Fully gated below the visibility floor (V39): not just transparent but absent —
+        // partial-promotion states (e.g. launch rest) must never leak a miniature melded
+        // pill mid-cover (ui-audit round 1). `opacity` is 0 exactly at the floor, so the
+        // insertion itself is invisible and the gate stays scrubbable.
+        if cluster.isVisible {
+            GlassEffectContainer(spacing: 18) {
+                ZStack {
+                    ForEach(controls) { control in
+                        controlButton(control)
+                            .offset(
+                                x: cluster.xOffset(
+                                    forControl: control.rawValue,
+                                    of: controls.count,
+                                    spacing: spacing
+                                )
                             )
-                        )
+                    }
                 }
             }
+            // Fade + a subtle lift as the cluster grows out of the cover; re-absorb reverses it.
+            .opacity(cluster.opacity)
+            .scaleEffect(0.9 + 0.1 * cluster.emerge, anchor: .top)
+            // Only live (and reachable) once meaningfully emerged — keeps the melded blob inert.
+            .allowsHitTesting(cluster.emerge > 0.5)
+            .accessibilityHidden(cluster.emerge < 0.5)
         }
-        // Fade + a subtle lift as the cluster grows out of the cover; re-absorb reverses it.
-        .opacity(cluster.emerge)
-        .scaleEffect(0.9 + 0.1 * cluster.emerge, anchor: .top)
-        // Only live (and reachable) once meaningfully emerged — keeps the melded blob inert.
-        .allowsHitTesting(cluster.emerge > 0.5)
-        .accessibilityHidden(cluster.emerge < 0.5)
     }
 
     @ViewBuilder
