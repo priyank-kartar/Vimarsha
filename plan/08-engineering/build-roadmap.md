@@ -276,8 +276,12 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   cross-dissolves. Both suites green + forced-state captures (dark/light) + rest regression.
   Live morph feel → V21._
   ↳ [screen-flows §Reading](../03-design/screen-flows.md) · [apple/CLAUDE.md §Prime Directive](../../apple/CLAUDE.md)
-- **V18** · Reading surface: blocks rendered (serif body, figures inline as paper),
+- **V18** ✅ · Reading surface: blocks rendered (serif body, figures inline as paper),
   paragraph highlight + auto-scroll driven by `paraTimings`. (needs V16, V17)
+  — _Done 2026-06-11, merged `31ad540`; `TimingIndex` (the one lookups owner, 8 tests) +
+  player loads bundle/figure-images + `ReadingBlocksView` (typed blocks as paper, narration
+  wash) + auto-scroll (anchor 0.3, 4s user cooldown, RM jumps). Both suites green +
+  forced-state captures both modes. Live cadence/feel → V21._
 - **V19** · Tap-a-paragraph-to-seek + the compact glass transport cluster (play/pause/
   seek/speed) — controls are glass, content is paper. (needs V18)
 - **V20** · Figure overlay on the glass carrier: auto-pop at `startMs`, recede at `endMs`,

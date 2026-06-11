@@ -15,6 +15,66 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V18 — Reading body: blocks + narration highlight + auto-scroll ✅
+
+**What:** the core-loop reading surface — the cached bundle rendered and synced to the
+playhead (Flutter `ReadingView` design ported, not the code):
+- `Reading/TimingIndex.swift` — the ONE `paraTimings`/figure-span lookup owner
+  (app-architecture.md: "never four parallel implementations"): `currentBlockId(atMs:)`
+  (latest start ≤ ms — the Flutter `_recompute` rule, deterministic reading-order
+  tie-break), `startMs(forBlock:)` (tap-to-seek, V19 consumes), `activeFigures(atMs:)`
+  (closed spans; unresolved nil-ms figures never activate — V20 consumes),
+  `blockIndex(forId:)`. Pure value math, 8 tests.
+- `PlayerController` grows content: `load()` decodes `bundle.json` (the content source
+  of truth) BEFORE touching the engine (a failed decode loads nothing), builds the
+  `TimingIndex`, exposes `currentBlockId` off the live playhead, and decodes cached
+  figure images **off-main at load, never during scroll** into `blockImages` keyed by
+  source block id (backend `figure_id = block.id`; `LibraryStore.covers` precedent).
+- `Reading/ReadingBlocksView.swift` — typed blocks as matte paper: serif body
+  (New York warmth) with `lineSpacing 6`, headings by `level`, blockquote/pullquote
+  italic behind a slate rule, **figures inline as paper** (matte rounded image +
+  quiet caption; caption-only when no image cached — downloader best-effort parity),
+  table/list degrade to their text. The narrated block carries the new
+  `Palette.narrationHighlight` wash (butter glow 0.13 on ink / aqua wash 0.40 on
+  butter — both modes' "highlight/progress" roles).
+- `ReadingSurfaceView` — the body replaces the ready mark when a player has the bundle:
+  cover plate + masthead scroll away with the text (max content width 600), close
+  chevron pinned; **auto-scroll** follows `currentBlockId` (anchor y=0.3, ease 0.35s,
+  4s user-scroll cooldown via `onScrollPhaseChange(.interacting)`, no re-scroll to the
+  same block, Reduce Motion jumps instead of glides) and lands on the resume block at
+  open without animating through the chapter.
+- Wiring: `LibraryStore.makePlayer(engine:)`; `LibraryStackView` holds the open
+  chapter's player (created at open — an unreadable cache refuses to open a dead
+  surface; close **pauses + releases** the controller, never the shared engine);
+  `VimarshaApp` hands the app-lifetime engine down.
+
+**Evidence:**
+- Both suites `** TEST SUCCEEDED **` (macOS + iPhone 17 Pro). +12 tests: 8
+  `TimingIndexTests` + 4 `PlayerControllerTests` (bundle decoded + timing built, live
+  block follows ticks/seeks, resume lands in the right block, missing bundle file fails
+  the load) on a REAL bundle.json written to a temp container.
+- `ReadingBlocksSnapshotTests` (2): highlight visibly renders + moves block-to-block;
+  PNG **looked at** ([`artifacts/V18/18-reading-blocks-live.png`](../../.agent-loop/artifacts/V18/)).
+- Forced full-frame sim captures (temp root, reverted): `01-reading-body-forced-dark.png`
+  + `02-…-light.png` — **looked at:** masthead, serif body, butter/aqua wash on the live
+  paragraph, slate-ruled quote, quiet caption; clean both modes. Rest regression
+  `03-rest-dark.png` (fresh binary 16:54): stack unchanged.
+- Commits `0a2a9ed` (TimingIndex) `e2ee031` (player content) `ffa8e4a` (body+wiring),
+  merged `31ad540`. (Hashes from the merged branch; see `git log 31ad540^..31ad540`.)
+
+**Visual audit findings (whole frame):**
+- Caption-only figure rows (no cached image) read slightly orphaned between text blocks —
+  acceptable degraded path; revisit if real books show many image-less figures.
+- Carried: plate subtitle truncation (V17 finding); mid-stack metadata ghost at rest.
+
+**Known debt / device-gated (→ V21):** body uses a plain `VStack` (scrollTo-to-unbuilt-row
+correctness over LazyVStack memory) — fine for normal chapters, profile on a huge one;
+auto-scroll *feel* (cooldown, anchor, glide) and the live highlight cadence need a real
+playing chapter on device; `onAppear` scrollTo assumes laid-out rows (verify deep-resume
+live).
+
+---
+
 ## V17 — Cover→reading-surface morph ✅
 
 **What:** the Prime-Directive transition — the focused hardback opens into the reading
