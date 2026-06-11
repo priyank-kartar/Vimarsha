@@ -19,6 +19,10 @@ final class LibraryStore {
     /// Honest error posture: the last failed import, surfaced as a status line on the
     /// surface (not an alert); cleared on the next attempt.
     var importError: String?
+    /// In-flight chapter downloads, keyed by chapter id — owned by the store so leaving a
+    /// screen never orphans a narration job (app-architecture.md §Concurrency model);
+    /// deleting a book cancels its downloads.
+    private var downloadTasks: [UUID: Task<Void, Never>] = [:]
 
     init(
         context: ModelContext,
@@ -42,7 +46,38 @@ final class LibraryStore {
     func load() {
         let descriptor = FetchDescriptor<Book>(sortBy: [SortDescriptor(\.addedAt)])
         books = (try? context.fetch(descriptor)) ?? []
+        healChapterStates()
         loadMissingCovers()
+    }
+
+    /// Self-heal stale chapter rows (data-model.md §Rules): `ready` with missing cache
+    /// files → `none` (the container moved or files were purged); `pending` with no live
+    /// task → `none` (a relaunch orphaned the job — honest state, the user re-requests).
+    private func healChapterStates() {
+        var healed = false
+        for chapter in books.flatMap(\.chapters) {
+            switch chapter.status {
+            case .pending where downloadTasks[chapter.id] == nil:
+                chapter.status = .none
+                healed = true
+            case .ready where !cacheFilesExist(for: chapter):
+                chapter.status = .none
+                chapter.bundlePath = nil
+                chapter.audioPath = nil
+                healed = true
+            default:
+                break
+            }
+        }
+        if healed { try? context.save() }
+    }
+
+    private func cacheFilesExist(for chapter: Chapter) -> Bool {
+        guard let bundlePath = chapter.bundlePath, let audioPath = chapter.audioPath
+        else { return false }
+        let fm = FileManager.default
+        return fm.fileExists(atPath: importer.containerRoot.appending(path: bundlePath).path)
+            && fm.fileExists(atPath: importer.containerRoot.appending(path: audioPath).path)
     }
 
     /// Decode (downsampled) any cover art not yet cached, off the main actor; each
@@ -100,9 +135,52 @@ final class LibraryStore {
         }
     }
 
+    /// Lazily narrate + cache one chapter (V14): `none/error → pending → ready/error`.
+    /// The job is a cancellable task owned by the store; the heavy IO runs off-main in
+    /// `ChapterDownloader`. Returns the task (for awaiting/tests), or nil when the
+    /// chapter is already pending/ready.
+    @discardableResult
+    func downloadChapter(_ chapter: Chapter) -> Task<Void, Never>? {
+        guard chapter.status == .none || chapter.status == .error,
+              let book = chapter.book
+        else { return nil }
+        chapter.status = .pending
+        chapter.errorReason = nil
+        try? context.save()
+
+        let downloader = ChapterDownloader(containerRoot: importer.containerRoot, backend: backend)
+        let (epubPath, bookId, index, chapterId) = (book.epubPath, book.id, chapter.index, chapter.id)
+        let task = Task { [weak self] in
+            do {
+                let cached = try await downloader.download(
+                    epubRelativePath: epubPath, bookId: bookId, chapterIndex: index
+                )
+                guard let self, !Task.isCancelled else { return }
+                chapter.bundlePath = cached.bundleRelativePath
+                chapter.audioPath = cached.audioRelativePath
+                chapter.status = .ready
+                try? self.context.save()
+            } catch {
+                // A cancelled job (book deleted / app teardown) must not touch the row —
+                // it may already be gone.
+                guard let self, !Task.isCancelled, !(error is CancellationError) else { return }
+                chapter.status = .error
+                chapter.errorReason = "Narration failed"
+                try? self.context.save()
+            }
+            self?.downloadTasks[chapterId] = nil
+        }
+        downloadTasks[chapterId] = task
+        return task
+    }
+
     /// Remove the book row (cascades to chapters) and its container subtree
-    /// (data-model.md §Rules — deletion).
+    /// (data-model.md §Rules — deletion); in-flight chapter downloads are cancelled.
     func deleteBook(_ book: Book) {
+        for chapter in book.chapters {
+            downloadTasks[chapter.id]?.cancel()
+            downloadTasks[chapter.id] = nil
+        }
         let bookDir = importer.containerRoot
             .appending(path: book.epubPath)
             .deletingLastPathComponent()
