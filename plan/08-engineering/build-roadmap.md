@@ -170,7 +170,7 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   is device-gated → verified in the V26 human re-review.**_
   ↳ [apple/CLAUDE.md §Glass moments #1](../../apple/CLAUDE.md) ·
   [V09-motion-review](V09-motion-review.md)
-- **V26** 🚧 · **[verify]** Library quality re-review: rebuild; capture rest / mid-scroll /
+- **V26** ✅ · **[verify]** Library quality re-review: rebuild; capture rest / mid-scroll /
   focused states (dark + light) + a scroll recording if possible; check uniform sizing,
   neat stacking, scrim dissolve, hero zoom, and the cluster fixes against
   [ADR-011](../00-overview/decision-log.md#adr-011--uniform-book-card-geometry-in-the-library-stack)
@@ -184,7 +184,11 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   (V25 is a rest no-op), the focused state (V24 cluster/title-fade — promotion ~0 at launch
   rest), slot-emit/recede feel, the V05 puck, and the open `frontSlot 0.72` vs dominant-cover
   calibration. Full findings + human run-book → [_progress-A](_progress-A.md) V26 entry; `V26`
-  written to `.agent-loop/NEEDS_HUMAN`._
+  written to `.agent-loop/NEEDS_HUMAN`. **Closed 2026-06-11 by user directive** ("aage
+  badhao" — proceed to P2) after reviewing the final rest captures (dark+light). The
+  device-gated motion-FEEL checks (hero zoom strength, focus/cluster live morph, flick
+  landing, puck glass) were NOT individually scrubbed — carried as **review debt** into the
+  next [verify] gates (V15/V21), which run on live scrolling anyway._
 
 ## Phase P2 — Real books
 

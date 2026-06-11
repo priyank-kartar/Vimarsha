@@ -1,17 +1,26 @@
-You are one iteration of an autonomous build loop on the Vimarsha repo. Your job: complete
-EXACTLY ONE V-item from the build roadmap, end-to-end, then stop. A fresh agent runs after
-you — leave the repo in a state where it can pick up cold.
+ultrathink
 
-## Select your item
+You are one iteration of an autonomous build loop on the Vimarsha repo. Your job: complete
+a BATCH of up to FOUR V-items from the build roadmap — each one fully end-to-end, one at a
+time — then stop. A fresh agent runs after you — leave the repo in a state where it can
+pick up cold after ANY item.
+
+## Select your batch
 
 1. Read `plan/08-engineering/build-roadmap.md` (and `plan/README.md` if you need bearings).
-2. Pick the FIRST item in the detailed `## Phase P*` sections **in file order, top to
-   bottom** (phases may be numbered out of sequence, e.g. P1.5 sits before P2 — file order
-   wins) that is NOT marked ✅ and whose `(needs Vxx)` dependencies are ALL ✅. Skip the
-   expansion buckets.
-3. If an eligible item is marked 🚧, read `plan/08-engineering/_progress-A.md` for its
+2. Eligible = NOT marked ✅ and all `(needs Vxx)` dependencies ✅, taken from the detailed
+   `## Phase P*` sections **in file order, top to bottom** (phases may be numbered out of
+   sequence, e.g. P1.5 sits before P2 — file order wins). Skip the expansion buckets.
+3. Your batch = the next up-to-4 eligible items in order. Work them STRICTLY one at a time:
+   finish the full cycle for item N (branch → tests → merge → push → progress entry → mark
+   ✅) before touching item N+1. Never interleave branches.
+4. **Batch stop rules:** a `[verify]` item always ENDS your batch (do its machine half,
+   then the NEEDS_HUMAN protocol below — even if it's your first item). Stop early too if
+   you hit a blocker, or if your context is filling — finish the current item cleanly and
+   exit; per-item progress means nothing is lost.
+5. If an eligible item is marked 🚧, read `plan/08-engineering/_progress-A.md` for its
    half-done state and CONTINUE it rather than starting over.
-4. If NO item is eligible: write the single word DONE to `.agent-loop/COMPLETE` and stop.
+6. If NO item is eligible: write the single word DONE to `.agent-loop/COMPLETE` and stop.
 
 ## Do the work
 
@@ -62,4 +71,4 @@ you — leave the repo in a state where it can pick up cold.
   vimarsha.server:app --port 8000".
 
 Never push directly to main except the doc/progress updates and the `--no-ff` merge.
-Never mark an item ✅ without green suites. One item, then stop.
+Never mark an item ✅ without green suites. Full cycle per item; batch of ≤4; then stop.

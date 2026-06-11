@@ -23,6 +23,7 @@ PROMPT_FILE="scripts/agent-loop/prompt.md"
 MAX_RUNS="${MAX_RUNS:-10}"
 MAX_CONSECUTIVE_FAILURES=2
 PERMS="${PERMS:-full}"
+MODEL="${MODEL:-claude-fable-5[1m]}"   # Fable 5, 1M context — batches need the headroom
 
 mkdir -p "$LOOP_DIR/logs" "$LOOP_DIR/artifacts"
 rm -f "$LOOP_DIR/COMPLETE" "$LOOP_DIR/NEEDS_HUMAN" "$LOOP_DIR/BLOCKED"
@@ -55,9 +56,9 @@ while :; do
   echo "[loop] Run #$run — $remaining item(s) remaining — fresh agent session → $log"
 
   if [ "$PERMS" = "full" ]; then
-    claude -p "$(cat "$PROMPT_FILE")" --dangerously-skip-permissions >"$log" 2>&1
+    claude -p "$(cat "$PROMPT_FILE")" --model "$MODEL" --dangerously-skip-permissions >"$log" 2>&1
   else
-    claude -p "$(cat "$PROMPT_FILE")" --permission-mode acceptEdits >"$log" 2>&1
+    claude -p "$(cat "$PROMPT_FILE")" --model "$MODEL" --permission-mode acceptEdits >"$log" 2>&1
   fi
   status=$?
 

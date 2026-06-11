@@ -22,8 +22,9 @@ on a simulator/device recording; controls cluster morphs out of the focused cove
 re-absorbs; Reduce Motion path still coherent.
 **Extended 2026-06-11:** V04–V09 built + reviewed; the review verdict
 ([V09-motion-review](V09-motion-review.md), ADR-011) added **Phase P1.5 — library visual
-quality** (uniform cards, stack polish, cluster fixes, the missing hero zoom). M1 closes
-when **V26** passes human sign-off.
+quality** (uniform cards, stack polish, cluster fixes, the missing hero zoom).
+**✅ Done 2026-06-11:** P1.5 complete (V22–V25, V27 scrim redesign, V26 re-verify); V26
+closed by user directive with motion-feel scrub carried as review debt to V15/V21.
 
 ## M2 — Real books (V10–V15)
 
