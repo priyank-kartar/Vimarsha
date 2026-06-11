@@ -34,6 +34,9 @@ enum Palette {
     /// slate/sky are decorative only (WCAG — see apple/CLAUDE.md).
     static let textPrimary = Color(light: ink0, dark: paper)
     static let tint = sky
+    /// Narrated-paragraph highlight (V18): butter glow on the ink canvas (dark-mode
+    /// butter = highlights/progress), aqua wash on the butter canvas.
+    static let narrationHighlight = Color(light: aqua.opacity(0.40), dark: butter.opacity(0.13))
 }
 
 extension Color {
