@@ -15,6 +15,40 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V13 — `BackendClient` seam + `POST /toc` ✅
+
+**What:** the network seam exists and import talks to the real backend.
+- `Backend/BackendClient.swift` — the protocol (Sendable; grows one endpoint per V-item,
+  V13 = `fetchToc(epubAt:)`), the `/toc` contract DTOs (`TocResponse`/`BookMetaDTO`/
+  `ChapterSummaryDTO`, camelCase `chapterId`, author defaults `""` — mirrors
+  `backend/src/vimarsha/models.py`), `Multipart` (single-file form-data builder, unique
+  boundary per request — `/toc`/`/import`/`/transcribe` all need it), and
+  `URLSessionBackendClient` (default `http://localhost:8000`; a settings surface mirrors
+  Flutter `AppSettings` later).
+- `LibraryStore.addBook` is now the full Flutter `LibraryRepository.addBook` port:
+  copy → cover → **`/toc`** → persist book + chapter rows (status `.none`) in one save —
+  **all-or-nothing**: backend failure rolls the copied files back, no row, honest
+  `importError`. Backend meta is the authority; OPF `EpubInfo` fills empty fields
+  (last resort: filename).
+- `VimarshaTests/FakeBackendClient.swift` — the sanctioned network double
+  (closure-configured struct; `.returning(...)` / `.failing()` presets).
+
+**Evidence:**
+- Both suites green. 4 `BackendClientTests` (contract decode incl. missing-author,
+  byte-exact multipart body, unique default boundary); `LibraryStoreTests` reworked
+  (+2): toc-driven persist (chapters land, backend title overrides OPF), empty-backend-
+  title → OPF fallback, **toc-failure rollback leaves `Library/Books` empty**.
+- **Live round-trip against the running backend** (spike harness compiling the
+  production `BackendClient.swift`): `sample.epub` → `LIVE TOC OK -> title=Test Book
+  author=Ada Lovelace chapters=["0:The Engine"]` — the URLSession multipart + decode
+  path works against real FastAPI, not just fixtures.
+- Commits `ea0cf2c`, merged `38e0453`. No UI change (no new captures; V12's stand).
+
+**Device-gated / next:** V14 (lazy `/import` chapter download + status UI) then the V15
+[verify] runs the whole picker→cover→toc→narrate loop live on device.
+
+---
+
 ## V12 — SwiftData models + persisted shelf ✅
 
 **What:** the library becomes real data; the seed shelf becomes the empty-state/demo path.

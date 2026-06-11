@@ -221,8 +221,13 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   (seeds = empty state; real cover art renders on the hardback board). 14 new tests +
   art-vs-cloth snapshot; both suites green. Live picker round-trip → V15._
   ↳ [data-model](../04-architecture/data-model.md)
-- **V13** · `BackendClient` seam: protocol + URLSession impl + test double; wire `POST /toc`
+- **V13** ✅ · `BackendClient` seam: protocol + URLSession impl + test double; wire `POST /toc`
   (multipart EPUB upload → book meta + chapters). (needs V12)
+  — _Done 2026-06-11, merged `38e0453`; protocol + `/toc` DTOs (camelCase, mirrors backend
+  models) + `Multipart` builder + `URLSessionBackendClient` (localhost default);
+  `LibraryStore.addBook` = copy → cover → `/toc` → book + chapter rows, all-or-nothing with
+  file rollback (Flutter parity); `FakeBackendClient` = the sanctioned network double.
+  Both suites green + **live `/toc` round-trip verified against the running backend**._
   ↳ [tech-stack §Contract](../04-architecture/tech-stack.md) ·
   [shared/bundle.schema.json](../../shared/bundle.schema.json) ·
   Flutter reference: `app/lib/core/backend/dio_backend_client.dart`
