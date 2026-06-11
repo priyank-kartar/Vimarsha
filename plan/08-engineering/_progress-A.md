@@ -15,6 +15,54 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V27 — Glass top-scrim redesign (contextual visibility) ✅
+
+**What:** the top-scrim no longer reads as a giant empty pill dangling at the top at rest
+(the user finding — both modes, worst on the butter/light canvas; it had been in every
+screenshot since V03 with only spec-compliance audited, never whether it looked right).
+Redesigned to earn its place (glass moment #1 / motion grammar #3):
+- `Library/TopScrim.swift` — pure math (9 tests): scrim opacity is a scroll-driven function
+  of the nearest cover's **top-edge** proximity to the viewport top — a triangular window per
+  card (`enterFraction 0.16` → `peakFraction 0.0` → `exitFraction −0.18`), strongest taken
+  across the stack. **Invisible at rest** (at rest the topmost cover's top edge sits ~0.26vh
+  down, below `enter`), fades in only as a cover approaches/dissolves under the top, fades
+  back out after it passes above. Empty input (Reduce Motion flat list / pre-layout) → 0.
+- View reshape (`LibraryStackView.topScrim(in:)`): from a horizontally-padded floating
+  `Capsule` (h54, ±100 pad) to a **full-width, bottom-rounded band hugging the top safe
+  area** (`UnevenRoundedRectangle` bottom radius 26, h84, `ignoresSafeArea(.top)`), with
+  `.opacity(visibility)`.
+- Tint re-tuned per mode (`scrimTint`): `sky 0.22` dark / `sky 0.13` light. The Reduce
+  Transparency matte fallback (`Palette.surface`) follows the **same** visibility rule.
+
+**Wiring:** opacity reuses the already-published `cardTops` (`CardTopYKey`, per-card viewport
+`minY`); no new measurement. `colorScheme` env added for the per-mode tint. The dissolve
+target (V23 `StackTransform` scrim-dissolve term) is unchanged — covers still dissolve, now
+into a scrim that only shows while they do.
+
+**Evidence:**
+- 9/9 `TopScrimTests` green on macOS + iPhone 17 Pro sim; both full suites `** TEST
+  SUCCEEDED **`. Commit `fbff4f2`, merged `e412a15`.
+- Fresh **rest** captures (iPhone 17 Pro, dark + light) in
+  [`artifacts/V27/`](../../.agent-loop/artifacts/V27/) — `01-rest-dark.png`,
+  `02-rest-light.png`: the empty pill is **gone** in both modes; the top region is clean
+  canvas above "VIMARSHA".
+
+**Visual audit findings (whole frame, both modes — incl. out of scope):**
+- ✅ V27 target met: no top pill at rest, dark + light.
+- Covers read uniform-width (ADR-011) and neatly stacked; front (blue) "DESIGN BY ACCIDENT"
+  dominant low-center — focus metadata/cluster not shown at rest (promotion ~0 at launch),
+  same device-gated state as V26 (not a regression).
+- Minor, pre-existing/out-of-scope: HEY (pink) cover's debossed "HEY" title is low-contrast
+  on the pink cloth. Not touched here.
+
+**Device-gated:** the **appears-during-recede** behavior (scrim fading in/out as a cover
+dissolves under the top) needs a live scroll — no sim gesture injection in the agent loop.
+Folded into the **V26** human re-review, which explicitly lists "verify the V27 scrim
+behavior (invisible at rest, appears only during recede)". The rest-state half (the actual
+user complaint) is machine-verified above.
+
+---
+
 ## V26 — Library quality re-review 🚧 needs human review (motion feel + focused-state scrub)
 
 **What:** the **[verify]** checkpoint that closes Phase P1.5 — re-judge the library after

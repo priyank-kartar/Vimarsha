@@ -12,7 +12,7 @@ glass top-scrim, accessibility fallbacks. (V01–V03)
 **DoD (met):** builds + 7 transform tests green on macOS and the iOS 26.5 simulator; renders
 correct in dark (canonical) + light; merged `0134d10`. Evidence: [_progress-A](_progress-A.md).
 
-## M1 — The living library (V04–V09 + P1.5: V22–V26)
+## M1 — The living library (V04–V09 + P1.5: V22–V27)
 
 Every motion-grammar pattern present and tuned: settle shift, lensing puck, book focus +
 grow-to-front, glass control cluster, slot-emit entrance.

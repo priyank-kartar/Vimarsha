@@ -157,16 +157,18 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   approximation → V26 re-review._
   ↳ [apple/CLAUDE.md §Motion grammar #5](../../apple/CLAUDE.md) ·
   [reference analysis](../../apple/docs/reference/ref-books-video-analysis.md)
-- **V27** · Glass top-scrim redesign — contextual visibility (user finding 2026-06-11):
-  at rest the scrim capsule reads as a **giant empty pill dangling at the top** (both modes,
-  worse on the light/butter canvas) — it has been in every screenshot since V03 and only
-  spec-compliance was audited, never whether it looks right. Make it earn its place:
-  **visible only while covers actually recede under the top region** (opacity a scroll-driven
-  function of nearest-cover proximity to the top — invisible at rest, fades in as a cover
-  approaches/dissolves, fades out after), hug the top safe area (much smaller, not a fat
-  free-floating capsule), re-tune tint per mode. The dissolve target (glass moment #1 /
-  grammar #3) must keep working; the Reduce Transparency matte fallback follows the same
-  visibility rule. Update affected snapshots. ↳ [apple/CLAUDE.md §Glass moments #1](../../apple/CLAUDE.md) ·
+- **V27** ✅ · Glass top-scrim redesign — contextual visibility (user finding 2026-06-11):
+  at rest the scrim capsule read as a **giant empty pill dangling at the top** (both modes,
+  worse on the light/butter canvas). — _Done 2026-06-11, commit `fbff4f2`, merged `e412a15`;
+  `TopScrim` pure math (9 tests): scrim opacity is a scroll-driven function of the nearest
+  cover's top-edge proximity to the viewport top (triangular window, strongest across the
+  stack) — invisible at rest, fades in only while a cover dissolves under the top, out after.
+  Reshaped from a floating padded capsule to a full-width bottom-rounded band hugging the top
+  safe area (`ignoresSafeArea(.top)`); tint re-tuned per mode (sky 0.22 dark / 0.13 light);
+  Reduce Transparency matte follows the same visibility rule. Both suites green + rest
+  captures (dark+light) confirm the empty pill is gone in both modes. **Appears-during-recede
+  is device-gated → verified in the V26 human re-review.**_
+  ↳ [apple/CLAUDE.md §Glass moments #1](../../apple/CLAUDE.md) ·
   [V09-motion-review](V09-motion-review.md)
 - **V26** 🚧 · **[verify]** Library quality re-review: rebuild; capture rest / mid-scroll /
   focused states (dark + light) + a scroll recording if possible; check uniform sizing,
