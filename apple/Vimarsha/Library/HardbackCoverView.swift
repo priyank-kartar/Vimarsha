@@ -17,7 +17,9 @@ struct HardbackCoverView: View {
             foreEdge
             board
         }
-        .aspectRatio(1 / book.aspect, contentMode: .fit)
+        // Uniform card aspect (ADR-011) — every book is the same slab; cover art, not size,
+        // carries variety. `BookSeed.aspect` is no longer used for layout.
+        .aspectRatio(1 / CardGeometry.aspect, contentMode: .fit)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(book.title), \(book.author)")
     }

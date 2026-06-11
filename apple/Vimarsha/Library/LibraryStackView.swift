@@ -28,7 +28,7 @@ struct LibraryStackView: View {
     var body: some View {
         GeometryReader { geo in
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: reduceMotion ? 24 : -geo.size.height * 0.04) {
+                VStack(spacing: reduceMotion ? 24 : -geo.size.height * 0.052) {
                     LibraryHeader(contrast: contrast(in: geo.size))
                         .padding(.top, 64)
                         .padding(.bottom, 72)
@@ -183,7 +183,7 @@ private struct BookTower: View {
             // Static-layout fallback (apple/CLAUDE.md §Accessibility): flat FULL-SIZE list,
             // no per-book rhythm, no transforms.
             HardbackCoverView(book: book)
-                .frame(width: min(size.width - 48, 460))
+                .frame(width: CardGeometry.width(forViewportWidth: size.width))
                 .shadow(color: .black.opacity(0.25), radius: 14, y: 10)
         } else {
             let viewportHeight = size.height
@@ -191,7 +191,9 @@ private struct BookTower: View {
             // its eased `promotion` deepens the contact shadow as it settles onto the slot.
             let promotion = focus.index == index ? focus.promotion : 0
             HardbackCoverView(book: book)
-                .frame(width: min(size.width * widthFactor(at: index), 460))
+                // Uniform card width (ADR-011) — one size for every book; the depth-stack
+                // transform alone supplies the staircase, no per-index width rhythm.
+                .frame(width: CardGeometry.width(forViewportWidth: size.width))
                 .visualEffect { content, proxy in
                     let midY = proxy.frame(in: .scrollView).midY
                     let t = StackTransform.at(midY: midY, viewportHeight: viewportHeight)
@@ -224,11 +226,6 @@ private struct BookTower: View {
                     y: 12 + promotion * 6
                 )
         }
-    }
-
-    /// Slight per-position width variation gives the staircase its hand-stacked rhythm.
-    private func widthFactor(at index: Int) -> CGFloat {
-        0.62 + CGFloat((index + 1) % 4) * 0.05
     }
 }
 
