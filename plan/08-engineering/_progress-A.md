@@ -58,6 +58,36 @@ recede/emit) — rolls into the next live-scroll review.
 
 ---
 
+## V38 — Metadata reveal legibility plate ✅
+
+**What:** `FocusMetadataView` gains a backing plate so the token text never rides bare
+cover art (ui-audit: white-on-pink ≈2:1 both modes; light mode was worse — `textPrimary`
+resolves to ink, i.e. dark text straight on the dark-blue cover). Glass path:
+`.regular.tint(Palette.sky.opacity(0.30))` in a continuous rounded-rect, deliberately
+**not** `.interactive()` (the reveal is decorative, not a control); Reduce Transparency:
+`Palette.surface` matte. Author-line opacity 0.6 → 0.7 for the same reason.
+
+**Wiring:** plate paddings tight (18h/8v) and the affordance VStack spacing 14 → 12 so
+metadata + cluster still fit the medium-type band V37 clamped (the V37 `ViewThatFits`
+guard means an oversized plate would silently drop the metadata — checked the capture to
+confirm it didn't). `BookFocusSnapshotTests` renders the matte-plate path (ImageRenderer
+can't composite live glass — same convention as cluster/puck snapshots).
+
+**Evidence:** both suites green. Rest captures dark + light in
+[`artifacts/V38/`](../../.agent-loop/artifacts/V38/): the plate reads as a cool sky band
+under the serif title in both modes, text legible over the blue cover. Commit `c968968`,
+merged `bd703af`.
+
+**Visual audit findings (whole-frame):** plate at rest sits at partial reveal opacity
+(~0.45) — legible but soft; full settle strengthens it. Ghost pill (V39) + grey XXXL pill
+(V40) + double-title (V41) unchanged, as scoped. Bottom-edge author-line clipping nit
+persists.
+
+**Device-gated:** glass refraction strength of the plate over busy real cover art — next
+live review.
+
+---
+
 ## V21 — [verify] Eyes-free run ✅ (machine half; human review deferred to final)
 
 **What:** the P3-closing verify gate, run as far as a machine can take it. A standalone

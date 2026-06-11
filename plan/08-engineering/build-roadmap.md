@@ -333,10 +333,14 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   medium+XXXL × dark+light in `.agent-loop/artifacts/V37/` show the collision gone._
   ↳ [ui-audit-log](ui-audit-log.md) ·
   `.agent-loop/artifacts/ui-audit-20260611-1731/crop-xxxl-dark-cluster.png`
-- **V38** · Metadata reveal legibility: bare white text over arbitrary cover colors
+- **V38** ✅ · Metadata reveal legibility: bare white text over arbitrary cover colors
   (white-on-pink ≈2:1, WCAG fail both modes). Fix direction: back the reveal with a
   sky-tinted glass plate (matte token fallback under Reduce Transparency) or switch to the
-  per-mode text token — never raw white over uncontrolled art.
+  per-mode text token — never raw white over uncontrolled art. — _Done 2026-06-11, merged
+  `bd703af`; sky-glass plate (0.30, non-interactive rounded-rect) behind the token text,
+  `Palette.surface` matte under Reduce Transparency; paddings tightened so the V37 band
+  still holds metadata + cluster at medium. Suites green + dark/light captures in
+  `.agent-loop/artifacts/V38/`._
   ↳ [ui-audit-log](ui-audit-log.md) ·
   `.agent-loop/artifacts/ui-audit-20260611-1731/crop-light-mid.png`
 - **V39** · Ghost control-cluster residue at rest: a ~20 px icon-pill ghost floats
