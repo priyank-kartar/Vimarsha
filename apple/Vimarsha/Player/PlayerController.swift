@@ -102,8 +102,9 @@ final class PlayerController {
         ticker = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: Self.tickInterval)
-                guard !Task.isCancelled else { return }
-                self?.tick()
+                // Exit (don't just no-op) once the controller is gone or cancelled.
+                guard let self, !Task.isCancelled else { return }
+                self.tick()
             }
         }
     }
