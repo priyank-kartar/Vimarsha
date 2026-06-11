@@ -58,4 +58,23 @@ struct CardVisualTopTests {
         // Exactly the scale-boosted height about the fixed bottom edge.
         #expect(abs((rest - promoted) - cardHeight * BookFocus.scaleBoost) < 0.001)
     }
+
+    @Test("rendered scale mirrors the card's full transform chain (V45)")
+    func scaleMirrorsTransformChain() {
+        // On the slot, both transforms are identity — only the promotion bump scales.
+        let slotMidY = vh * StackTransform.frontSlot
+        #expect(abs(CardVisualTop.scale(midY: slotMidY, viewportHeight: vh) - 1) < 0.001)
+        #expect(abs(
+            CardVisualTop.scale(midY: slotMidY, viewportHeight: vh, promotion: 1)
+                - (1 + BookFocus.scaleBoost)
+        ) < 0.001)
+        // Receding above the slot shrinks; emitting below the slot is sub-identity too.
+        #expect(CardVisualTop.scale(midY: vh * 0.4, viewportHeight: vh) < 1)
+        #expect(CardVisualTop.scale(midY: vh * 0.95, viewportHeight: vh) < 1)
+    }
+
+    @Test("degenerate viewport scale is identity")
+    func degenerateViewportScale() {
+        #expect(CardVisualTop.scale(midY: 400, viewportHeight: 0) == 1)
+    }
 }

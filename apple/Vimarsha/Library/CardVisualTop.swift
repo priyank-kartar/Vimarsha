@@ -23,7 +23,16 @@ enum CardVisualTop {
         let emit = SlotEmit.at(midY: layoutFrame.midY, viewportHeight: viewportHeight)
         // Mirrors the card's visualEffect chain: one composed scale about the bottom edge
         // (the bottom stays put), then the recede tuck + emit sink translate the whole card.
-        let scale = t.scale * emit.scale * (1 + promotion * BookFocus.scaleBoost)
+        let scale = scale(midY: layoutFrame.midY, viewportHeight: viewportHeight, promotion: promotion)
         return layoutFrame.maxY + t.yOffset + emit.yOffset - layoutFrame.height * scale
+    }
+
+    /// The card's composed rendered scale — the same chain `at(layoutFrame:…)` folds into
+    /// the top edge, exposed for viewport→cover-local mapping (V45's deboss dodge).
+    static func scale(midY: CGFloat, viewportHeight: CGFloat, promotion: CGFloat = 0) -> CGFloat {
+        guard viewportHeight > 0 else { return 1 }
+        let t = StackTransform.at(midY: midY, viewportHeight: viewportHeight)
+        let emit = SlotEmit.at(midY: midY, viewportHeight: viewportHeight)
+        return t.scale * emit.scale * (1 + promotion * BookFocus.scaleBoost)
     }
 }

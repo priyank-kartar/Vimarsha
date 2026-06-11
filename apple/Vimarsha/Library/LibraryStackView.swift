@@ -52,6 +52,15 @@ struct LibraryStackView: View {
     /// reports via `FocusMetadataVisibleKey`; defaults to false (deboss stays) until it does.
     @State private var metadataRevealShown = false
 
+    /// The control cluster's rendered frame in GLOBAL coordinates (V45) — measured, not
+    /// recomputed, so `@ScaledMetric` sizes, `ViewThatFits` branching and overlay insets
+    /// can't drift it. `nil` while the cluster renders nothing (below its visibility floor).
+    @State private var clusterGlobalFrame: CGRect?
+
+    /// The scroll viewport's global top edge (V45) — calibrates the cluster's global frame
+    /// into the same viewport space the card preferences (`cardVisualTops`) report in.
+    @State private var scrollOriginGlobalY: CGFloat = 0
+
     /// EPUB import (V10). The system document picker is OS-driven chrome (like the
     /// keyboard) — exempt from the morph rule, and the only way the sandbox grants access
     /// to a user-chosen file. The picked EPUB lands in the container and persists via
@@ -116,6 +125,7 @@ struct LibraryStackView: View {
                     BookTower(
                         shelf: shelf, size: geo.size, reduceMotion: reduceMotion, focus: focus,
                         metadataRevealShown: metadataRevealShown,
+                        debossDodge: debossDodge(in: geo.size),
                         morphNamespace: coverMorph, openedBookId: reading?.shelfBook.id
                     )
                         .scaleEffect(
@@ -128,6 +138,12 @@ struct LibraryStackView: View {
             }
             .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, y in
                 distanceToRest = max(0, y)
+            }
+            // The viewport's global origin (V45): the cluster measures itself in .global
+            // (the one space an overlay and the scroll content share); subtracting this maps
+            // it into the viewport coordinates the card preferences use.
+            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY } action: {
+                scrollOriginGlobalY = $0
             }
             // Scroll-settle detection (motion grammar #2): each card publishes its viewport
             // midY; the nearest to the front slot owns focus. Suppressed under Reduce Motion.
@@ -150,6 +166,7 @@ struct LibraryStackView: View {
             // cover keeps its printed title. Sits ABOVE the affordance overlay so the
             // preference actually reaches it.
             .onPreferenceChange(FocusMetadataVisibleKey.self) { metadataRevealShown = $0 }
+            .onPreferenceChange(ClusterFrameKey.self) { clusterGlobalFrame = $0 }
             .overlay(alignment: .topTrailing) { addBookButton }
             .overlay { chapterListPlane }
             .overlay { readingSurface }
@@ -281,6 +298,35 @@ struct LibraryStackView: View {
                     withAnimation(chapterPlaneAnimation) { chapterBook = book }
                 }
             }
+        )
+        // Publish the cluster's rendered frame (V45): below the visibility floor the view
+        // renders nothing, so the preference vanishes with it and the dodge follows.
+        .background {
+            GeometryReader { proxy in
+                Color.clear.preference(key: ClusterFrameKey.self, value: proxy.frame(in: .global))
+            }
+        }
+    }
+
+    /// Where the cluster's glass actually covers the focused cover, in cover-local
+    /// coordinates (V45): the deboss mask dodges exactly that band, so controls never render
+    /// over glyphs while the printed label (V42) survives above/below them.
+    private func debossDodge(in size: CGSize) -> DebossDodge.Band? {
+        guard !reduceMotion, focus.index >= 0,
+              let clusterFrame = clusterGlobalFrame,
+              let coverTop = cardVisualTops[focus.index],
+              let layoutTop = cardTops[focus.index]
+        else { return nil }
+        let cardWidth = CardGeometry.width(forViewportWidth: size.width)
+        let midY = layoutTop + cardWidth * CardGeometry.aspect / 2
+        return DebossDodge.band(
+            clusterTop: clusterFrame.minY - scrollOriginGlobalY,
+            clusterBottom: clusterFrame.maxY - scrollOriginGlobalY,
+            clusterOpacity: ControlCluster.at(promotion: focus.promotion).opacity,
+            coverVisualTop: coverTop,
+            coverScale: CardVisualTop.scale(
+                midY: midY, viewportHeight: size.height, promotion: focus.promotion
+            )
         )
     }
 
@@ -566,6 +612,9 @@ private struct BookTower: View {
     /// Whether the metadata reveal is actually rendered (V42): when the affordance band
     /// yields it (XXXL), the focused cover's deboss title stays — it IS the label.
     let metadataRevealShown: Bool
+    /// The cover-local band the glass cluster covers on the FOCUSED card (V45) — its deboss
+    /// lines fade locally under the glass so controls never render over glyphs.
+    let debossDodge: DebossDodge.Band?
     /// Cover-morph shared element (V17): the card whose book is open hands its geometry to
     /// the reading surface's cover plate and hides while open.
     let morphNamespace: Namespace.ID
@@ -602,7 +651,8 @@ private struct BookTower: View {
                 book: book,
                 titleOpacity: BookFocus.debossTitleOpacity(
                     promotion: promotion, metadataVisible: metadataRevealShown
-                )
+                ),
+                debossDodge: focus.index == index ? debossDodge : nil
             )
                 .animation(.easeInOut(duration: 0.2), value: metadataRevealShown)
                 // Uniform card width (ADR-011) — one size for every book; the depth-stack
@@ -699,6 +749,16 @@ private struct FocusMetadataVisibleKey: PreferenceKey {
     static let defaultValue = false
     static func reduce(value: inout Bool, nextValue: () -> Bool) {
         value = value || nextValue()
+    }
+}
+
+/// The control cluster's rendered frame in global coordinates (V45). Published only while
+/// the cluster actually renders (it is absent below its visibility floor), so the deboss
+/// dodge appears and vanishes with the glass itself.
+private struct ClusterFrameKey: PreferenceKey {
+    static let defaultValue: CGRect? = nil
+    static func reduce(value: inout CGRect?, nextValue: () -> CGRect?) {
+        value = nextValue() ?? value
     }
 }
 

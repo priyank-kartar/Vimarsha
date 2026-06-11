@@ -10,6 +10,10 @@ struct HardbackCoverView: View {
     /// fades it toward 0 as its metadata reveal rises, so the title never reads twice in one
     /// eyeline (the cover's debossed title + the serif metadata reveal below it).
     var titleOpacity: CGFloat = 1
+    /// The cover-local band the glass control cluster covers (V45, ui-audit round 3) — the
+    /// deboss lines under the glass fade out locally (soft feather), so controls never render
+    /// over glyphs while the rest of the printed label stays (V42: the deboss IS the label).
+    var debossDodge: DebossDodge.Band?
 
     @ScaledMetric(relativeTo: .title2) private var titleSize: CGFloat = 30
     @ScaledMetric(relativeTo: .caption2) private var authorSize: CGFloat = 10
@@ -33,8 +37,31 @@ struct HardbackCoverView: View {
             .fill(book.cloth)
             .overlay(coverArt)
             .overlay(clothSheen)
-            .overlay(titleBlock)
+            .overlay(dodgedTitleBlock)
             .padding(.bottom, 7)
+    }
+
+    /// The deboss block, locally faded where the glass control cluster covers it (V45). The
+    /// mask spans the whole board face so the dodge band reads in cover-local coordinates;
+    /// outside the feathered band the print is untouched.
+    @ViewBuilder
+    private var dodgedTitleBlock: some View {
+        if let band = debossDodge {
+            titleBlock
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .mask {
+                    GeometryReader { proxy in
+                        LinearGradient(
+                            stops: DebossDodge.maskStops(band: band, coverHeight: proxy.size.height)
+                                .map { Gradient.Stop(color: .white.opacity($0.alpha), location: $0.location) },
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    }
+                }
+        } else {
+            titleBlock
+        }
     }
 
     /// Real cover art (V11/V12) over the board — matte paper, clipped to the board shape;
