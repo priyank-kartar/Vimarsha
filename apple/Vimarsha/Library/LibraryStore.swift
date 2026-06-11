@@ -225,6 +225,12 @@ final class LibraryStore {
         )
     }
 
+    /// Hold-to-talk for the Discuss panel (V34) — records through the shared mic seam,
+    /// transcribes through the backend seam; pause-on-audio-conflict rides the player.
+    func makeVoiceInput(recorder: any RecorderEngine, player: PlayerController) -> VoiceInput {
+        VoiceInput(recorder: recorder, backend: backend, player: player)
+    }
+
     /// Persist one conversation as a NEW thread (V32; save-on-demand — each Save
     /// inserts, never updates). Empty conversations are refused (spec §6: Save needs
     /// at least one exchange; the UI disables earlier, this is the backstop).

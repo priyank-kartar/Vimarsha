@@ -10,6 +10,9 @@ struct DiscussPanelView: View {
     /// The live conversation (V32) — owned by the surface's opener, not the panel,
     /// so the thread survives the panel closing and reopening.
     let chat: ChatStore
+    /// Hold-to-talk (V34) — the secondary input affordance; nil (previews/snapshots/
+    /// no recorder) hides the mic. Pause-on-audio-conflict lives in the controller.
+    var voice: VoiceInput?
     var reduceTransparency: Bool = false
     var onClose: () -> Void = {}
 
@@ -32,8 +35,15 @@ struct DiscussPanelView: View {
         .background(plane)
         .clipShape(UnevenRoundedRectangle(topLeadingRadius: 28, topTrailingRadius: 28))
         // Keyboard-default input (spec §4): the field is focused the moment the
-        // plane arrives.
-        .onAppear { inputFocused = true }
+        // plane arrives. The spoken question drops into the field for review/send —
+        // never auto-sent (the user may have been misheard).
+        .onAppear {
+            inputFocused = true
+            voice?.onTranscript = { text in
+                draft = draft.isEmpty ? text : draft + " " + text
+                inputFocused = true
+            }
+        }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Discuss this passage")
     }
@@ -96,7 +106,38 @@ struct DiscussPanelView: View {
     }
 
     private var inputRow: some View {
-        HStack(spacing: 10) {
+        VStack(spacing: 6) {
+            voiceCaption
+            HStack(spacing: 10) {
+                if let voice {
+                    HoldToTalkButton(
+                        isRecording: voice.phase == .recording,
+                        reduceTransparency: reduceTransparency,
+                        onHoldChanged: { holding in
+                            if holding {
+                                Task { await voice.beginHold() }
+                            } else {
+                                voice.endHold()
+                            }
+                        }
+                    )
+                }
+                inputField
+                sendButton
+            }
+        }
+    }
+
+    /// The field is the default; while the mic is open (or its transcript is being
+    /// fetched) its slot shows the honest listening/transcribing state instead.
+    @ViewBuilder
+    private var inputField: some View {
+        switch voice?.phase {
+        case .recording:
+            listeningIndicator
+        case .transcribing:
+            interimRow(text: "Transcribing…")
+        default:
             TextField("Ask about this passage…", text: $draft, axis: .vertical)
                 .textFieldStyle(.plain)
                 .lineLimit(1...4)
@@ -110,22 +151,80 @@ struct DiscussPanelView: View {
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
                         .fill(Palette.canvas.opacity(reduceTransparency ? 1 : 0.55))
                 )
-            Button(action: sendDraft) {
-                Image(systemName: "arrow.up")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(canSend ? Palette.ink0 : Palette.textPrimary.opacity(0.4))
-                    .frame(width: 38, height: 38)
-                    .background(
-                        Circle().fill(
-                            canSend ? Palette.aqua.opacity(0.92) : Palette.textPrimary.opacity(0.08)
-                        )
-                    )
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .disabled(!canSend)
-            .accessibilityLabel("Send")
         }
+    }
+
+    /// Live aqua mic state (recording = live, so aqua): level-driven glyph + clock.
+    private var listeningIndicator: some View {
+        interimRow(
+            text: "Listening… \(Transport.timeString(ms: voice?.elapsedMs ?? 0))",
+            icon: "waveform",
+            iconOpacity: 0.45 + 0.55 * (voice?.level ?? 0)
+        )
+        .accessibilityLabel("Listening")
+    }
+
+    private func interimRow(
+        text: String, icon: String? = nil, iconOpacity: CGFloat = 1
+    ) -> some View {
+        HStack(spacing: 8) {
+            if let icon {
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Palette.aqua.opacity(iconOpacity))
+            }
+            Text(text)
+                .font(.system(size: 15).italic().monospacedDigit())
+                .foregroundStyle(Palette.textPrimary.opacity(0.7))
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Palette.canvas.opacity(reduceTransparency ? 1 : 0.55))
+        )
+    }
+
+    /// Honest mic guidance under the input (spec §6: transcription failure falls back
+    /// to the text field; the panel state is never lost).
+    @ViewBuilder
+    private var voiceCaption: some View {
+        switch voice?.phase {
+        case .failed:
+            caption("Couldn't transcribe — type your question instead.")
+        case .denied:
+            caption("Microphone access needed — enable it in Settings.")
+        default:
+            EmptyView()
+        }
+    }
+
+    private func caption(_ text: String) -> some View {
+        Text(text)
+            .font(.caption2)
+            .foregroundStyle(Palette.textPrimary.opacity(0.65))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .transition(.opacity)
+    }
+
+    private var sendButton: some View {
+        Button(action: sendDraft) {
+            Image(systemName: "arrow.up")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(canSend ? Palette.ink0 : Palette.textPrimary.opacity(0.4))
+                .frame(width: 38, height: 38)
+                .background(
+                    Circle().fill(
+                        canSend ? Palette.aqua.opacity(0.92) : Palette.textPrimary.opacity(0.08)
+                    )
+                )
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!canSend)
+        .accessibilityLabel("Send")
     }
 
     private var canSend: Bool {
@@ -137,6 +236,51 @@ struct DiscussPanelView: View {
         let text = draft
         draft = ""
         Task { await chat.send(text) }
+    }
+}
+
+/// The panel's hold-to-talk mic (V34): the MemoRecordControl gesture pattern — a short
+/// long-press arms it, the open-ended press holds it until the finger lifts. Aqua while
+/// live, sky otherwise; VoiceOver gets a start/stop toggle (gesture-only rule).
+private struct HoldToTalkButton: View {
+    let isRecording: Bool
+    var reduceTransparency: Bool = false
+    var onHoldChanged: (Bool) -> Void = { _ in }
+
+    @GestureState private var holding = false
+
+    private var tint: Color { isRecording ? Palette.aqua : Palette.sky }
+
+    var body: some View {
+        Image(systemName: "mic.fill")
+            .font(.system(size: 14, weight: .medium))
+            .foregroundStyle(Palette.textPrimary)
+            .frame(width: 38, height: 38)
+            .background {
+                if reduceTransparency {
+                    Circle().fill(Palette.surface)
+                        .overlay(Circle().strokeBorder(tint.opacity(0.6), lineWidth: 1))
+                } else {
+                    Color.clear.glassEffect(
+                        .regular.tint(tint.opacity(isRecording ? 0.5 : 0.3)).interactive(),
+                        in: .circle
+                    )
+                }
+            }
+            .contentShape(Circle())
+            .gesture(
+                LongPressGesture(minimumDuration: 0.25)
+                    .sequenced(before: LongPressGesture(minimumDuration: .infinity))
+                    .updating($holding) { value, state, _ in
+                        if case .second = value { state = true }
+                    }
+            )
+            .onChange(of: holding) { _, isHolding in onHoldChanged(isHolding) }
+            .accessibilityLabel("Voice question")
+            .accessibilityHint("Hold to talk")
+            .accessibilityAction(named: isRecording ? "Stop and transcribe" : "Start voice question") {
+                onHoldChanged(!isRecording)
+            }
     }
 }
 
