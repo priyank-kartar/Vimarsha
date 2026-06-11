@@ -59,7 +59,14 @@ one surface; Ollama-backed live test passes.
 **Memos half (P4) ✅ done 2026-06-11 (machine; feel-review deferred to final):** V28–V31
 merged; the V31 live harness drove fixture-memo → verbatim Whisper transcript → Notes →
 exact open-at-pin seek through the production store/player — 22/22 PASS
-([final-review-checklist](final-review-checklist.md) §V31). Discuss half (P5, V32–V36) open.
+([final-review-checklist](final-review-checklist.md) §V31).
+**Discuss half (P5) ✅ done 2026-06-11 (machine; feel-review deferred to final):** V32–V36
+merged; the V36 live harness drove the production Discuss tree against live Ollama
+(llama3.2:3b) + Chatterbox — grounded `/chat` about the actual narrated passage,
+open/send never pauses narration, spoken `/speak` reply pauses at speech start and
+resumes-if-was-playing (stays paused when it wasn't), save → exact-lines reopen → delete —
+28/28 PASS ([final-review-checklist](final-review-checklist.md) §V36). **M4 complete
+(machine).**
 
 ## M5 — Hosted backend alpha (bucket P7)
 

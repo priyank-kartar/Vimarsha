@@ -578,9 +578,23 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   engine rather than literally "the shared audio engine" — the established MemoNotes
   pattern, same audible outcome with the chapter's resume position preserved._
   ↳ [sound-design §audio-priority ladder](../03-design/sound-design.md)
-- **V36** · **[verify]** Discuss end-to-end vs live Ollama + backend: grounded answer about
+- **V36** ✅ · **[verify]** Discuss end-to-end vs live Ollama + backend: grounded answer about
   the actual passage, spoken reply pauses/resumes narration, saved thread reopens; suites +
   captures; conversational *feel* → deferred checklist. (needs V34, V35)
+  — _Machine half done 2026-06-11, **human review deferred to final**
+  ([checklist](final-review-checklist.md) §V36). Live harness over the ENTIRE production
+  tree vs live Ollama (llama3.2:3b) + real Chatterbox: `/toc`→`/import` (50s) → real
+  player; deterministic grounding probe (passage centers on the narrated ¶, figure caption
+  in-span); `/chat` reply **about the actual passage**
+  (engine/stroke/crankshaft/rotation/motion matched) with narration NEVER pausing for open
+  or send; production `ReplySpeaker` `/speak`: pause at speech start, chapter MP3 retained,
+  **resume-if-was-playing** + stays-paused-when-it-wasn't; save → exact-lines reopen →
+  delete — **28/28 PASS** ([harness-run.log](../../.agent-loop/artifacts/V36/harness-run.log)).
+  First run honestly FAILed resume because the 24s fixture chapter ended during the long
+  `/speak` render (the rule was RIGHT); the harness now keep-alives narration to model a
+  real minutes-long chapter. No app code changed; suites green on `main`; rest-regression
+  captures (dark+light) in [`artifacts/V36/`](../../.agent-loop/artifacts/V36/).
+  **P5 complete — M4 complete (machine).**_
 
 ---
 

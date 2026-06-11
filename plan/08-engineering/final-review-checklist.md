@@ -75,3 +75,31 @@ judge, artifact refs. Never delete completed history; tick instead. -->
   judge that the morph-back + scroll position read as "taken to the right place".
 - [ ] **VoiceOver sweep over memo flows (V28/V30):** record control, Notes rows
   (play/open-at-pin/retry/delete actions), honest pending/error labels.
+
+### V36 — Discuss end-to-end (P5; appended 2026-06-11)
+
+- [ ] **Double-tap entry + panel feel (V33):** in a ready chapter, double-tap the record
+  control → the Discuss panel must morph up WITHIN the canvas (never read as a sheet),
+  keyboard up by default, and narration must keep playing underneath. Judge the morph and
+  that the transport hand-off back on close feels continuous. Ref: `artifacts/V33/`.
+- [ ] **Grounded conversation feel:** with Ollama + backend up, ask about the passage
+  being narrated — judge response latency honesty ("Thinking…"), whether the answer reads
+  *grounded in that passage* (machine proof: reply matched
+  engine/stroke/crankshaft/rotation/motion — `artifacts/V36/harness-run.log`), and ask a
+  follow-up a minute later to feel the per-send re-grounding follow playback.
+- [ ] **Hold-to-talk by mouth (V34):** hold the talk button and speak — narration pauses
+  while the mic is open, resumes at release while transcription continues, transcript
+  appends to the draft (never auto-sends); judge the Listening…/Transcribing… states and
+  the <400ms discard. Needs a real mic — machine-untestable.
+- [ ] **Spoken reply by ear (V35):** tap a reply's speaker — narration pauses exactly when
+  the voice starts (not during the fetch wait), the reply speaks in the narrator's
+  Chatterbox voice, narration resumes where it left off after (machine-proven:
+  pause/resume/stays-paused all PASS — `artifacts/V36/harness-run.log`); judge the wait
+  honesty on the speaker chip (a real /speak render is ~10–60s on MPS).
+- [ ] **Save → Conversations morph:** Save a thread, reopen it from Conversations
+  (read-only), delete it — judge the list ⇄ thread ⇄ panel morphs as faces of ONE plane
+  (never pushes). Machine-proven: exact lines/title/anchor round-trip
+  (`artifacts/V36/harness-run.log`).
+- [ ] **VoiceOver sweep over Discuss (V33–V35):** double-tap alternative action on the
+  record control, input/send labels, hold-to-talk action, speaker chips, Save/Conversations
+  navigation, honest Thinking…/error/retry announcements.

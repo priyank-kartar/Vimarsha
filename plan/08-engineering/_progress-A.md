@@ -15,6 +15,53 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V36 — [verify] Discuss end-to-end vs live Ollama + backend ✅ (machine half; human review deferred to final)
+
+**What:** the P5-closing verify gate, run as far as a machine can take it. A standalone
+harness ([`artifacts/V36/harness/main.swift`](../../.agent-loop/artifacts/V36/harness/main.swift),
+the V31 precedent — compiles the entire production tree minus the app entry) drove the
+real Discuss pipeline against the LIVE local backend (real Chatterbox) and LIVE Ollama
+(llama3.2:3b) — **28/28 PASS**
+([harness-run.log](../../.agent-loop/artifacts/V36/harness-run.log)):
+1. **Production import flow live:** `store.addBook(sample.epub)` → `/toc`;
+   `store.downloadChapter` → `/import` (real Chatterbox, 50s warm); real
+   `PlayerController`/`AVFoundationAudioEngine` loads the 24.5s chapter.
+2. **Grounding (deterministic, no LLM):** `ChatContextSnapshot.make` over the live
+   bundle/timing — the passage centers on the narrated paragraph (seek-probed) and the
+   active figure's caption ("Figure 1. The four-stroke cycle.") rides the snapshot
+   inside its span.
+3. **Live `/chat` (Ollama) through the production ChatStore, while narrating:** reply
+   about the actual passage (matched engine/stroke/crankshaft/rotation/motion);
+   **narration never paused** — not on open (recordAnchor), not across the send
+   (spec §4 open-without-pausing); suggestedTitle = the opening question.
+4. **Live `/speak` through the production ReplySpeaker:** narration pauses exactly when
+   the spoken reply starts (not during the fetch — V34's waiting-is-no-conflict),
+   chapter MP3 stays loaded beneath, stop → **narration resumes** (it was playing);
+   a second reply spoken from a paused state leaves narration paused after
+   (resume-IF-was-playing, both halves).
+5. **Save-on-demand:** `saveChatThread` → the thread reopens via
+   `chatThreads(for:chapterIndex:)` with the EXACT lines in order, the question as
+   title, the anchor block id; `deleteChatThread` removes it.
+
+**Honest-failure note:** run 1 FAILed "narration resumes" — correctly: the 24s fixture
+chapter ENDED during the ~minute-long live `/speak` render (narration keeps playing while
+fetching, by design), so `wasPlaying` was rightly false. The harness now keep-alives
+narration (atomic MainActor loop) to model a real minutes-long chapter; run 2 caught a
+harness zombie-loop bug (cancelled `Task.sleep` swallowed by `try?`); run 3 = ALL PASS.
+**No app code changed by this item.**
+
+**Evidence:** harness + log + rest-regression captures (dark+light, looked at: stack
+clean, single titles, legible band, no bleed lines, no ghost cluster) in
+[`artifacts/V36/`](../../.agent-loop/artifacts/V36/). Suites green on `main`
+(`4e41c69` tree — V47's run; no app code changed since).
+
+**Device-gated / deferred (→ [final-review-checklist](final-review-checklist.md) §V36):**
+double-tap entry + panel morph feel, grounded-conversation feel + follow-up re-grounding,
+hold-to-talk with a real mic, spoken-reply pause/resume by ear + wait honesty,
+Save/Conversations morph, VoiceOver sweep. **P5 complete — M4 complete (machine).**
+
+---
+
 ## V47 — Neighbor bleed-through: emit opacity saturates mid-rise (ui-audit round 3) ✅
 
 **What:** the audit filed "the pink card's fore-edge strip runs through the blue card's
