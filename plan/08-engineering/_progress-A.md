@@ -15,6 +15,48 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V42 — XXXL focused card keeps its label (deboss ↔ metadata-yield coupling) ✅
+
+**What:** ui-audit round 2's composition defect: V37's metadata-yield (`ViewThatFits`
+drops the title band when the focused cover's visible band only fits the cluster) and
+V41's deboss-fade (printed title → 0 with promotion) composed into a **completely
+unlabeled focused card at XXXL** — empty pink slab + anonymous icon pill, while the
+unfocused neighbor's full-strength deboss read as the focus label.
+`BookFocus.debossTitleOpacity(promotion:metadataVisible:)` now takes the actual
+metadata visibility: **when the metadata reveal isn't rendered, the deboss title stays
+at 1 — it IS the label** (3 new tests incl. the exact XXXL audit state; the V41 suite
+re-pinned with `metadataVisible: true`).
+
+**Wiring:** the affordance `ViewThatFits`'s metadata branch carries
+`.preference(FocusMetadataVisibleKey, true)` — only the *rendered* branch emits, so a
+yielded band resolves to the default `false`. `LibraryStackView` reads it (above the
+overlay in the modifier chain, where the preference actually arrives) into
+`metadataRevealShown` → `BookTower` → the focused card's `titleOpacity`. The branch
+flip is discrete, so the deboss opacity change rides a 0.2s ease (no hard cut).
+
+**Evidence:** both suites green both destinations. Captures in
+[`artifacts/V42/`](../../.agent-loop/artifacts/V42/), all four looked at:
+`01-xxxl-dark.png`/`02-xxxl-light.png` — the focused pink card shows its debossed
+"HEY / DESIGN & ILLUSTRATION" under the cluster pill, exactly one title; medium
+regression `03/04` — V41 single-title behavior intact (metadata band shows, deboss
+faded). Commit `88ca107`, merged `3bd998b`.
+
+**Visual audit findings (whole frame, beyond scope):**
+- XXXL both modes: the cluster pill **occludes the deboss subtitle line** ("DESIGN &"
+  sits behind the glass pill) — label readable but the overlap is scruffy; candidate
+  fix is nudging the cluster anchor below the deboss block at accessibility sizes (nit,
+  filing here only).
+- XXXL both modes: the blue cover's "OF DESIGN" still clips the bottom edge — that is
+  **V44**, confirmed still live in these captures.
+- Medium both modes: metadata band on the blue cover visibly low-contrast — **V43**,
+  confirmed still live.
+- Bottom shelf cover still clips its lines at the screen edge (known round-1/2 nit).
+
+**Device-gated:** the 0.2s deboss ease on a live band-height flip (scroll through the
+yield threshold at XXXL) — motion feel, queued for the deferred final review.
+
+---
+
 ## V30 — Notes state: voice memos as a morphed list of the reading surface ✅
 
 **What:** `Player/MemoNotes.swift` (@Observable, 6 tests) — the Notes state's controller:

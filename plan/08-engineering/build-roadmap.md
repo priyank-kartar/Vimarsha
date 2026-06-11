@@ -385,13 +385,17 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
 > [ui-audit-log](ui-audit-log.md) §Round 2. Round-1 fixes (V37–V41) verified holding at
 > medium rest; these are new/composed defects, all visible at launch rest.
 
-- **V42** · Focused book unlabeled at XXXL rest (V37×V41 composition): the metadata-yield
+- **V42** ✅ · Focused book unlabeled at XXXL rest (V37×V41 composition): the metadata-yield
   drops the title band while the deboss-fade blanks the cover's printed title — the focused
   card is an empty slab with an anonymous icon pill, and the unfocused neighbor's
   full-strength deboss below reads as the focus label. Fix direction: when `ViewThatFits`
   yields the metadata (cluster-only branch), keep the focused cover's deboss title visible —
   couple `BookFocus.debossTitleOpacity` to *metadata visibility*, not promotion alone; verify
-  XXXL × dark+light shows exactly one title on the focused cover.
+  XXXL × dark+light shows exactly one title on the focused cover. — _Done 2026-06-11, merged
+  `3bd998b`; `debossTitleOpacity(promotion:metadataVisible:)` returns 1 when the metadata
+  reveal isn't rendered (the deboss IS the label); the rendered `ViewThatFits` branch reports
+  via `FocusMetadataVisibleKey` (only the installed branch emits). +3 tests; XXXL+medium ×
+  dark+light captures in `.agent-loop/artifacts/V42/` — one title per state, V41 intact._
   ↳ [ui-audit-log](ui-audit-log.md) §Round 2 ·
   `.agent-loop/artifacts/ui-audit-20260611-1849/crop-xxxl-dark-affordances.png`
 - **V43** · Metadata-reveal contrast fails on mid-luminance covers (measured, medium rest,
