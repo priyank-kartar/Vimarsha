@@ -11,7 +11,7 @@ import SwiftUI
 @MainActor
 struct SlotEmitSnapshotTests {
     private func render(_ emit: SlotEmit) -> CGImage? {
-        let view = HardbackCoverView(book: BookSeed.shelf[3])
+        let view = HardbackCoverView(book: ShelfBook.seeds[3])
             .frame(width: 220)
             .scaleEffect(emit.scale, anchor: .bottom)
             .opacity(emit.opacity)

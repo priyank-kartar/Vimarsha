@@ -14,7 +14,7 @@ struct LensingPuckSnapshotTests {
     private func render(_ puck: LensingPuck) -> CGImage? {
         let view = ZStack {
             Palette.canvas
-            HardbackCoverView(book: BookSeed.shelf[3])
+            HardbackCoverView(book: ShelfBook.seeds[3])
                 .frame(width: 220)
             // Opaque fallback so the drop actually rasterizes headless.
             LensingPuckView(puck: puck, reduceTransparency: true)

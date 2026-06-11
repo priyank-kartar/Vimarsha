@@ -11,7 +11,7 @@ import SwiftUI
 @MainActor
 struct BookFocusSnapshotTests {
     private func render(_ reveal: CGFloat) -> CGImage? {
-        let view = FocusMetadataView(book: BookSeed.shelf[3], reveal: reveal)
+        let view = FocusMetadataView(book: ShelfBook.seeds[3], reveal: reveal)
             .frame(width: 393, height: 90)
             .background(Palette.canvas)
             .environment(\.colorScheme, .dark)

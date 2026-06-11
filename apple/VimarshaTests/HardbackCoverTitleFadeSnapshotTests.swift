@@ -11,7 +11,7 @@ import SwiftUI
 @MainActor
 struct HardbackCoverTitleFadeSnapshotTests {
     private func render(titleOpacity: CGFloat) -> CGImage? {
-        let view = HardbackCoverView(book: BookSeed.shelf[3], titleOpacity: titleOpacity)
+        let view = HardbackCoverView(book: ShelfBook.seeds[3], titleOpacity: titleOpacity)
             .frame(width: 275)
             .padding(24)
             .background(Palette.canvas)

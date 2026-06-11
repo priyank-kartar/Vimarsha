@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import SwiftUI
 
 /// The library's store (app-architecture.md layering: view → store → seams): owns the
 /// persisted `Book` rows and the import flow (V10 copy → V11 cover → V12 row). UI-facing
@@ -11,6 +12,9 @@ final class LibraryStore {
 
     /// All books, oldest-first (the shelf reads bottom-up like the reference stack).
     private(set) var books: [Book] = []
+    /// Pre-downsampled cover art per book (decoded off-main at load, never during
+    /// scroll — apple/CLAUDE.md §Performance budget).
+    private(set) var covers: [UUID: Image] = [:]
     /// Honest error posture: the last failed import, surfaced as a status line on the
     /// surface (not an alert); cleared on the next attempt.
     var importError: String?
@@ -21,9 +25,33 @@ final class LibraryStore {
         load()
     }
 
+    /// What the shelf shows: persisted books when any exist; the static seeds as the
+    /// empty-state/demo path (V12 — the seed shelf stops being the only library).
+    var shelf: [ShelfBook] {
+        books.isEmpty
+            ? ShelfBook.seeds
+            : books.map { ShelfBook(book: $0, cover: covers[$0.id]) }
+    }
+
     func load() {
         let descriptor = FetchDescriptor<Book>(sortBy: [SortDescriptor(\.addedAt)])
         books = (try? context.fetch(descriptor)) ?? []
+        loadMissingCovers()
+    }
+
+    /// Decode (downsampled) any cover art not yet cached, off the main actor; each
+    /// finished decode updates `covers` and re-renders the shelf.
+    private func loadMissingCovers() {
+        for book in books where covers[book.id] == nil {
+            guard let coverPath = book.coverPath else { continue }
+            let url = importer.containerRoot.appending(path: coverPath)
+            let id = book.id
+            Task { [weak self] in
+                guard let image = await Task.detached(operation: { CoverArt.shelfImage(at: url) }).value
+                else { return }
+                self?.covers[id] = image
+            }
+        }
     }
 
     /// Import a picked EPUB: container copy + cover extraction off-main, then persist the

@@ -42,7 +42,7 @@ struct LensingPuckView: View {
 #Preview("Lensing puck — over a cover (dark)") {
     ZStack {
         Palette.canvas.ignoresSafeArea()
-        HardbackCoverView(book: BookSeed.shelf[3])
+        HardbackCoverView(book: ShelfBook.seeds[3])
             .frame(width: 320)
         LensingPuckView(
             puck: LensingPuck.at(location: CGPoint(x: 200, y: 300), dragSpeed: 240, in: CGSize(width: 393, height: 600))
