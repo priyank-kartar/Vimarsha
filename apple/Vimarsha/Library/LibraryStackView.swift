@@ -207,6 +207,9 @@ private struct BookTower: View {
                             anchor: .bottom
                         )
                         .opacity(t.opacity * emit.opacity)
+                        // Recede desaturation (motion grammar #1): recessed covers lose a
+                        // little chroma; the front cover is full-chroma.
+                        .saturation(t.saturation)
                         .offset(y: t.yOffset + emit.yOffset)
                 }
                 // Publish this card's viewport midY for front-slot detection.
