@@ -15,6 +15,49 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V41 — Deboss title fade keyed to affordance visibility (no double title) ✅
+
+**What:** the last ui-audit round-1 item. The V24 deboss fade was linear `1 - promotion`,
+so at launch rest (promotion ≈ 0.5) the focused cover's printed title sat at half strength
+while the metadata reveal (opacity == promotion) repeated the same strings — a double
+title; at XXXL the control cluster sat directly on the un-faded deboss. New
+`BookFocus.debossTitleOpacity(promotion:)` (pure, smoothstep 1 → 0 over promotion
+0…`titleFadeOutPromotion 0.4`): the printed title is fully GONE before the cluster's
+effective visibility promotion (≈ 0.53, where `ControlCluster.at(promotion:).isVisible`
+first turns on) and while the metadata reveal is still faint — so no state ever shows two
+titles or a pill on printed type. Scrubbable, gentle at both ends (slope ~0 at 0 and at
+the fade-out point).
+
+**Wiring:** one call site — `BookTower.card` passes
+`titleOpacity: BookFocus.debossTitleOpacity(promotion:)` instead of `1 - promotion`
+(`LibraryStackView.swift`). `HardbackCoverView` unchanged (still takes `titleOpacity`;
+real cover art keeps its own art-title rule). +5 tests in `BookFocusTests.swift`
+(`DebossTitleFadeTests`): full at 0/clamped negative, gone at fade-out + the launch-rest
+0.5 regression + 1, monotone across the band, the cluster-overlap invariant (∀ promotion
+where the cluster is visible, deboss == 0 — sweeps the exact XXXL audit state), eased
+near rest.
+
+**Evidence:** both suites green (macOS + iPhone 17 Pro sim). Rest captures medium + XXXL
+× dark + light in [`artifacts/V41/`](../../.agent-loop/artifacts/V41/): at medium the
+focused blue cover shows ONLY the metadata reveal (deboss gone, both modes); at XXXL the
+cluster sits on a blank pink cover (the audit's "pill over un-faded HEY" is gone, both
+modes). Commits `bd6d939`, merged `9c4bf6f`.
+
+**Visual audit findings (whole frame, beyond this item's scope):**
+- XXXL rest, both modes: the cluster renders **half-melded** (four overlapping circle
+  outlines visible inside the capsule) — a designed mid-morph state, but at *rest* it
+  reads unresolved/dangling. Candidate: snap emerge toward 1 once visible at rest, or
+  raise the visibility floor. File for the next audit round.
+- XXXL dark: the unfocused blue card's deboss line "OF DESIGN" tucks under the next
+  cover's seam (clipped text-on-seam). Pre-existing layout-vs-overlap nit.
+- Bottom shelf card still clips "A SENSE OF PLACE" author line mid-glyph at the screen
+  edge — the known round-1 nit (no meniscus treatment yet), unchanged.
+
+**Device-gated:** the live crossfade feel (deboss out / metadata in while scrolling onto
+the slot) — folds into the deferred final review like the rest of the P-FIX motion states.
+
+---
+
 ## V37 — [blocker] Metadata reveal clamped inside the focused cover ✅
 
 **What:** the ui-audit round-1 blocker (metadata reveal straddling the cover seam,

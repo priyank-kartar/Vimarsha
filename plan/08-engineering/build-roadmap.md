@@ -365,11 +365,16 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   modes, in `.agent-loop/artifacts/V40/`; suites green._
   ↳ [ui-audit-log](ui-audit-log.md) ·
   `.agent-loop/artifacts/ui-audit-20260611-1731/crop-xxxl-light-cluster.png`
-- **V41** · Title-fade not engaged at rest (double title): the focused cover's debossed
+- **V41** ✅ · Title-fade not engaged at rest (double title): the focused cover's debossed
   title/subtitle stay full strength while the metadata reveal repeats the same strings
   ~150 px away — and at XXXL the cluster sits over the un-faded debossed title. Fix
   direction: drive the V24 deboss-fade from "any focus affordance visible" (metadata OR
-  cluster), not solely from promotion progress.
+  cluster), not solely from promotion progress. — _Done 2026-06-11, merged `9c4bf6f`;
+  `BookFocus.debossTitleOpacity` (smoothstep 1→0 over promotion 0…0.4, +5 tests incl. the
+  cluster-overlap invariant): the printed title is fully gone before the cluster's
+  visibility promotion (≈0.53) and while the metadata reveal is still faint. Both suites
+  green; medium+XXXL × dark+light rest captures in `.agent-loop/artifacts/V41/` show one
+  title at medium and a blank cover under the XXXL cluster. **P-FIX round 1 complete.**_
   ↳ [ui-audit-log](ui-audit-log.md) ·
   `.agent-loop/artifacts/ui-audit-20260611-1731/crop-dark-mid.png`
 
