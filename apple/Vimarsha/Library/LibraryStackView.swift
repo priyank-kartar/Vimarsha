@@ -208,8 +208,12 @@ struct LibraryStackView: View {
                 viewportHeight: size.height
             )
             ViewThatFits(in: .vertical) {
-                VStack(spacing: 14) {
-                    FocusMetadataView(book: shelf[focus.index], reveal: focus.promotion)
+                VStack(spacing: 12) {
+                    FocusMetadataView(
+                        book: shelf[focus.index],
+                        reveal: focus.promotion,
+                        reduceTransparency: reduceTransparency
+                    )
                     controlCluster
                 }
                 controlCluster
@@ -592,18 +596,24 @@ private struct CardVisualTopKey: PreferenceKey {
 }
 
 /// Focused-book metadata reveal (motion grammar #2): the settling book's title + author fade
-/// up in the editorial serif on the matte canvas (content is paper, never glass). `reveal` is
-/// the eased focus emphasis (0 = hidden, 1 = fully settled). Parameterized so it renders
-/// identically from the live scroll state and from snapshot tests.
+/// up in the editorial serif. The reveal floats over *arbitrary* cover art, so the text rides
+/// a sky-tinted glass plate (V38 — bare `textPrimary` over an uncontrolled cover failed WCAG
+/// both modes; the plate is the overlay carrier, the text stays the per-mode token). Reduce
+/// Transparency swaps the glass for the token-tinted matte. `reveal` is the eased focus
+/// emphasis (0 = hidden, 1 = fully settled). Parameterized so it renders identically from
+/// the live scroll state and from snapshot tests.
 struct FocusMetadataView: View {
     let book: ShelfBook
     let reveal: CGFloat
+    var reduceTransparency: Bool = false
 
     @ScaledMetric(relativeTo: .title3) private var titleSize: CGFloat = 22
     @ScaledMetric(relativeTo: .caption2) private var authorSize: CGFloat = 10
 
+    private let plateShape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+
     var body: some View {
-        VStack(spacing: 5) {
+        VStack(spacing: 4) {
             Text(book.title)
                 .font(.system(size: titleSize, weight: .regular, design: .serif))
                 .tracking(1)
@@ -611,11 +621,23 @@ struct FocusMetadataView: View {
             Text(book.author.uppercased())
                 .font(.system(size: authorSize, weight: .medium))
                 .tracking(2.5)
-                .foregroundStyle(Palette.textPrimary.opacity(0.6))
+                .foregroundStyle(Palette.textPrimary.opacity(0.7))
         }
         .multilineTextAlignment(.center)
         .lineLimit(1)
         .minimumScaleFactor(0.6)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 8)
+        .background {
+            if reduceTransparency {
+                // Opaque fallback (apple/CLAUDE.md §Accessibility): token-tinted matte plate.
+                plateShape.fill(Palette.surface)
+            } else {
+                // Sky glass (interactive-tint family) so the token text reads on ANY cover
+                // beneath; deliberately not `.interactive()` — the reveal is not a control.
+                Color.clear.glassEffect(.regular.tint(Palette.sky.opacity(0.30)), in: plateShape)
+            }
+        }
         .padding(.horizontal, 32)
         .opacity(reveal)
         // The cover already carries an accessibility label; this reveal is decorative.
