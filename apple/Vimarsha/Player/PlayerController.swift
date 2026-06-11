@@ -109,6 +109,13 @@ final class PlayerController {
         seek(toMs: positionMs + delta)
     }
 
+    /// Tap-a-paragraph-to-seek (V19): jump to a block's narration start. Untimed blocks
+    /// (figures, un-narrated headings) are not seek targets — no-op.
+    func seekToBlock(_ id: String) {
+        guard let startMs = timing?.startMs(forBlock: id) else { return }
+        seek(toMs: startMs)
+    }
+
     func setRate(_ newRate: Double) {
         engine.setRate(newRate)
         rate = newRate
