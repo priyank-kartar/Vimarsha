@@ -321,11 +321,16 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
 > [ui-audit-log](ui-audit-log.md) §Round 1. Fix these **before P4** — they are all
 > launch-rest-state defects visible in any App Store screenshot.
 
-- **V37** · **[blocker]** Metadata reveal collides with the neighbor cover: at launch rest
+- **V37** ✅ · **[blocker]** Metadata reveal collides with the neighbor cover: at launch rest
   the focused book's white serif title + letterspaced subtitle straddle the cover seam and
   render text-on-text over the card above (at XXXL "Hey" sits directly on "DAVID CROW").
   Fix direction: anchor the reveal strictly inside the focused cover's own bounds (or a
   dedicated plate below it) with a hard clip — verify at medium AND XXXL, both modes.
+  — _Done 2026-06-11, merged `aeb943b`; two root causes: the anchor used LAYOUT tops while
+  covers draw transformed (`CardVisualTop` pure math, 5 tests, published per card), and the
+  stack had no height bound (`FocusAffordancePlacement.maxHeight` +5 tests +
+  `ViewThatFits` metadata-yields + `.clipped()` backstop). Both suites green; rest captures
+  medium+XXXL × dark+light in `.agent-loop/artifacts/V37/` show the collision gone._
   ↳ [ui-audit-log](ui-audit-log.md) ·
   `.agent-loop/artifacts/ui-audit-20260611-1731/crop-xxxl-dark-cluster.png`
 - **V38** · Metadata reveal legibility: bare white text over arbitrary cover colors

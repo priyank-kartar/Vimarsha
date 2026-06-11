@@ -15,6 +15,49 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V37 — [blocker] Metadata reveal clamped inside the focused cover ✅
+
+**What:** the ui-audit round-1 blocker (metadata reveal straddling the cover seam,
+text-on-text over the neighbor cover). Root causes found and fixed:
+1. **Layout-vs-rendered drift:** the V24 affordance anchor used LAYOUT card tops
+   (`GeometryReader`), but covers draw under `visualEffect` transforms (StackTransform
+   recede + SlotEmit rise + promotion bump, bottom-anchored scale then y-offset) — at rest
+   the sink/shrink of below-slot cards made the anchor overshoot by ~30pt. New
+   `Library/CardVisualTop.swift` (pure, 5 tests) recomputes the rendered top from the same
+   math the card draws with; `BookTower` publishes it as `CardVisualTopKey` and the
+   affordances anchor against the seams the user actually sees.
+2. **No height bound:** the affordance VStack was bottom-anchored but grew upward without
+   limit — at XXXL the metadata crossed the seam onto the cover above.
+   `FocusAffordancePlacement.maxHeight` (+5 tests, `insetBelowTop 8`) bounds the stack
+   inside the focused cover's own visible band; `ViewThatFits(.vertical)` drops the
+   metadata (cluster wins — it's the affordance) when both can't fit; `.clipped()` is the
+   hard backstop. VStack spacing 18 → 14 so metadata + cluster fit the medium-type band.
+
+**Wiring:** the V27 top scrim deliberately keeps consuming LAYOUT tops (`CardTopYKey`) —
+its visibility was tuned against those in V27; switching it to rendered tops is a separate
+re-tune if ever wanted. Hero-settle scale (V25) is outside the per-card math: at rest it's
+1.0 (captures unaffected); mid-scroll the anchor can drift ≤6% — invisible in practice
+since affordances fade out while scrolling.
+
+**Evidence:** both suites green (macOS + iPhone 17 Pro sim). Rest captures medium + XXXL ×
+dark + light in [`artifacts/V37/`](../../.agent-loop/artifacts/V37/): the collision is gone
+in all four frames — medium shows metadata fully inside the blue cover; XXXL shows
+cluster-only inside the pink cover (metadata correctly yielded). Commits `7cc3797` (math) +
+`1b606f0` (wiring), merged `aeb943b`.
+
+**Visual audit findings (whole-frame, beyond this item):**
+- Ghost cluster pill still floats mid-cover at medium rest (V39, this batch).
+- Double title at medium rest: the reveal overlays the un-faded debossed title (V41).
+- Light mode: metadata `textPrimary` resolves to ink — dark text on the dark-blue focused
+  cover, poor contrast (V38's plate will carry it).
+- XXXL cluster pill reads grey/pink, untinted (V40).
+- Bottom shelf cover still clips its author line at the screen edge (known nit, unfiled).
+
+**Device-gated:** mid-scroll affordance tracking feel (anchor follows rendered seams during
+recede/emit) — rolls into the next live-scroll review.
+
+---
+
 ## V21 — [verify] Eyes-free run ✅ (machine half; human review deferred to final)
 
 **What:** the P3-closing verify gate, run as far as a machine can take it. A standalone
