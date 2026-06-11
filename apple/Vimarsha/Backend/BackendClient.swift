@@ -58,7 +58,17 @@ nonisolated enum BackendError: Error {
 /// comes later, mirroring the Flutter `AppSettings`).
 nonisolated struct URLSessionBackendClient: BackendClient {
     var baseURL = URL(string: "http://localhost:8000")!
-    var session = URLSession.shared
+    var session = URLSessionBackendClient.narrationSession
+
+    /// `URLSession.shared`'s 60s idle timeout kills any real `/import` — Chatterbox
+    /// narration is MINUTES of server silence before the bundle arrives (MPS is ~7–8×
+    /// slower than realtime; the V21 live harness caught the timeout). Allow a long
+    /// quiet wait; the 7-day resource ceiling stays at its default.
+    static let narrationSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 30 * 60
+        return URLSession(configuration: config)
+    }()
 
     func fetchToc(epubAt url: URL) async throws -> TocResponse {
         try JSONDecoder().decode(
