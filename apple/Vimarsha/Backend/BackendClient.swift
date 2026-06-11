@@ -19,6 +19,12 @@ protocol BackendClient: Sendable {
     /// `POST /transcribe` — multipart audio upload → Whisper transcript (V29). The
     /// backend decodes any ffmpeg-readable container (our memos are AAC m4a).
     func transcribe(audioAt url: URL) async throws -> String
+    /// `POST /chat` — the running conversation + a passage-context snapshot → one
+    /// grounded LLM reply (V32; Ollama behind the backend's `LlmClient` seam).
+    func chat(messages: [ChatMessageDTO], context: ChatContextDTO) async throws -> String
+    /// `POST /speak` — arbitrary text → Chatterbox MP3 bytes (V32; the read-the-reply-
+    /// aloud path — same voice as narration, one narrator persona).
+    func speak(text: String) async throws -> Data
 }
 
 // MARK: - /toc contract (mirrors backend/src/vimarsha/models.py; camelCase, no remapping)
@@ -53,6 +59,47 @@ nonisolated struct ChapterSummaryDTO: Codable, Equatable, Sendable {
 // MARK: - /transcribe contract (V29)
 
 nonisolated struct TranscribeResponse: Codable, Equatable, Sendable {
+    let text: String
+}
+
+// MARK: - /chat + /speak contract (V32; mirrors backend ChatRequest/SpeakRequest)
+
+/// One conversation turn. `role` stays a raw string (`user` | `assistant`) — the wire
+/// value, exactly what the backend forwards to the LLM.
+nonisolated struct ChatMessageDTO: Codable, Equatable, Sendable {
+    let role: String
+    let text: String
+
+    static func user(_ text: String) -> ChatMessageDTO { .init(role: "user", text: text) }
+    static func assistant(_ text: String) -> ChatMessageDTO { .init(role: "assistant", text: text) }
+}
+
+/// The passage being narrated when a message is sent — the grounding snapshot
+/// (conversation-ai.md: the model answers *from the passage*, not as a general chatbot).
+nonisolated struct ChatContextDTO: Codable, Equatable, Sendable {
+    let passage: String
+    var figureCaption: String?
+    let bookTitle: String
+    let chapterTitle: String
+
+    init(passage: String, figureCaption: String? = nil, bookTitle: String, chapterTitle: String) {
+        self.passage = passage
+        self.figureCaption = figureCaption
+        self.bookTitle = bookTitle
+        self.chapterTitle = chapterTitle
+    }
+}
+
+nonisolated struct ChatRequestBody: Codable, Equatable, Sendable {
+    let messages: [ChatMessageDTO]
+    let context: ChatContextDTO
+}
+
+nonisolated struct ChatReplyResponse: Codable, Equatable, Sendable {
+    let reply: String
+}
+
+nonisolated struct SpeakRequestBody: Codable, Equatable, Sendable {
     let text: String
 }
 
@@ -113,6 +160,34 @@ nonisolated struct URLSessionBackendClient: BackendClient {
         let (data, response) = try await session.data(for: request)
         try Self.validate(response)
         return try JSONDecoder().decode(TranscribeResponse.self, from: data).text
+    }
+
+    func chat(messages: [ChatMessageDTO], context: ChatContextDTO) async throws -> String {
+        let request = try Self.jsonRequest(
+            url: baseURL.appending(path: "chat"),
+            body: ChatRequestBody(messages: messages, context: context)
+        )
+        let (data, response) = try await session.data(for: request)
+        try Self.validate(response)
+        return try JSONDecoder().decode(ChatReplyResponse.self, from: data).reply
+    }
+
+    func speak(text: String) async throws -> Data {
+        let request = try Self.jsonRequest(
+            url: baseURL.appending(path: "speak"), body: SpeakRequestBody(text: text)
+        )
+        let (data, response) = try await session.data(for: request)
+        try Self.validate(response)
+        return data
+    }
+
+    /// JSON-body POST (the `/chat` + `/speak` shape; uploads use `Multipart`).
+    static func jsonRequest(url: URL, body: some Encodable) throws -> URLRequest {
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(body)
+        return request
     }
 
     /// `chapter_index` rides as a query parameter (the FastAPI signature), not form data.

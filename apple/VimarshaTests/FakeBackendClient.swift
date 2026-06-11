@@ -12,8 +12,21 @@ nonisolated struct FakeBackendClient: BackendClient {
     var onDownloadAudio: @Sendable (String) async throws -> Data = Self.unconfiguredDownload
     var onDownloadImage: @Sendable (String) async throws -> Data = Self.unconfiguredDownload
     var onTranscribe: @Sendable (URL) async throws -> String = Self.unconfiguredTranscribe
+    var onChat: @Sendable ([ChatMessageDTO], ChatContextDTO) async throws -> String
+        = Self.unconfiguredChat
+    var onSpeak: @Sendable (String) async throws -> Data = Self.unconfiguredSpeak
 
     private static func unconfiguredImport(_: URL, _: Int) async throws -> ChapterBundleDTO {
+        throw URLError(.unsupportedURL)
+    }
+
+    private static func unconfiguredChat(
+        _: [ChatMessageDTO], _: ChatContextDTO
+    ) async throws -> String {
+        throw URLError(.unsupportedURL)
+    }
+
+    private static func unconfiguredSpeak(_: String) async throws -> Data {
         throw URLError(.unsupportedURL)
     }
 
@@ -43,6 +56,14 @@ nonisolated struct FakeBackendClient: BackendClient {
 
     func transcribe(audioAt url: URL) async throws -> String {
         try await onTranscribe(url)
+    }
+
+    func chat(messages: [ChatMessageDTO], context: ChatContextDTO) async throws -> String {
+        try await onChat(messages, context)
+    }
+
+    func speak(text: String) async throws -> Data {
+        try await onSpeak(text)
     }
 }
 

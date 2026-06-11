@@ -205,6 +205,65 @@ final class LibraryStore {
         )
     }
 
+    /// A live Discuss conversation for one open chapter (V32) — in-memory until saved.
+    /// Grounding is snapshotted from the player at EACH send (the passage being narrated
+    /// then); the anchor records where Discuss was opened.
+    func makeChatStore(player: PlayerController) -> ChatStore {
+        let bookTitle = player.chapter?.book?.title ?? ""
+        let chapterTitle = player.chapter?.title ?? ""
+        return ChatStore(
+            backend: backend,
+            anchorBlockId: player.currentBlockId,
+            contextSnapshot: { [weak player] in
+                ChatContextSnapshot.make(
+                    bundle: player?.bundle,
+                    timing: player?.timing,
+                    positionMs: player?.positionMs ?? 0,
+                    bookTitle: bookTitle,
+                    chapterTitle: chapterTitle
+                )
+            }
+        )
+    }
+
+    /// Persist one conversation as a NEW thread (V32; save-on-demand — each Save
+    /// inserts, never updates). Empty conversations are refused (spec §6: Save needs
+    /// at least one exchange; the UI disables earlier, this is the backstop).
+    @discardableResult
+    func saveChatThread(
+        book: Book,
+        chapterIndex: Int,
+        anchorBlockId: String?,
+        title: String?,
+        messages: [ChatMessageDTO]
+    ) -> ChatThread? {
+        guard !messages.isEmpty else { return nil }
+        let thread = ChatThread(
+            chapterIndex: chapterIndex, anchorBlockId: anchorBlockId, title: title
+        )
+        thread.book = book
+        context.insert(thread)
+        thread.lines = messages.enumerated().map { index, message in
+            ChatLine(role: message.role, text: message.text, index: index)
+        }
+        try? context.save()
+        return thread
+    }
+
+    /// One chapter's saved conversations, newest first (the Conversations state's list).
+    func chatThreads(for book: Book, chapterIndex: Int) -> [ChatThread] {
+        book.chatThreads
+            .filter { $0.chapterIndex == chapterIndex }
+            .sorted { $0.createdAt > $1.createdAt }
+    }
+
+    /// Remove one saved conversation (lines cascade; the confirm lives in the UI —
+    /// threads are user content, data-model.md §Rules).
+    func deleteChatThread(_ thread: ChatThread) {
+        context.delete(thread)
+        try? context.save()
+    }
+
     /// Transcribe one memo's audio through the seam (V29): `pending → ready/error`,
     /// mirroring the chapter-status pattern. Also the retry path — error (or stranded
     /// pending) rows re-submit; `ready` rows and in-flight jobs are refused. Recording

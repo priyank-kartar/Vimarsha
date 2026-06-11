@@ -14,7 +14,9 @@ struct VimarshaApp: App {
     @State private var recorder = AVAudioRecorderEngine()
 
     init() {
-        if let container = try? ModelContainer(for: Book.self, Chapter.self, Memo.self) {
+        if let container = try? ModelContainer(
+            for: Book.self, Chapter.self, Memo.self, ChatThread.self, ChatLine.self
+        ) {
             _store = State(initialValue: LibraryStore(context: container.mainContext))
         }
     }

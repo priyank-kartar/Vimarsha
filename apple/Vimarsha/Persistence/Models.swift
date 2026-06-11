@@ -18,6 +18,8 @@ final class Book {
     var lastOpenedAt: Date?
     @Relationship(deleteRule: .cascade, inverse: \Chapter.book)
     var chapters: [Chapter] = []
+    @Relationship(deleteRule: .cascade, inverse: \ChatThread.book)
+    var chatThreads: [ChatThread] = []
 
     init(
         id: UUID = UUID(),
@@ -118,6 +120,61 @@ final class Memo {
         self.positionMs = positionMs
         self.audioPath = audioPath
         self.statusRaw = MemoStatus.pending.rawValue
+        self.createdAt = createdAt
+    }
+}
+
+/// A saved Discuss conversation (V32; data-model.md "Later" slice, mirroring the Flutter
+/// `ChatThreads` lineage). Threads exist ONLY by explicit Save — each Save inserts a new
+/// thread (multiple per chapter allowed); a conversation never saved never lands here.
+@Model
+final class ChatThread {
+    @Attribute(.unique) var id: UUID
+    var book: Book?
+    /// The backend `chapter_index` the conversation belongs to. A plain Int (not a
+    /// `Chapter` relationship) — threads are user content and outlive chapter cache
+    /// resets, like the Flutter `(bookId, chapterIndex)` key.
+    var chapterIndex: Int
+    /// The block being narrated when Discuss was opened — for reference; grounding
+    /// itself was snapshotted per send and lives in the lines.
+    var anchorBlockId: String?
+    var title: String?
+    var createdAt: Date
+    @Relationship(deleteRule: .cascade, inverse: \ChatLine.thread)
+    var lines: [ChatLine] = []
+
+    init(
+        id: UUID = UUID(),
+        chapterIndex: Int,
+        anchorBlockId: String? = nil,
+        title: String? = nil,
+        createdAt: Date = .now
+    ) {
+        self.id = id
+        self.chapterIndex = chapterIndex
+        self.anchorBlockId = anchorBlockId
+        self.title = title
+        self.createdAt = createdAt
+    }
+}
+
+/// One saved conversation turn. `index` is the turn's position in the thread —
+/// explicit ordering (createdAt alone can tie inside one Save's transaction).
+@Model
+final class ChatLine {
+    @Attribute(.unique) var id: UUID
+    var thread: ChatThread?
+    /// `user` | `assistant` — the wire role, stored raw.
+    var role: String
+    var text: String
+    var index: Int
+    var createdAt: Date
+
+    init(id: UUID = UUID(), role: String, text: String, index: Int, createdAt: Date = .now) {
+        self.id = id
+        self.role = role
+        self.text = text
+        self.index = index
         self.createdAt = createdAt
     }
 }
