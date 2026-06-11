@@ -95,45 +95,77 @@ struct LibraryStoreTests {
 
     // MARK: store
 
-    @Test func addBookImportsExtractsAndPersists() async throws {
+    private func makeStore(
+        root: URL, backend: FakeBackendClient = .returning()
+    ) throws -> LibraryStore {
+        LibraryStore(
+            context: try makeContext(),
+            importer: EpubImporter(containerRoot: root),
+            backend: backend
+        )
+    }
+
+    @Test func addBookImportsFetchesTocAndPersists() async throws {
         let root = try makeRoot()
         defer { try? FileManager.default.removeItem(at: root) }
-        let store = LibraryStore(
-            context: try makeContext(),
-            importer: EpubImporter(containerRoot: root)
-        )
+        let store = try makeStore(root: root)
         await store.addBook(from: try makePickedEpub(in: root))
 
         #expect(store.importError == nil)
         let book = try #require(store.books.first)
-        #expect(book.title == "A Sense of Place")
-        #expect(book.author == "David Thulstrup")
+        // The backend's meta is the authority (V13) — it overrides the OPF values.
+        #expect(book.title == "Backend Title")
+        #expect(book.author == "Backend Author")
         #expect(book.coverPath?.hasSuffix("cover.png") == true)
+        // Chapter rows from /toc, fresh lifecycle state.
+        #expect(book.chapters.count == 2)
+        let chapter = try #require(book.chapters.first(where: { $0.index == 1 }))
+        #expect(chapter.title == "Chapter Two")
+        #expect(chapter.status == .none)
         // The files actually landed where the rows point.
         #expect(FileManager.default.fileExists(atPath: root.appending(path: book.epubPath).path))
         #expect(FileManager.default.fileExists(atPath: root.appending(path: book.coverPath!).path))
     }
 
+    @Test func emptyBackendTitleFallsBackToOpfMetadata() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = try makeStore(root: root, backend: .returning(title: "", author: ""))
+        await store.addBook(from: try makePickedEpub(in: root))
+
+        let book = try #require(store.books.first)
+        #expect(book.title == "A Sense of Place")   // dc:title via EpubInfo
+        #expect(book.author == "David Thulstrup")   // dc:creator via EpubInfo
+    }
+
     @Test func addBookFailureSurfacesAndPersistsNothing() async throws {
         let root = try makeRoot()
         defer { try? FileManager.default.removeItem(at: root) }
-        let store = LibraryStore(
-            context: try makeContext(),
-            importer: EpubImporter(containerRoot: root)
-        )
+        let store = try makeStore(root: root)
         await store.addBook(from: root.appending(path: "missing.epub"))
 
         #expect(store.books.isEmpty)
         #expect(store.importError != nil)
     }
 
+    @Test func tocFailureRollsBackTheCopiedFiles() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = try makeStore(root: root, backend: .failing())
+        await store.addBook(from: try makePickedEpub(in: root))
+
+        // No half-state (Flutter parity): no row, no error-book, and no orphan files.
+        #expect(store.books.isEmpty)
+        #expect(store.importError != nil)
+        let booksDir = root.appending(path: "Library/Books")
+        let leftovers = (try? FileManager.default.contentsOfDirectory(atPath: booksDir.path)) ?? []
+        #expect(leftovers.isEmpty)
+    }
+
     @Test func deleteBookRemovesRowAndContainerSubtree() async throws {
         let root = try makeRoot()
         defer { try? FileManager.default.removeItem(at: root) }
-        let store = LibraryStore(
-            context: try makeContext(),
-            importer: EpubImporter(containerRoot: root)
-        )
+        let store = try makeStore(root: root)
         await store.addBook(from: try makePickedEpub(in: root))
         let book = try #require(store.books.first)
         let bookDir = root.appending(path: book.epubPath).deletingLastPathComponent()
