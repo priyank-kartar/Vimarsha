@@ -181,6 +181,15 @@ final class LibraryStore {
         PlayerController(engine: engine, context: context, containerRoot: importer.containerRoot)
     }
 
+    /// Hold-to-record memos for one open chapter (V28) — same context/container as the
+    /// library; the recorder is the app-lifetime mic owner (the audio-engine rule).
+    func makeMemoCapture(recorder: any RecorderEngine, player: PlayerController) -> MemoCapture {
+        MemoCapture(
+            recorder: recorder, player: player,
+            context: context, containerRoot: importer.containerRoot
+        )
+    }
+
     /// Remove the book row (cascades to chapters) and its container subtree
     /// (data-model.md §Rules — deletion); in-flight chapter downloads are cancelled.
     func deleteBook(_ book: Book) {

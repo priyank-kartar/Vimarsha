@@ -10,16 +10,18 @@ struct VimarshaApp: App {
     /// The ONE app-lifetime audio device owner (V16; apple/CLAUDE.md §Seams).
     /// Player controllers borrow it and pause it — nothing else may create one.
     @State private var audioEngine = AVFoundationAudioEngine()
+    /// The ONE app-lifetime mic owner (V28) — the record half of the same seam.
+    @State private var recorder = AVAudioRecorderEngine()
 
     init() {
-        if let container = try? ModelContainer(for: Book.self, Chapter.self) {
+        if let container = try? ModelContainer(for: Book.self, Chapter.self, Memo.self) {
             _store = State(initialValue: LibraryStore(context: container.mainContext))
         }
     }
 
     var body: some Scene {
         WindowGroup {
-            LibraryStackView(store: store, audioEngine: audioEngine)
+            LibraryStackView(store: store, audioEngine: audioEngine, recorder: recorder)
         }
         #if os(macOS)
         .defaultSize(width: 480, height: 920)
