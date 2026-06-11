@@ -58,6 +58,8 @@ final class Chapter {
     /// Resume position + scrubber length.
     var progressMs: Int
     var durationMs: Int?
+    @Relationship(deleteRule: .cascade, inverse: \Memo.chapter)
+    var memos: [Memo] = []
 
     var status: ChapterStatus {
         get { ChapterStatus(rawValue: statusRaw) ?? .none }
@@ -70,5 +72,52 @@ final class Chapter {
         self.title = title
         self.statusRaw = ChapterStatus.none.rawValue
         self.progressMs = 0
+    }
+}
+
+/// Memo transcription lifecycle (V28/V29): `pending` (recorded, transcript not yet
+/// fetched) → `ready` / `error` (retryable) — the chapter-status pattern, minus `none`
+/// (a memo exists only once recorded).
+enum MemoStatus: String, Codable, Sendable {
+    case pending, ready, error
+}
+
+/// A voice note pinned to the paragraph being narrated when it was recorded (P4;
+/// data-model.md "Later" slice). The audio lives in the book's container subtree so
+/// deleting the book removes it with everything else.
+@Model
+final class Memo {
+    @Attribute(.unique) var id: UUID
+    var chapter: Chapter?
+    /// Reading-order index of the pinned block in the chapter bundle's `blocks`.
+    var paragraphIndex: Int
+    /// The narration playhead at recording start — open-at-pin's precise seek target.
+    var positionMs: Int
+    /// `Library/Books/<bookId>/memos/<id>.m4a`
+    var audioPath: String
+    var transcript: String?
+    /// Raw storage for `status` — a plain string column migrates painlessly.
+    private var statusRaw: String
+    var errorReason: String?
+    var createdAt: Date
+
+    var status: MemoStatus {
+        get { MemoStatus(rawValue: statusRaw) ?? .pending }
+        set { statusRaw = newValue.rawValue }
+    }
+
+    init(
+        id: UUID = UUID(),
+        paragraphIndex: Int,
+        positionMs: Int,
+        audioPath: String,
+        createdAt: Date = .now
+    ) {
+        self.id = id
+        self.paragraphIndex = paragraphIndex
+        self.positionMs = positionMs
+        self.audioPath = audioPath
+        self.statusRaw = MemoStatus.pending.rawValue
+        self.createdAt = createdAt
     }
 }

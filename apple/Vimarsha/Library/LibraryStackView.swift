@@ -14,6 +14,9 @@ struct LibraryStackView: View {
     /// The app-lifetime audio device owner (V16) — handed to each chapter's player.
     /// `nil` (previews/snapshots) opens the reading shell without playback.
     var audioEngine: (any AudioEngine)?
+    /// The app-lifetime mic owner (V28) — handed to each open chapter's memo capture.
+    /// `nil` (previews/snapshots) hides the mic control.
+    var recorder: (any RecorderEngine)?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -61,6 +64,10 @@ struct LibraryStackView: View {
     /// The opened chapter's player (V18): created at open, paused + released at close —
     /// the shared engine itself lives on in `VimarshaApp`.
     @State private var player: PlayerController?
+
+    /// The opened chapter's hold-to-record memos (V28): created with the player,
+    /// cancelled + released at close — the shared recorder lives on in `VimarshaApp`.
+    @State private var memoCapture: MemoCapture?
 
     /// The cover-morph shared-element namespace (tower card ↔ reading cover plate).
     @Namespace private var coverMorph
@@ -307,6 +314,9 @@ struct LibraryStackView: View {
             let candidate = store.makePlayer(engine: audioEngine)
             guard (try? candidate.load(chapter)) != nil else { return }
             player = candidate
+            if let recorder {
+                memoCapture = store.makeMemoCapture(recorder: recorder, player: candidate)
+            }
         }
         let shelfBook = ShelfBook(book: book, cover: store?.covers[book.id])
         withAnimation(coverMorphAnimation) {
@@ -316,8 +326,11 @@ struct LibraryStackView: View {
     }
 
     /// Back-morph and release the player — pausing it persists the resume position; the
-    /// shared engine is never disposed (the Flutter `AudioHandler` lesson).
+    /// shared engine is never disposed (the Flutter `AudioHandler` lesson). A memo still
+    /// recording is abandoned (cancel discards — no half-pinned rows).
     private func closeReadingSurface() {
+        memoCapture?.cancelHold()
+        memoCapture = nil
         player?.pause()
         player = nil
         withAnimation(coverMorphAnimation) { reading = nil }
@@ -334,6 +347,7 @@ struct LibraryStackView: View {
                 chapterIndex: reading.chapter.index,
                 chapterTitle: reading.chapter.title,
                 player: player,
+                memoCapture: memoCapture,
                 reduceTransparency: reduceTransparency,
                 onClose: { closeReadingSurface() },
                 morphNamespace: reduceMotion ? nil : coverMorph

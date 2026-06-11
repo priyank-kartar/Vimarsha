@@ -17,6 +17,9 @@ struct ReadingSurfaceView: View {
     /// The chapter's player (owns the bundle + playhead). Nil (previews/snapshots/no
     /// engine) renders the V17 shell.
     var player: PlayerController?
+    /// Hold-to-record voice memos (V28). Nil (previews/snapshots/no recorder) hides
+    /// the mic control.
+    var memoCapture: MemoCapture?
     var reduceTransparency: Bool = false
     var onClose: () -> Void = {}
     /// The cover-morph namespace; nil (snapshots/Reduce Motion) renders without the
@@ -82,16 +85,47 @@ struct ReadingSurfaceView: View {
                 if let player, player.bundle != nil {
                     VStack(spacing: 14) {
                         figureCarrier(player: player)
-                        TransportClusterView(
-                            positionMs: player.positionMs,
-                            durationMs: player.durationMs,
-                            isPlaying: player.isPlaying,
-                            rate: player.rate,
-                            reduceTransparency: reduceTransparency,
-                            onPlayPause: { player.togglePlayPause() },
-                            onSkip: { player.skip(byMs: $0) },
-                            onCycleRate: { player.setRate(Transport.nextRate(after: player.rate)) }
-                        )
+                        memoStatusChip
+                        HStack(spacing: 10) {
+                            // While a memo records, narration is paused and the transport
+                            // is moot — the aqua waveform puck takes its slot (a discrete
+                            // state morph; the phase spring below carries it, RM dissolves).
+                            // The mic control itself stays in the hierarchy throughout:
+                            // removing it mid-hold would cancel the hold gesture.
+                            if memoCapture?.phase == .recording {
+                                MemoPuckView(
+                                    level: memoCapture?.level ?? 0,
+                                    elapsedMs: memoCapture?.elapsedMs ?? 0,
+                                    reduceTransparency: reduceTransparency
+                                )
+                                .transition(.opacity.combined(with: .scale(scale: 0.92)))
+                            } else {
+                                TransportClusterView(
+                                    positionMs: player.positionMs,
+                                    durationMs: player.durationMs,
+                                    isPlaying: player.isPlaying,
+                                    rate: player.rate,
+                                    reduceTransparency: reduceTransparency,
+                                    onPlayPause: { player.togglePlayPause() },
+                                    onSkip: { player.skip(byMs: $0) },
+                                    onCycleRate: { player.setRate(Transport.nextRate(after: player.rate)) }
+                                )
+                                .transition(.opacity)
+                            }
+                            if let memoCapture {
+                                MemoRecordControl(
+                                    isRecording: memoCapture.phase == .recording,
+                                    reduceTransparency: reduceTransparency,
+                                    onHoldChanged: { holding in
+                                        if holding {
+                                            Task { await memoCapture.beginHold() }
+                                        } else {
+                                            memoCapture.endHold()
+                                        }
+                                    }
+                                )
+                            }
+                        }
                     }
                     .frame(maxWidth: 380)
                     .padding(.horizontal, 24)
@@ -102,6 +136,11 @@ struct ReadingSurfaceView: View {
                         reduceMotion ? .easeInOut(duration: 0.15)
                             : .spring(response: 0.45, dampingFraction: 0.85),
                         value: FigureOverlaySelection.key(for: player.activeFigures)
+                    )
+                    .animation(
+                        reduceMotion ? .easeInOut(duration: 0.15)
+                            : .spring(response: 0.4, dampingFraction: 0.85),
+                        value: memoCapture?.phase
                     )
                 }
             }
@@ -187,6 +226,34 @@ struct ReadingSurfaceView: View {
                         .combined(with: .scale(scale: 0.92, anchor: .bottom))
             )
         }
+    }
+
+    /// Honest memo states above the transport (V28): the saved confirmation and the
+    /// mic-permission guidance — chips on the surface, never alerts.
+    @ViewBuilder
+    private var memoStatusChip: some View {
+        switch memoCapture?.phase {
+        case .saved:
+            chip(text: "Voice note saved", icon: "checkmark")
+        case .denied:
+            chip(text: "Microphone access needed — enable it in Settings", icon: "mic.slash")
+        default:
+            EmptyView()
+        }
+    }
+
+    private func chip(text: String, icon: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 10, weight: .semibold))
+            Text(text)
+                .font(.caption2)
+        }
+        .foregroundStyle(Palette.textPrimary.opacity(0.85))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Capsule().fill(Palette.surface))
+        .transition(.opacity)
     }
 
     /// The V17 shell (no player/bundle — previews, snapshots, forced captures).
