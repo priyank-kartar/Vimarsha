@@ -59,6 +59,22 @@ struct BookFocus: Equatable {
         return 1 - eased
     }
 
+    /// Promotion at which the metadata reveal reaches full opacity (V43). Launch rest
+    /// settles near promotion 0.5, so the band must be FULLY opaque by then — the old
+    /// `opacity == promotion` left the whole band (text included) half-transparent at rest,
+    /// which is what actually broke WCAG on mid-luminance covers (ui-audit round 2's
+    /// measured ≈1.4–2.6:1). Also sits below the cluster's visibility promotion (≈0.53):
+    /// controls never show over a half-faded band.
+    static let metadataRevealSaturation: CGFloat = 0.5
+
+    /// Opacity of the metadata reveal (V43): smoothstep 0 → 1 over
+    /// `0…metadataRevealSaturation`, holding 1 after. Scrubbable, gentle at both ends;
+    /// once saturated the `BandContrast` plate/text guarantee holds on screen.
+    static func metadataRevealOpacity(promotion: CGFloat) -> CGFloat {
+        let t = max(0, min(1, promotion / metadataRevealSaturation))
+        return t * t * (3 - 2 * t)
+    }
+
     /// - Parameters:
     ///   - midYs: each visible card's midY in the scroll viewport, keyed by shelf index
     ///     (only some cards may be measured during layout — partial maps are fine).

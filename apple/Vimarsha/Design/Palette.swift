@@ -3,21 +3,35 @@ import SwiftUI
 /// Canonical color tokens — the ONLY place hex values live (apple/CLAUDE.md §Color palette).
 /// Raw palette hexes are sampled estimates from the user's palette image.
 enum Palette {
+    // MARK: Raw hexes (the single source — `Color` tokens below and the WCAG math in
+    // `BandContrast` consume these same values, so a palette correction stays one edit).
+
+    enum Hex {
+        static let butter: UInt32 = 0xF4F48F
+        static let aqua: UInt32 = 0x8FE5DC
+        static let sky: UInt32 = 0x6FAFD0
+        static let slate: UInt32 = 0x5A8C9D
+        static let ink0: UInt32 = 0x101F26
+        static let ink1: UInt32 = 0x16262D
+        static let ink2: UInt32 = 0x1C313A
+        static let paper: UInt32 = 0xF2EFDE
+    }
+
     // MARK: Raw palette
 
-    static let butter = Color(hex: 0xF4F48F)
-    static let aqua = Color(hex: 0x8FE5DC)
-    static let sky = Color(hex: 0x6FAFD0)
-    static let slate = Color(hex: 0x5A8C9D)
+    static let butter = Color(hex: Hex.butter)
+    static let aqua = Color(hex: Hex.aqua)
+    static let sky = Color(hex: Hex.sky)
+    static let slate = Color(hex: Hex.slate)
 
     /// Derived ink ramp — slate hue, deepened. Dark-mode canvas; light-mode text.
-    static let ink0 = Color(hex: 0x101F26)
-    static let ink1 = Color(hex: 0x16262D)
-    static let ink2 = Color(hex: 0x1C313A)
+    static let ink0 = Color(hex: Hex.ink0)
+    static let ink1 = Color(hex: Hex.ink1)
+    static let ink2 = Color(hex: Hex.ink2)
 
     /// Warm off-white derived from butter at low saturation — dark-mode text.
     /// Never pure #FFFFFF (apple/CLAUDE.md).
-    static let paper = Color(hex: 0xF2EFDE)
+    static let paper = Color(hex: Hex.paper)
 
     // MARK: Book-rendering tokens (shared across all generated hardbacks)
 
