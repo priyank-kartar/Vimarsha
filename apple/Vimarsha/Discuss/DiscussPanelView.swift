@@ -13,10 +13,25 @@ struct DiscussPanelView: View {
     /// Hold-to-talk (V34) — the secondary input affordance; nil (previews/snapshots/
     /// no recorder) hides the mic. Pause-on-audio-conflict lives in the controller.
     var voice: VoiceInput?
+    /// Spoken replies (V35) — /speak on its own ephemeral engine; nil hides the
+    /// speaker controls.
+    var speaker: ReplySpeaker?
+    /// Saved-conversation persistence (V35) — Save + the Conversations state; nil
+    /// hides both (previews/snapshots).
+    var archive: DiscussArchive?
     var reduceTransparency: Bool = false
     var onClose: () -> Void = {}
 
+    /// Which face of the plane is showing (V35): the live chat, the saved list, or
+    /// one saved thread read-only — morphs of the SAME plane, never a new surface.
+    private enum PanelState: Equatable {
+        case live, conversations, thread(UUID)
+    }
+
     @State private var draft = ""
+    @State private var panelState: PanelState = .live
+    /// Brief Save confirmation on the header chip.
+    @State private var savedFlash = false
     @FocusState private var inputFocused: Bool
 
     @ScaledMetric(relativeTo: .caption) private var labelSize: CGFloat = 10
@@ -27,11 +42,19 @@ struct DiscussPanelView: View {
                 .padding(.horizontal, 18)
                 .padding(.top, 16)
                 .padding(.bottom, 10)
-            transcript
-            inputRow
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
+            switch panelState {
+            case .live:
+                transcript
+                inputRow
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+            case .conversations:
+                conversationsList
+            case .thread(let id):
+                savedThread(id: id)
+            }
         }
+        .animation(.easeInOut(duration: 0.18), value: panelState)
         .background(plane)
         .clipShape(UnevenRoundedRectangle(topLeadingRadius: 28, topTrailingRadius: 28))
         // Keyboard-default input (spec §4): the field is focused the moment the
@@ -62,23 +85,128 @@ struct DiscussPanelView: View {
     }
 
     private var header: some View {
-        HStack {
-            Text("DISCUSS")
+        HStack(spacing: 10) {
+            Text(headerTitle)
                 .font(.system(size: labelSize, weight: .medium))
                 .tracking(4)
                 .foregroundStyle(Palette.textPrimary.opacity(0.55))
                 .accessibilityAddTraits(.isHeader)
             Spacer()
-            Button(action: onClose) {
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Palette.textPrimary)
-                    .frame(width: 32, height: 32)
-                    .background(Circle().fill(Palette.textPrimary.opacity(0.08)))
-                    .contentShape(Circle())
+            switch panelState {
+            case .live:
+                if archive != nil, chat.hasExchange {
+                    saveChip
+                }
+                if archive != nil {
+                    headerControl(
+                        symbol: "bookmark", label: "Saved conversations"
+                    ) { panelState = .conversations }
+                }
+            case .conversations:
+                headerControl(symbol: "bubble.left.and.text.bubble.right", label: "Back to discussion") {
+                    panelState = .live
+                }
+            case .thread:
+                headerControl(symbol: "chevron.left", label: "Back to saved conversations") {
+                    panelState = .conversations
+                }
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Close Discuss")
+            headerControl(symbol: "chevron.down", label: "Close Discuss") {
+                speaker?.stop()
+                onClose()
+            }
+        }
+    }
+
+    private var headerTitle: String {
+        switch panelState {
+        case .live: "DISCUSS"
+        case .conversations: "CONVERSATIONS"
+        case .thread: "SAVED CONVERSATION"
+        }
+    }
+
+    private func headerControl(
+        symbol: String, label: String, action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Palette.textPrimary)
+                .frame(width: 32, height: 32)
+                .background(Circle().fill(Palette.textPrimary.opacity(0.08)))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+
+    /// Save persists the live conversation as a NEW thread (spec: ephemeral until
+    /// saved; enabled once there's an exchange). The chip flashes the confirmation.
+    private var saveChip: some View {
+        Button {
+            guard let archive, archive.save() else { return }
+            savedFlash = true
+            Task {
+                try? await Task.sleep(for: .seconds(1.6))
+                savedFlash = false
+            }
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: savedFlash ? "checkmark" : "square.and.arrow.down")
+                    .font(.system(size: 11, weight: .semibold))
+                Text(savedFlash ? "Saved" : "Save")
+                    .font(.system(size: 12, weight: .semibold))
+            }
+            .foregroundStyle(savedFlash ? Palette.ink0 : Palette.textPrimary)
+            .padding(.horizontal, 11)
+            .frame(height: 32)
+            .background(
+                Capsule().fill(
+                    savedFlash ? Palette.aqua.opacity(0.92) : Palette.textPrimary.opacity(0.08)
+                )
+            )
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .disabled(savedFlash)
+        .accessibilityLabel(savedFlash ? "Conversation saved" : "Save conversation")
+    }
+
+    /// The Conversations face (V35): saved threads as a morphed list state of the
+    /// same plane; tap reopens read-only, trash deletes.
+    private var conversationsList: some View {
+        ScrollView(showsIndicators: false) {
+            ConversationsListView(
+                threads: archive?.threads() ?? [],
+                onOpen: { panelState = .thread($0.id) },
+                onDelete: { thread in
+                    archive?.deleteThread(thread)
+                    // Deleting the open thread would strand the read-only face; the
+                    // list face is where deletes happen, so just stay here.
+                }
+            )
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
+        }
+    }
+
+    /// One saved thread, read-only (spec: review, not edit) — the transcript without
+    /// an input row; a vanished id (deleted meanwhile) falls back to the list.
+    @ViewBuilder
+    private func savedThread(id: UUID) -> some View {
+        if let thread = archive?.threads().first(where: { $0.id == id }) {
+            ScrollView(showsIndicators: false) {
+                DiscussTranscriptView(
+                    messages: thread.lines
+                        .sorted { $0.index < $1.index }
+                        .map { ChatMessageDTO(role: $0.role, text: $0.text) }
+                )
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+            }
+        } else {
+            conversationsList
         }
     }
 
@@ -91,7 +219,13 @@ struct DiscussPanelView: View {
                     messages: chat.messages,
                     sending: chat.sending,
                     error: chat.error,
-                    onRetry: { Task { await chat.retry() } }
+                    onRetry: { Task { await chat.retry() } },
+                    speakingIndex: speaker?.speakingIndex,
+                    fetchingIndex: speaker?.fetchingIndex,
+                    failedIndex: speaker?.failedIndex,
+                    onSpeak: speaker == nil ? nil : { index, text in
+                        Task { await speaker?.speak(text, at: index) }
+                    }
                 )
                 .padding(.horizontal, 16)
                 .padding(.bottom, 12)
@@ -293,6 +427,12 @@ struct DiscussTranscriptView: View {
     var sending: Bool = false
     var error: Bool = false
     var onRetry: () -> Void = {}
+    /// Spoken-reply state per transcript index (V35); `onSpeak == nil` hides the
+    /// speaker controls (read-only saved threads, previews).
+    var speakingIndex: Int? = nil
+    var fetchingIndex: Int? = nil
+    var failedIndex: Int? = nil
+    var onSpeak: ((Int, String) -> Void)? = nil
 
     @ScaledMetric(relativeTo: .footnote) private var bodySize: CGFloat = 14
 
@@ -305,8 +445,8 @@ struct DiscussTranscriptView: View {
                     .multilineTextAlignment(.center)
                     .padding(.vertical, 28)
             }
-            ForEach(Array(messages.enumerated()), id: \.offset) { _, message in
-                bubble(message)
+            ForEach(Array(messages.enumerated()), id: \.offset) { index, message in
+                bubble(message, at: index)
             }
             if sending {
                 HStack(spacing: 6) {
@@ -324,30 +464,78 @@ struct DiscussTranscriptView: View {
         }
     }
 
-    private func bubble(_ message: ChatMessageDTO) -> some View {
+    private func bubble(_ message: ChatMessageDTO, at index: Int) -> some View {
         let isUser = message.role == "user"
-        return Text(message.text)
-            .font(isUser ? .system(size: bodySize) : .system(size: bodySize, design: .serif))
-            .foregroundStyle(Palette.textPrimary)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
+        return VStack(alignment: .leading, spacing: 8) {
+            Text(message.text)
+                .font(isUser ? .system(size: bodySize) : .system(size: bodySize, design: .serif))
+                .foregroundStyle(Palette.textPrimary)
+            if !isUser, onSpeak != nil {
+                speakerControl(for: message, at: index)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Palette.surface)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(
+                            isUser ? Palette.sky.opacity(0.45)
+                                : Palette.textPrimary.opacity(0.08),
+                            lineWidth: 1
+                        )
+                )
+        )
+        .frame(
+            maxWidth: .infinity,
+            alignment: isUser ? .trailing : .leading
+        )
+        .accessibilityLabel(isUser ? "You: \(message.text)" : "Reply: \(message.text)")
+    }
+
+    /// Read-the-reply-aloud (V35): same narrator voice via /speak. Honest states —
+    /// fetching shows the wait, speaking toggles to stop (aqua = live), a failed
+    /// fetch flags briefly and the text answer stays.
+    @ViewBuilder
+    private func speakerControl(for message: ChatMessageDTO, at index: Int) -> some View {
+        let speaking = speakingIndex == index
+        let fetching = fetchingIndex == index
+        let failed = failedIndex == index
+        Button {
+            onSpeak?(index, message.text)
+        } label: {
+            HStack(spacing: 5) {
+                if fetching {
+                    ProgressView().controlSize(.mini)
+                } else {
+                    Image(systemName: failed
+                        ? "speaker.slash"
+                        : speaking ? "stop.fill" : "speaker.wave.2.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                if failed {
+                    Text("Couldn't speak")
+                        .font(.system(size: 10, weight: .medium))
+                }
+            }
+            .foregroundStyle(speaking ? Palette.ink0 : Palette.textPrimary.opacity(0.7))
+            .padding(.horizontal, 8)
+            .frame(height: 24)
             .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Palette.surface)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .strokeBorder(
-                                isUser ? Palette.sky.opacity(0.45)
-                                    : Palette.textPrimary.opacity(0.08),
-                                lineWidth: 1
-                            )
-                    )
+                Capsule().fill(
+                    speaking ? Palette.aqua.opacity(0.92) : Palette.textPrimary.opacity(0.08)
+                )
             )
-            .frame(
-                maxWidth: .infinity,
-                alignment: isUser ? .trailing : .leading
-            )
-            .accessibilityLabel(isUser ? "You: \(message.text)" : "Reply: \(message.text)")
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .disabled(fetching)
+        .accessibilityLabel(
+            failed ? "Couldn't speak the reply"
+                : speaking ? "Stop speaking" : "Speak the reply aloud"
+        )
     }
 
     /// The send failed (Ollama down / backend unreachable): the conversation and

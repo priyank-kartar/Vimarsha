@@ -231,6 +231,12 @@ final class LibraryStore {
         VoiceInput(recorder: recorder, backend: backend, player: player)
     }
 
+    /// Spoken replies for the Discuss panel (V35) — /speak audio on its own ephemeral
+    /// engine so the chapter's shared engine keeps its loaded MP3 (the MemoNotes rule).
+    func makeReplySpeaker(player: PlayerController, speechEngine: any AudioEngine) -> ReplySpeaker {
+        ReplySpeaker(backend: backend, speechEngine: speechEngine, player: player)
+    }
+
     /// Persist one conversation as a NEW thread (V32; save-on-demand — each Save
     /// inserts, never updates). Empty conversations are refused (spec §6: Save needs
     /// at least one exchange; the UI disables earlier, this is the backstop).

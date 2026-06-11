@@ -88,6 +88,10 @@ struct LibraryStackView: View {
     /// recorder; cancelled + released at close like the memo capture.
     @State private var voiceInput: VoiceInput?
 
+    /// The opened chapter's spoken replies (V35): /speak audio on its own ephemeral
+    /// engine (the MemoNotes precedent); stopped + released at close.
+    @State private var replySpeaker: ReplySpeaker?
+
     /// The cover-morph shared-element namespace (tower card ↔ reading cover plate).
     @Namespace private var coverMorph
 
@@ -355,6 +359,9 @@ struct LibraryStackView: View {
             if let recorder {
                 voiceInput = store.makeVoiceInput(recorder: recorder, player: candidate)
             }
+            replySpeaker = store.makeReplySpeaker(
+                player: candidate, speechEngine: AVFoundationAudioEngine()
+            )
         }
         let shelfBook = ShelfBook(book: book, cover: store?.covers[book.id])
         withAnimation(coverMorphAnimation) {
@@ -374,6 +381,8 @@ struct LibraryStackView: View {
         chatStore = nil
         voiceInput?.cancelHold()
         voiceInput = nil
+        replySpeaker?.stop()
+        replySpeaker = nil
         player?.pause()
         player = nil
         withAnimation(coverMorphAnimation) { reading = nil }
@@ -394,12 +403,36 @@ struct LibraryStackView: View {
                 memoNotes: memoNotes,
                 chatStore: chatStore,
                 voiceInput: voiceInput,
+                replySpeaker: replySpeaker,
+                discussArchive: discussArchive(for: reading),
                 reduceTransparency: reduceTransparency,
                 onClose: { closeReadingSurface() },
                 morphNamespace: reduceMotion ? nil : coverMorph
             )
             .transition(.opacity)
         }
+    }
+
+    /// The chapter's saved-conversation handles (V35): list/save/delete through the
+    /// store — each Save inserts a NEW thread titled by the opening question.
+    private func discussArchive(for reading: ReadingContext) -> DiscussArchive? {
+        guard let store else { return nil }
+        let book = reading.book
+        let chapterIndex = reading.chapter.index
+        return DiscussArchive(
+            threads: { store.chatThreads(for: book, chapterIndex: chapterIndex) },
+            save: { [chatStore] in
+                guard let chatStore, chatStore.hasExchange else { return false }
+                return store.saveChatThread(
+                    book: book,
+                    chapterIndex: chapterIndex,
+                    anchorBlockId: chatStore.anchorBlockId,
+                    title: chatStore.suggestedTitle,
+                    messages: chatStore.messages
+                ) != nil
+            },
+            deleteThread: { store.deleteChatThread($0) }
+        )
     }
 
     /// A zero-distance drag that rides alongside the scroll (`simultaneousGesture`) so the
