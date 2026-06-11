@@ -15,6 +15,35 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V22 — Uniform book cards ✅
+
+**What:** Phase P1.5 #1 ([ADR-011](../00-overview/decision-log.md#adr-011--uniform-book-card-geometry-in-the-library-stack))
+— ONE card geometry for every book in the library stack, replacing the scattered per-book
+sizes the V09 human review called "not good". New `Library/CardGeometry.swift` (pure math):
+`widthFraction 0.70` · `widthCap 460` · `aspect 0.50` + `width(forViewportWidth:)` (fraction,
+capped, clamped ≥ 0). 5 Swift Testing cases (`CardGeometryTests`).
+
+**Wiring:** `HardbackCoverView.aspectRatio` now uses `CardGeometry.aspect` (no longer
+`BookSeed.aspect` — the seed field is retained for future cover-art fitting, not layout).
+`BookTower`'s stacked + Reduce-Motion branches both frame to
+`CardGeometry.width(forViewportWidth:)`; the per-index `widthFactor` helper is deleted.
+Stack overlap tightened (`-0.04` → `-0.052` of viewport height) so the now-uniform slabs
+read as a calm, neat editorial staircase. The depth-stack transform alone supplies the
+staircase; size carries no meaning anymore.
+
+**Evidence:** both suites `** TEST SUCCEEDED **` (macOS + iPhone 17 Pro sim); the existing
+snapshot suites stayed green through the geometry change. Rest screenshots reviewed in
+[`artifacts/V22/`](artifacts/V22/): `01-rest-dark.png` (pre-tighten), `02-rest-dark-tighter.png`
+(shipped 0.052 — five even, uniform-width cards stepping neatly), `03-rest-light.png`. Commits
+`45de6dd` (CardGeometry + tests) + `85f6945` (wiring), merged `53d7dec`.
+
+**Device-gated:** the V09 double-title (debossed cover title + metadata reveal overlapping)
+and the butter-tinted cluster are still visible at rest — both are explicitly **V24**'s
+scope, untouched here. Live scroll *feel* of the tighter stack → re-judged at the V26
+quality re-review.
+
+---
+
 ## V09 — Motion review vs the reference 🚧 needs human review (motion feel + 1 gap)
 
 **What:** the **[verify]** checkpoint for Phase P1 — audit every named motion-grammar

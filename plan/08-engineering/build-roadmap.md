@@ -109,12 +109,17 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
 > P2:** the stack is the product's face; building real-book plumbing onto a look the owner
 > calls "not good" compounds the rework. Findings source: [V09-motion-review](V09-motion-review.md).
 
-- **V22** · Uniform book cards ([ADR-011](../00-overview/decision-log.md#adr-011--uniform-book-card-geometry-in-the-library-stack)):
+- **V22** ✅ · Uniform book cards ([ADR-011](../00-overview/decision-log.md#adr-011--uniform-book-card-geometry-in-the-library-stack)):
   ONE card geometry for every book — same width (~0.70 of viewport, cap 460) and same
   aspect (~0.50); delete the per-index `widthFactor` rhythm and stop using `BookSeed.aspect`
   for card sizing (keep the field for future cover-art fitting). Tighten stack spacing so
   the overlap is even and the pile reads neat and editorial, not scattered. Update affected
-  tests/snapshots. ↳ [V09-motion-review](V09-motion-review.md) ·
+  tests/snapshots. — _Done 2026-06-11, commit `53d7dec`; `CardGeometry` pure math (5 tests):
+  `widthFraction 0.70`/`widthCap 460`/`aspect 0.50` + capped `width(forViewportWidth:)`. Both
+  view branches + `HardbackCoverView` use it; `widthFactor`/`BookSeed.aspect` dropped from
+  layout; overlap tightened `-0.04`→`-0.052`. Both suites green + rest captures (dark+light)
+  show an even uniform-width staircase. V09 double-title + cluster tint left for V24._
+  ↳ [V09-motion-review](V09-motion-review.md) ·
   [apple/CLAUDE.md §Physical book rendering](../../apple/CLAUDE.md)
 - **V23** · Stack depth polish: receded covers truly **dissolve** under the glass scrim
   (opacity → 0 over the last ~15% of travel, below the rear floor); subtle desaturation on
