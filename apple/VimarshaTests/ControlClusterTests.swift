@@ -145,4 +145,19 @@ struct ControlClusterTests {
         #expect(ControlCluster(emerge: 1).restResolved == ControlCluster(emerge: 1))
         #expect(ControlCluster(emerge: 0).restResolved == ControlCluster(emerge: 0))
     }
+
+    @Test("the displayed cluster is rest-resolved at rest, raw while scrolling")
+    func displayedClusterFollowsScrollPhase() {
+        // A promotion that lands mid-meld (visible, not fully emerged).
+        let promotion: CGFloat = 0.75
+        let raw = ControlCluster.at(promotion: promotion)
+        #expect(raw.isVisible && raw.emerge < 1)  // the audit's frozen-blob precondition
+        #expect(ControlCluster.displayed(promotion: promotion, scrollAtRest: false) == raw)
+        #expect(
+            ControlCluster.displayed(promotion: promotion, scrollAtRest: true)
+                == ControlCluster(emerge: 1)
+        )
+        // Sub-floor at rest stays absorbed — medium rest keeps its clean cover.
+        #expect(ControlCluster.displayed(promotion: 0.5, scrollAtRest: true) == .absorbed)
+    }
 }

@@ -77,6 +77,14 @@ struct ControlCluster: Equatable {
         isVisible ? ControlCluster(emerge: 1) : .absorbed
     }
 
+    /// The cluster the view actually renders (V46): raw scrubbable emerge while the scroll
+    /// is in motion, the rest-resolved terminal form once it settles. One owner for the
+    /// decision so the cluster view and the deboss dodge (V45) can never disagree.
+    static func displayed(promotion: CGFloat, scrollAtRest: Bool) -> ControlCluster {
+        let raw = at(promotion: promotion)
+        return scrollAtRest ? raw.restResolved : raw
+    }
+
     /// - Parameter promotion: the eased focus emphasis (`BookFocus.promotion`, 0…1).
     static func at(promotion: CGFloat) -> ControlCluster {
         guard promotion > emergeThreshold else { return .absorbed }
