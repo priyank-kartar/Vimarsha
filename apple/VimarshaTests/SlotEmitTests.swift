@@ -84,4 +84,28 @@ struct SlotEmitTests {
         #expect(abs(justBelow.opacity - 1) < 0.01)
         #expect(abs(justBelow.yOffset) < 1)
     }
+
+    // MARK: Opacity saturates mid-rise (V46-investigation → V47)
+
+    @Test("opacity is fully saturated from mid-rise while scale/offset are still landing")
+    func opacitySaturatesMidRise() {
+        // The ui-audit round 3 "fore-edge lines through DESIGN BY" mechanism: the card one
+        // slot below the front rendered semi-transparent at rest, so the focused cover's
+        // bottom anatomy (bright board, fore-edge strip, shadow) bled THROUGH its face.
+        // A cover must be solid well before it finishes landing — translucency belongs to
+        // the shelf-anchor end of the rise only.
+        let midY = viewport - SlotEmit.opacitySaturation * (viewport - slotY)
+        let atSaturation = SlotEmit.at(midY: midY, viewportHeight: viewport)
+        #expect(abs(atSaturation.opacity - 1) < 1e-6)
+        #expect(atSaturation.scale < 1)        // still visibly rising…
+        #expect(atSaturation.yOffset > 0)      // …but no longer see-through.
+    }
+
+    @Test("the one-below-front rest position is fully opaque (the audited XXXL rest geometry)")
+    func restNeighborIsOpaque() {
+        // At launch rest the card below the focused one sits ~0.81·vh (progress ≈ 0.68);
+        // its face must not let the focused cover's bottom edge print through its deboss.
+        let e = SlotEmit.at(midY: viewport * 0.81, viewportHeight: viewport)
+        #expect(abs(e.opacity - 1) < 1e-6)
+    }
 }

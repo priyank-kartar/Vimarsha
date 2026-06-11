@@ -30,6 +30,12 @@ struct SlotEmit: Equatable {
     /// How far the anchored card sinks toward the shelf below its rest, as a fraction of
     /// viewport height.
     static let riseFraction: CGFloat = 0.12
+    /// The fraction of the rise by which the fade-in completes (V47, ui-audit round 3): a
+    /// cover one slot below the front sits mid-band at rest, and at partial opacity the
+    /// focused cover's bottom anatomy (bright board, fore-edge strip, contact shadow) bled
+    /// THROUGH its face — reading as "page lines" across its debossed title. Translucency
+    /// belongs to the shelf-anchor end of the rise; from here up the cover is solid.
+    static let opacitySaturation: CGFloat = 0.5
 
     /// - Parameters:
     ///   - midY: the card's midY in the scroll viewport.
@@ -45,9 +51,14 @@ struct SlotEmit: Equatable {
         // Ease-out (decelerate into rest): fast emergence off the shelf, soft landing on the
         // slot, strictly monotonic — no overshoot past identity.
         let eased = 1 - (1 - progress) * (1 - progress)
+        // Opacity rides the same ease-out but on a remapped progress that completes at
+        // `opacitySaturation` (V47): the fade-in lives near the shelf anchor, and the cover
+        // is fully solid for the rest of its rise — neighbors never bleed through it.
+        let opacityProgress = min(1, progress / opacitySaturation)
+        let opacityEased = 1 - (1 - opacityProgress) * (1 - opacityProgress)
         return SlotEmit(
             scale: anchorScale + (1 - anchorScale) * eased,
-            opacity: anchorOpacity + (1 - anchorOpacity) * eased,
+            opacity: anchorOpacity + (1 - anchorOpacity) * opacityEased,
             yOffset: riseFraction * viewportHeight * (1 - eased)
         )
     }
