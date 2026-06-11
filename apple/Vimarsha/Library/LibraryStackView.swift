@@ -31,6 +31,12 @@ struct LibraryStackView: View {
     /// tracks the drag, refracts the cover beneath; fades out on release.
     @State private var puck: LensingPuck = .hidden
 
+    /// Whether the scroll is settled (V46): launch starts at rest; any scroll phase other
+    /// than `.idle` is motion. At rest the control cluster renders its rest-resolved
+    /// terminal form (fully split or absorbed) — the `GlassEffectContainer` mid-meld shape
+    /// is only ever shown while this is false (the morph is actually in motion).
+    @State private var scrollAtRest = true
+
     /// Which book owns the front slot, and how settled it is (motion grammar #2). Recomputed
     /// from each card's measured midY as the tower scrolls; drives the grow-to-front bump,
     /// the deepening contact shadow, and the focused-book metadata reveal. Reduce Motion (a
@@ -138,6 +144,18 @@ struct LibraryStackView: View {
             }
             .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, y in
                 distanceToRest = max(0, y)
+            }
+            // Rest-snap (V46): when the scroll settles to idle, the cluster animates from
+            // wherever its scrubbable emerge landed to a terminal form; touch-down animates
+            // it back toward the raw emerge (then live scroll updates take over directly —
+            // scrubbing is the animation, and the whole stack is in motion anyway).
+            // Reduce Motion swaps the spring for an instant resolve.
+            .onScrollPhaseChange { _, newPhase in
+                let atRest = newPhase == .idle
+                guard atRest != scrollAtRest else { return }
+                withAnimation(reduceMotion ? nil : .smooth(duration: 0.35)) {
+                    scrollAtRest = atRest
+                }
             }
             // The viewport's global origin (V45): the cluster measures itself in .global
             // (the one space an overlay and the scroll content share); subtracting this maps
@@ -283,12 +301,19 @@ struct LibraryStackView: View {
         }
     }
 
+    /// The cluster both renderers share (V46): the raw scrubbable emerge while the scroll is
+    /// in motion, the rest-resolved terminal form at rest — one owner so the cluster view
+    /// and the deboss dodge (V45) can never disagree about what's on screen.
+    private var displayedCluster: ControlCluster {
+        ControlCluster.displayed(promotion: focus.promotion, scrollAtRest: scrollAtRest)
+    }
+
     /// The glass control cluster (glass moment #5), shared by both `ViewThatFits` branches —
     /// when the focused cover's visible band can't hold metadata + cluster, the cluster wins
     /// (it's the affordance; the metadata is decorative).
     private var controlCluster: some View {
         ControlClusterView(
-            cluster: ControlCluster.at(promotion: focus.promotion),
+            cluster: displayedCluster,
             reduceTransparency: reduceTransparency,
             onActivate: { control in
                 // Play raises the chapter list plane (V14) — the stand-in until
@@ -322,7 +347,7 @@ struct LibraryStackView: View {
         return DebossDodge.band(
             clusterTop: clusterFrame.minY - scrollOriginGlobalY,
             clusterBottom: clusterFrame.maxY - scrollOriginGlobalY,
-            clusterOpacity: ControlCluster.at(promotion: focus.promotion).opacity,
+            clusterOpacity: displayedCluster.opacity,
             coverVisualTop: coverTop,
             coverScale: CardVisualTop.scale(
                 midY: midY, viewportHeight: size.height, promotion: focus.promotion

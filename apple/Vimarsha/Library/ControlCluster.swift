@@ -67,6 +67,24 @@ struct ControlCluster: Equatable {
         return max(0, min(1, ramp))
     }
 
+    /// The terminal form this cluster resolves to at scroll rest (V46): the
+    /// `GlassEffectContainer` meld/split shape is only meaningful *while the morph is in
+    /// motion* — a static state frozen between the visibility floor and full emergence
+    /// renders as a lumpy half-melded blob (ui-audit round 3). At rest a visible cluster
+    /// snaps to fully emerged (four split circles, live controls); an invisible one stays
+    /// absorbed (the cover keeps its clean face). Both terminal forms are fixed points.
+    var restResolved: ControlCluster {
+        isVisible ? ControlCluster(emerge: 1) : .absorbed
+    }
+
+    /// The cluster the view actually renders (V46): raw scrubbable emerge while the scroll
+    /// is in motion, the rest-resolved terminal form once it settles. One owner for the
+    /// decision so the cluster view and the deboss dodge (V45) can never disagree.
+    static func displayed(promotion: CGFloat, scrollAtRest: Bool) -> ControlCluster {
+        let raw = at(promotion: promotion)
+        return scrollAtRest ? raw.restResolved : raw
+    }
+
     /// - Parameter promotion: the eased focus emphasis (`BookFocus.promotion`, 0…1).
     static func at(promotion: CGFloat) -> ControlCluster {
         guard promotion > emergeThreshold else { return .absorbed }

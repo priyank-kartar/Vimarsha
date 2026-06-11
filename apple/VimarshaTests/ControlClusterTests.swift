@@ -120,4 +120,44 @@ struct ControlClusterTests {
         #expect(rest.emerge > 0)         // it IS partially emerged…
         #expect(!rest.isVisible)         // …but renders nothing.
     }
+
+    // MARK: Rest resolution (V46) — a static rest state is a terminal form, never mid-meld
+
+    @Test("a visible mid-meld emerge resolves to fully emerged at scroll rest")
+    func restResolvesVisibleToFull() {
+        // The ui-audit round 3 "lumpy scalloped blob": rest landed between the visibility
+        // floor and full emergence and froze the GlassEffectContainer's in-between shape.
+        let midMeld = ControlCluster(emerge: (ControlCluster.visibilityFloor + 1) / 2)
+        #expect(midMeld.restResolved == ControlCluster(emerge: 1))
+        #expect(ControlCluster(emerge: ControlCluster.visibilityFloor).restResolved.emerge == 1)
+    }
+
+    @Test("a sub-floor emerge resolves to absorbed at scroll rest")
+    func restResolvesGhostToAbsorbed() {
+        // Medium rest keeps its clean cover — an invisible cluster stays invisible.
+        let ghost = ControlCluster(emerge: ControlCluster.visibilityFloor - 0.01)
+        #expect(ghost.restResolved == .absorbed)
+        #expect(ControlCluster.absorbed.restResolved == .absorbed)
+    }
+
+    @Test("terminal forms are fixed points of the rest resolution")
+    func terminalFormsAreFixedPoints() {
+        #expect(ControlCluster(emerge: 1).restResolved == ControlCluster(emerge: 1))
+        #expect(ControlCluster(emerge: 0).restResolved == ControlCluster(emerge: 0))
+    }
+
+    @Test("the displayed cluster is rest-resolved at rest, raw while scrolling")
+    func displayedClusterFollowsScrollPhase() {
+        // A promotion that lands mid-meld (visible, not fully emerged).
+        let promotion: CGFloat = 0.75
+        let raw = ControlCluster.at(promotion: promotion)
+        #expect(raw.isVisible && raw.emerge < 1)  // the audit's frozen-blob precondition
+        #expect(ControlCluster.displayed(promotion: promotion, scrollAtRest: false) == raw)
+        #expect(
+            ControlCluster.displayed(promotion: promotion, scrollAtRest: true)
+                == ControlCluster(emerge: 1)
+        )
+        // Sub-floor at rest stays absorbed — medium rest keeps its clean cover.
+        #expect(ControlCluster.displayed(promotion: 0.5, scrollAtRest: true) == .absorbed)
+    }
 }
