@@ -15,6 +15,70 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V20 — Figure overlay on the glass carrier + Figures gallery ✅
+
+**What:** the synced-figures half of the core loop (apple/CLAUDE.md §UI map state 4 /
+glass moment #8) — auto-pop at `startMs`, recede at `endMs`, stacked when spans overlap;
+the gallery as a morphed grid state. Flutter `FigureOverlay`/`FiguresGallery` design
+ported, not the code.
+- `Reading/FigureOverlaySelection.swift` — pure stack rules (6 tests): the selection over
+  the active set survives ticks while the set is stable (key = joined figure ids), resets
+  to the top card when the set changes, recovers a stale out-of-range index, and pages
+  with wrap-around (`next`/`previous`).
+- `PlayerController.activeFigures` (spans containing the playhead, via the V18
+  `TimingIndex` — unresolved nil-ms figures never activate) + `allFigures` (the whole
+  figureMap regardless of timing — the gallery's source). +2 tests on a new
+  `figuredFixture` bundle.
+- `Reading/FigureCarrierView.swift` — the glass carrier: aqua-tinted glass FRAME
+  (live/active role), the figure image itself **matte paper** inside it (the rule's one
+  sanctioned content-adjacent glass case); caption-only fallback (downloader best-effort
+  parity); label line + wrap-around pager ("1 / 2" + chevrons) when stacked, with matte
+  backing edges peeking behind the top card (depth = scale+offset+shadow, no blur).
+  Reduce Transparency = token-tinted matte + aqua stroke. 3 snapshot tests.
+- `Reading/FiguresGalleryView.swift` — the morphed grid state (never a sheet): paper
+  reflows into matte figure tiles (`FigureGridView` extracted for ImageRenderer — the
+  V14 ScrollView gotcha); tap a tile → `seekToBlock(startPara)` + morph back to reading;
+  timed figures carry a small aqua waveform glyph; honest "No figures in this chapter".
+  2 snapshot tests.
+- Wiring in `ReadingSurfaceView`: the carrier rides the bottom overlay VStack above the
+  V19 transport (pop/recede = interruptible spring keyed on the active-set identity;
+  insertion rises from the bottom with scale 0.92; Reduce Motion cross-dissolves). The
+  rendered selection is *derived* every frame (`reconciled(figurePaging, with:)`) —
+  state only remembers paging. Gallery toggles via a new glass control top-trailing
+  (shown only when the chapter has figures; icon flips to "back to reading"); narration
+  keeps playing in the gallery; the carrier hides there (the grid already shows every
+  figure). Close chevron refactored into a shared `glassControl`.
+
+**Evidence:**
+- Both suites `** TEST SUCCEEDED **` (macOS + iPhone 17 Pro). +13 tests (6 selection
+  rules, 2 player figure props, 3 carrier snapshots incl. paging swaps the top card,
+  2 gallery snapshots).
+- Forced-state sim captures (temp `V20CaptureRoot` root via launch-arg switch, reverted;
+  binary 17:17): [`artifacts/V20/`](../../.agent-loop/artifacts/V20/)
+  `01-carrier-dark` / `02-gallery-dark` / `03-carrier-light` / `04-gallery-light` —
+  **looked at:** real-glass aqua carrier floating over the serif body with matte figure
+  + pager in both modes; gallery grid with FIGURES masthead, matte tiles, transport
+  persisting underneath.
+- Commits `2cd0d6e` (rules) `784d93c` (player) `269ec6d` (carrier+wiring) `17c158c`
+  (gallery), merged `a893402`.
+
+**Visual audit findings (whole frame):**
+- In the forced frame the carrier overlaps the live paragraph's last line — live, the
+  auto-scroll anchor (0.3) should hold the narrated block above it; judge in V21 and
+  consider growing the body's bottom padding while the carrier is up if it bites.
+- Light-mode gallery tiles read **loud saturated aqua** (`Palette.surface` light = aqua
+  secondary-surface role) — token-correct but heavier than the editorial calm elsewhere;
+  candidate polish: a quieter butter-derived tile. Also the aqua waveform glyph is
+  near-invisible **aqua-on-aqua** in light mode (fine in dark).
+- Carried: V17 plate subtitle truncation; rest-state metadata ghost.
+
+**Device-gated (→ V21 verify):** the pop/recede *feel* over a REAL playing chapter
+(spring character, stacking with real overlapping spans, paging mid-play), gallery
+morph + tap-to-seek round-trip, and real `GET /image` figure images (the V15 fixture
+gap — needs an illustrated EPUB).
+
+---
+
 ## V19 — Tap-to-seek + compact glass transport ✅
 
 **What:** the reading surface becomes drivable — seek by touching the text, transport on

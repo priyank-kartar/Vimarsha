@@ -289,8 +289,15 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   (butter progress, aqua play pill, speed chip, matte fallback) + "Read from here"
   VoiceOver action on text rows. Both suites green + forced captures both modes. Live
   drive → V21._
-- **V20** · Figure overlay on the glass carrier: auto-pop at `startMs`, recede at `endMs`,
+- **V20** ✅ · Figure overlay on the glass carrier: auto-pop at `startMs`, recede at `endMs`,
   stacked when spans overlap; Figures gallery as a morphed grid state. (needs V18)
+  — _Done 2026-06-11, merged `a893402`; `FigureOverlaySelection` pure stack rules (6
+  tests: stable-set persistence, set-change reset, wrap paging) + `activeFigures`/
+  `allFigures` on the player + `FigureCarrierView` (aqua glass frame, MATTE figure
+  paper, stacked pager + backing edges) riding above the V19 transport (spring pop/
+  recede keyed on the set, RM cross-dissolve) + `FiguresGalleryView` morphed grid
+  (matte tiles, tap → `seekToBlock` + morph back) behind a glass top-trailing toggle.
+  Both suites green + carrier/gallery captures both modes. Live pop cadence → V21._
   ↳ [figure-intelligence](../04-architecture/figure-intelligence.md) ·
   [apple/CLAUDE.md §Glass moments #8](../../apple/CLAUDE.md)
 - **V21** · **[verify]** Eyes-free run: a full real chapter listened end-to-end on device —
