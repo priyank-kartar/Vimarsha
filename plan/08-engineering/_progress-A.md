@@ -15,6 +15,57 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V33 — Discuss panel ✅
+
+**What:** the Discuss state of the reading surface (apple/CLAUDE.md §UI map state 6;
+spec §4 binding rules). `DiscussPanelView` — a sky-tinted glass plane that morphs up
+*within* the canvas (move-from-bottom + opacity; RM cross-dissolves; `Palette.surface`
+matte under Reduce Transparency), top-rounded, holding: small-caps DISCUSS header +
+close chevron, the transcript, and a keyboard-default input row (multiline TextField,
+`@FocusState` focused on appear; aqua send disabled while empty/sending).
+`DiscussTranscriptView` (extracted for snapshots — the ScrollView/ImageRenderer gotcha):
+matte paper bubbles on the glass plane (content is paper, controls are glass) — user
+turns trailing with a sky accent border in SF, assistant turns leading in the reading
+serif; honest `Thinking…` row while sending; an error row ("No reply…") with an aqua
+Retry that re-sends the unanswered turn (spec §6 — prior turns intact). Entry =
+**the record control's dual gesture** (spec §4): `MemoRecordControl` gains
+`onDoubleTap` via `simultaneousGesture(TapGesture(count: 2))` — two quick taps never
+arm the 0.25s hold, so memo-hold and discuss-double-tap coexist — plus a VoiceOver
+"Discuss this passage" action (gesture-only interactions rule).
+
+**Wiring:** opening sets `showDiscuss` ONLY — narration is never paused (the binding
+no-pause rule); the panel replaces the bottom transport overlay while up (extracted
+`transportOverlay`; the reading body keeps playing behind the plane).
+`ChatStore.recordAnchor` pins the block at FIRST panel open (reopening doesn't move
+it); `makeChatStore` no longer takes an at-creation anchor. `LibraryStackView` owns the
+chapter's `ChatStore` — created with the player, discarded only at book close
+(save-on-demand: closing the panel keeps the thread; closing the book discards).
+
+**Evidence:**
+- `DiscussPanelSnapshotTests` (3 — turns + error-row raster diff, thinking row, empty
+  state) + the anchor-pin rule in `ChatStoreTests`; **both suites green** on macOS +
+  iPhone 17 Pro sim (post-revert re-run).
+- Forced-state captures (temp `CaptureRoot`, reverted): `01-discuss-panel-dark.png` +
+  `02-discuss-panel-light.png` — glass plane over the reading shell, bubbles, input
+  row, both modes; `03-rest-dark-regression.png` — the library rest state is intact.
+  `.agent-loop/artifacts/V33/`.
+
+**Visual audit findings (whole-frame):**
+1. The reading plate's debossed cover title truncates with an ellipsis ("DESIGN BY
+   ACCI…") on the small V17 cover plate — both modes. Pre-existing (V44 fixed the
+   tower card; the plate may need the same block-level `minimumScaleFactor`). Candidate
+   polish V-item.
+2. Light mode: the panel reads as a flat mint block more than glass over the butter
+   canvas (sky 0.22 tint); placeholder text contrast in the input capsule is low-ish
+   (placeholder, not content). Judge on device in V36.
+3. The capture shows no raised keyboard (sim hardware-keyboard default) — the
+   keyboard-default focus rule needs the live V36 check.
+
+**Device-gated:** the double-tap-vs-hold gesture feel, the panel's morph-up feel, and
+keyboard-default focus → V36 (the P5 verify gate runs live anyway).
+
+---
+
 ## V32 — Discuss chat data layer ✅
 
 **What:** the P5 foundation, mirroring the frozen Flutter Plan-6a design (port the

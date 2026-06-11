@@ -490,9 +490,15 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   `makeChatStore`. 23 tests, both suites green; **live `/chat` (Ollama) + `/speak`
   (Chatterbox) round-trips** in `.agent-loop/artifacts/V32/`._
   ↳ [conversation-ai](../04-architecture/conversation-ai.md) · [data-model](../04-architecture/data-model.md)
-- **V33** · Discuss panel: glass plane morphs up *within* the canvas (never `.sheet`;
+- **V33** ✅ · Discuss panel: glass plane morphs up *within* the canvas (never `.sheet`;
   keyboard is the one sanctioned OS surface) — keyboard-default input + send, replies
-  text-first; opening does NOT pause narration. (needs V32, V17)
+  text-first; opening does NOT pause narration. (needs V32, V17) — _Done 2026-06-11,
+  merged `83404c8`; `DiscussPanelView` (sky glass plane, keyboard-default multiline
+  input, matte user/assistant bubbles, Thinking…/error+Retry states) replaces the
+  transport overlay while up; entry = `MemoRecordControl` double-tap (dual gesture,
+  + VO action), open never touches playback; `recordAnchor` pins first open;
+  `LibraryStackView` owns the ChatStore book-close-scoped. Snapshots + dark/light
+  forced captures + rest regression in `.agent-loop/artifacts/V33/`; both suites green._
   ↳ [screen-flows §Discuss](../03-design/screen-flows.md)
 - **V34** · Voice input: hold-to-talk → `/transcribe` → input field; **pause-on-audio-
   conflict** while voice-typing (pause narration, resume if it was playing). (needs V33, V28)
