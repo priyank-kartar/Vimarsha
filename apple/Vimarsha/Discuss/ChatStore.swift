@@ -43,6 +43,13 @@ final class ChatStore {
         anchorBlockId = blockId
     }
 
+    /// The saved thread's default title (V35): the opening question, trimmed to a
+    /// list-row length.
+    var suggestedTitle: String? {
+        guard let first = messages.first(where: { $0.role == "user" })?.text else { return nil }
+        return first.count <= 60 ? first : String(first.prefix(59)) + "…"
+    }
+
     /// Append the user's turn and request a grounded reply. Empty input and
     /// double-sends are no-ops (`sending` is claimed synchronously).
     func send(_ text: String) async {

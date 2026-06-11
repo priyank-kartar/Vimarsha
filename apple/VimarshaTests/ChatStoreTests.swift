@@ -99,6 +99,21 @@ struct ChatStoreTests {
         #expect(store.anchorBlockId == "b3")
     }
 
+    @Test func suggestedTitleIsTheTrimmedOpeningQuestion() async {
+        var fake = FakeBackendClient.returning()
+        fake.onChat = { _, _ in "R" }
+        let store = ChatStore(backend: fake) { Self.context }
+        #expect(store.suggestedTitle == nil)
+
+        await store.send("Why does entropy increase?")
+        #expect(store.suggestedTitle == "Why does entropy increase?")
+
+        let long = ChatStore(backend: fake) { Self.context }
+        await long.send(String(repeating: "a", count: 80))
+        #expect(long.suggestedTitle?.count == 60)
+        #expect(long.suggestedTitle?.hasSuffix("…") == true)
+    }
+
     @Test func secondSendWhileInFlightIsIgnored() async {
         let (gateStream, gate) = AsyncStream<Void>.makeStream()
         var fake = FakeBackendClient.returning()

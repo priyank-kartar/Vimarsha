@@ -28,6 +28,11 @@ struct ReadingSurfaceView: View {
     var chatStore: ChatStore?
     /// Hold-to-talk for the Discuss panel (V34). Nil hides the panel's mic.
     var voiceInput: VoiceInput?
+    /// Spoken replies for the Discuss panel (V35). Nil hides the speaker controls.
+    var replySpeaker: ReplySpeaker?
+    /// Saved-conversation persistence for the Discuss panel (V35). Nil hides Save +
+    /// Conversations.
+    var discussArchive: DiscussArchive?
     var reduceTransparency: Bool = false
     var onClose: () -> Void = {}
     /// The cover-morph namespace; nil (snapshots/Reduce Motion) renders without the
@@ -133,6 +138,8 @@ struct ReadingSurfaceView: View {
                         DiscussPanelView(
                             chat: chatStore,
                             voice: voiceInput,
+                            speaker: replySpeaker,
+                            archive: discussArchive,
                             reduceTransparency: reduceTransparency,
                             onClose: {
                                 voiceInput?.cancelHold()
