@@ -67,7 +67,6 @@ struct HardbackCoverView: View {
             Text(book.title.uppercased())
                 .font(.system(size: titleSize, weight: .regular, design: .serif))
                 .tracking(1.5)
-                .minimumScaleFactor(0.4)
             Text(book.author.uppercased())
                 .font(.system(size: authorSize, weight: .medium))
                 .tracking(2.5)
@@ -79,7 +78,13 @@ struct HardbackCoverView: View {
         .shadow(color: .black.opacity(0.30), radius: 0.5, y: -0.6)
         .shadow(color: .white.opacity(0.18), radius: 0.5, y: 0.7)
         .padding(.horizontal, 18)
+        // Fit the WHOLE block to the cover face (V44, ui-audit round 2): the scale factor
+        // sat on the title alone, so at XXXL the un-scalable subtitle pushed the block past
+        // the board and its bottom line rode into the fore-edge page texture. Block-level
+        // scaling + a vertical inset keep every glyph above the page-edge strip.
+        .padding(.vertical, 12)
         .lineLimit(3)
+        .minimumScaleFactor(0.4)
         // Fade the printed title as the metadata reveal takes over (V24 — kill the double
         // title). Real art carries its own printed title, so the debossed block never
         // shows over it.
