@@ -497,8 +497,9 @@ private struct BookTower: View {
             let promotion = focus.index == index ? focus.promotion : 0
             // Fade this cover's printed title as it settles, so the metadata reveal isn't a
             // second title in the same eyeline (V24 — kill the double title). Only the focused
-            // card promotes, so only it fades.
-            HardbackCoverView(book: book, titleOpacity: 1 - promotion)
+            // card promotes, so only it fades. The fade completes BEFORE any focus affordance
+            // is meaningfully visible (V41 — the linear `1 - promotion` double-titled at rest).
+            HardbackCoverView(book: book, titleOpacity: BookFocus.debossTitleOpacity(promotion: promotion))
                 // Uniform card width (ADR-011) — one size for every book; the depth-stack
                 // transform alone supplies the staircase, no per-index width rhythm.
                 .frame(width: CardGeometry.width(forViewportWidth: size.width))

@@ -78,3 +78,51 @@ struct BookFocusTests {
         #expect(abs(justOff.emphasis - 1) < 0.01)
     }
 }
+
+/// V41 — the debossed-title fade keyed to affordance visibility (ui-audit round 1: the
+/// linear `1 - promotion` left a half-strength double title at launch rest). The printed
+/// title must be GONE while any focus affordance (metadata reveal or control cluster) is
+/// meaningfully visible.
+@Suite("BookFocus — deboss title fade (V41)")
+struct DebossTitleFadeTests {
+    @Test("unfocused cover keeps its printed title")
+    func fullAtZero() {
+        #expect(BookFocus.debossTitleOpacity(promotion: 0) == 1)
+        #expect(BookFocus.debossTitleOpacity(promotion: -0.2) == 1)  // clamped
+    }
+
+    @Test("printed title is fully gone at the fade-out promotion and beyond")
+    func goneAtFadeOut() {
+        #expect(BookFocus.debossTitleOpacity(promotion: BookFocus.titleFadeOutPromotion) == 0)
+        #expect(BookFocus.debossTitleOpacity(promotion: 0.5) == 0)   // launch-rest regression
+        #expect(BookFocus.debossTitleOpacity(promotion: 1) == 0)
+    }
+
+    @Test("fade is monotonically decreasing across the band")
+    func monotone() {
+        let samples = stride(from: 0.0, through: 1.0, by: 0.05).map {
+            BookFocus.debossTitleOpacity(promotion: CGFloat($0))
+        }
+        for (a, b) in zip(samples, samples.dropFirst()) {
+            #expect(b <= a)
+        }
+    }
+
+    @Test("deboss is already gone whenever the control cluster is visible (no title under the pill)")
+    func goneBeforeClusterEmerges() {
+        // The exact XXXL-rest audit state: the cluster pill must never sit on a printed title.
+        for promotion in stride(from: 0.0, through: 1.0, by: 0.01) {
+            let p = CGFloat(promotion)
+            if ControlCluster.at(promotion: p).isVisible {
+                #expect(BookFocus.debossTitleOpacity(promotion: p) == 0)
+            }
+        }
+    }
+
+    @Test("fade eases out gently near rest (smoothstep, not a hard linear edge)")
+    func easedNearEdges() {
+        // Smoothstep: slope ~0 at both ends, so a barely-promoted card barely fades.
+        let nearZero = BookFocus.debossTitleOpacity(promotion: 0.02)
+        #expect(nearZero > 0.99)
+    }
+}

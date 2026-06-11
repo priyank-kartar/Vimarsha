@@ -35,6 +35,24 @@ struct BookFocus: Equatable {
     /// until the book is nearly settled. Always `≤ emphasis` on `(0, 1)`.
     var promotion: CGFloat { emphasis * emphasis }
 
+    /// Promotion at which the focused cover's debossed title has fully faded out (V41).
+    /// Sits comfortably below the cluster's effective visibility promotion (≈0.53 — where
+    /// `ControlCluster.at(promotion:).isVisible` first turns on), so by the time ANY focus
+    /// affordance is meaningfully visible the printed title is already gone.
+    static let titleFadeOutPromotion: CGFloat = 0.4
+
+    /// Opacity of the focused cover's debossed title block (V41, ui-audit round 1). The
+    /// metadata reveal (opacity == promotion) and the control cluster repeat the title in
+    /// the same eyeline, so the printed title must be GONE once either affordance shows —
+    /// the old linear `1 - promotion` left a half-strength double title at launch rest
+    /// (promotion ≈ 0.5), and at XXXL the cluster pill sat on the un-faded deboss.
+    /// Smoothstepped 1 → 0 over `0…titleFadeOutPromotion`: scrubbable, gentle at both ends.
+    static func debossTitleOpacity(promotion: CGFloat) -> CGFloat {
+        let t = max(0, min(1, promotion / titleFadeOutPromotion))
+        let eased = t * t * (3 - 2 * t)
+        return 1 - eased
+    }
+
     /// - Parameters:
     ///   - midYs: each visible card's midY in the scroll viewport, keyed by shelf index
     ///     (only some cards may be measured during layout — partial maps are fine).
