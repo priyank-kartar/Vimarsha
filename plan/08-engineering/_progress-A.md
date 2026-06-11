@@ -15,6 +15,58 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V28 — Hold-to-record voice memos (mic seam + Memo model + recording UI) ✅
+
+**What:** P4's first item, porting the frozen Flutter Plan-5 *design*. Three layers:
+1. **Mic seam:** `Audio/RecorderEngine.swift` — the record half of the audio/mic seam
+   (apple/CLAUDE.md §Seams): `requestPermission/start/stop/isRecording/level`;
+   `AVAudioRecorderEngine` (AAC m4a, metering for the waveform, iOS session juggling
+   record↔playback); `FakeRecorderEngine` is the sanctioned double (writes a real temp
+   file so the save path is real IO).
+2. **Model + capture:** `Memo` @Model (data-model.md P4 slice: chapter cascade-inverse,
+   `paragraphIndex` = reading-order index of the narrated block, `positionMs`,
+   container-relative `audioPath` under the BOOK's subtree so deletion sweeps it,
+   pending/ready/error raw-string status — transcription lands in V29 so rows save
+   `.pending`). `Player/MemoCapture.swift` (@Observable) owns the Flutter-contract
+   choreography: hold → permission (the system prompt is the primer) → pause narration
+   (the pin can't drift) → record; release → save (≥400ms) or discard → resume ONLY if
+   it was playing. Recovery: denied phase, recorder-start failure, release-during-
+   permission-prompt (the `holdActive` race), cancel-on-surface-close.
+3. **UI:** `MemoRecordControl` (sky-glass mic beside the V19 transport; hold gesture =
+   short long-press armed then open-ended press via `@GestureState`; VoiceOver start/stop
+   actions) + `MemoPuckView` (aqua live-level waveform + clock) which takes the
+   transport's slot while recording — the mic stays in the hierarchy throughout (removing
+   it mid-hold cancels the gesture — found in self-review). Saved/denied chips on the
+   surface, never alerts.
+
+**Wiring:** app-lifetime `AVAudioRecorderEngine` in `VimarshaApp` (the one-mic-owner rule);
+`LibraryStore.makeMemoCapture`; `LibraryStackView` creates capture with the player at open
+and `cancelHold()`s + releases at close. `ModelContainer` now lists `Memo.self` (additive
+migration). Entitlement `com.apple.security.device.audio-input` (macOS) +
+`INFOPLIST_KEY_NSMicrophoneUsageDescription` (both configs).
+
+**Scope note:** the roadmap line says "the cluster's Memo control", but a paragraph pin
+needs an open chapter + live playhead — screen-flows pins memo record to READING ("Reading
+↔ Memo record: hold gesture on the mic control"), and the Flutter reference records in the
+player. The mic therefore lives on the reading surface; the library cluster's Memo control
+stays a stub until Notes (V30) gives it a sensible target. Flag if this reads wrong.
+
+**Evidence:** 10 `MemoCaptureTests` (real in-memory SwiftData + real file IO; both fakes)
++ 2 snapshot tests (level-reactive waveform, idle-vs-recording mic) — both suites green
+both destinations. Artifacts in [`artifacts/V28/`](../../.agent-loop/artifacts/V28/):
+`memo-puck-quiet/loud.png` (the waveform visibly reacts) + a launch-rest regression
+capture (clean, V41 intact). Commits `6e332f1` (data) + `a506aac` (UI), merged `dd2144c`.
+
+**Visual audit findings:** rest frame unchanged from V41's (same nits: XXXL half-melded
+cluster, bottom-edge author clip). The puck renders matte in snapshots (ImageRenderer
+can't composite glass) — its live glass + the hold FEEL are device-gated.
+
+**Device-gated:** real-mic hold-to-record feel (gesture arm time 0.25s, waveform
+liveliness, session handoff back to narration volume) and the permission prompt flow —
+queued for the V31 [verify] deferred checklist.
+
+---
+
 ## V41 — Deboss title fade keyed to affordance visibility (no double title) ✅
 
 **What:** the last ui-audit round-1 item. The V24 deboss fade was linear `1 - promotion`,

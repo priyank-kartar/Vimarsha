@@ -384,10 +384,19 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
 > (`app/lib/features/`), specs in `docs/superpowers/specs/` (2026-06 memo specs) — read them
 > first; link-don't-reinvent. Mic permission strings + entitlements are part of V28.
 
-- **V28** · Memo recording: hold-to-record on the cluster's Memo control (long-press, aqua
+- **V28** ✅ · Memo recording: hold-to-record on the cluster's Memo control (long-press, aqua
   waveform puck while held), AVAudioRecorder behind the audio/mic seam, SwiftData `Memo`
   model (chapter + paragraphIndex pin), audio saved to the container. Mic permission primer.
-  (needs V07, V16) ↳ [data-model](../04-architecture/data-model.md) ·
+  (needs V07, V16) — _Done 2026-06-11, merged `dd2144c`; `RecorderEngine` seam
+  (AVAudioRecorderEngine m4a + metering / FakeRecorderEngine), `Memo` @Model (chapter
+  cascade, paragraph+ms pin, pending status — transcription = V29), `MemoCapture`
+  (pause-while-recording → save ≥400ms into the book's subtree → resume-if-was-playing;
+  denied/failure/race recovery; 10 tests). Mic control + aqua level-waveform puck ride the
+  reading surface's transport (screen-flows pins memo record to READING — the pin needs a
+  live playhead; the library cluster's Memo stays a stub until V30). Entitlement + usage
+  string landed. Both suites green; puck snapshots + rest regression in
+  `.agent-loop/artifacts/V28/`. Real-mic feel → V31 deferred checklist._
+  ↳ [data-model](../04-architecture/data-model.md) ·
   [screen-flows §Memo record](../03-design/screen-flows.md)
 - **V29** · Transcription wiring: memo audio → `POST /transcribe` (faster-whisper, live
   backend) → transcript on the Memo; status pending/ready/error + retry, mirroring the
