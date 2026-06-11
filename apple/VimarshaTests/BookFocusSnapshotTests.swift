@@ -11,10 +11,14 @@ import SwiftUI
 @MainActor
 struct BookFocusSnapshotTests {
     private func render(_ reveal: CGFloat) -> CGImage? {
-        let view = FocusMetadataView(book: ShelfBook.seeds[3], reveal: reveal)
-            .frame(width: 393, height: 90)
-            .background(Palette.canvas)
-            .environment(\.colorScheme, .dark)
+        // Reduce Transparency path: ImageRenderer can't composite live glass, so the matte
+        // plate (V38) stands in — same as the cluster/puck snapshots.
+        let view = FocusMetadataView(
+            book: ShelfBook.seeds[3], reveal: reveal, reduceTransparency: true
+        )
+        .frame(width: 393, height: 90)
+        .background(Palette.canvas)
+        .environment(\.colorScheme, .dark)
         let renderer = ImageRenderer(content: view)
         renderer.scale = 2
         return renderer.cgImage
