@@ -47,6 +47,13 @@ struct LibraryStackView: View {
     /// audio engine/reading morph lands in V16/V17); closed by the X or the backdrop.
     @State private var chapterBook: Book?
 
+    /// The opened chapter (V17): a ready chapter row morphs the hardback OPEN into the
+    /// reading surface — a state of this same surface, never a push. Closing back-morphs.
+    @State private var reading: ReadingContext?
+
+    /// The cover-morph shared-element namespace (tower card ↔ reading cover plate).
+    @Namespace private var coverMorph
+
     /// What the tower renders: the persisted library, or the seed shelf as the
     /// empty-state/demo path (V12).
     private var shelf: [ShelfBook] {
@@ -66,7 +73,8 @@ struct LibraryStackView: View {
                     // the per-card depth-stack parallax rides inside it. Reduce Motion exempt
                     // (the static fallback has no hero zoom).
                     BookTower(
-                        shelf: shelf, size: geo.size, reduceMotion: reduceMotion, focus: focus
+                        shelf: shelf, size: geo.size, reduceMotion: reduceMotion, focus: focus,
+                        morphNamespace: coverMorph, openedBookId: reading?.shelfBook.id
                     )
                         .scaleEffect(
                             heroSettle(in: geo.size).scale,
@@ -96,6 +104,7 @@ struct LibraryStackView: View {
             .overlay(alignment: .bottom) { focusAffordances(in: geo.size) }
             .overlay(alignment: .topTrailing) { addBookButton }
             .overlay { chapterListPlane }
+            .overlay { readingSurface }
             .fileImporter(
                 isPresented: $showsEpubPicker,
                 allowedContentTypes: [.epub]
@@ -229,6 +238,7 @@ struct LibraryStackView: View {
                     book: book,
                     reduceTransparency: reduceTransparency,
                     onDownload: { chapter in store?.downloadChapter(chapter) },
+                    onOpen: { chapter in openReadingSurface(book: book, chapter: chapter) },
                     onClose: { withAnimation(chapterPlaneAnimation) { chapterBook = nil } }
                 )
             }
@@ -237,6 +247,44 @@ struct LibraryStackView: View {
                     ? .opacity
                     : .move(edge: .bottom).combined(with: .opacity)
             )
+        }
+    }
+
+    // MARK: Reading surface (V17 — the cover morphs open; back-morph on close)
+
+    /// The cover-open spring: interruptible, retargets mid-flight; Reduce Motion gets the
+    /// cross-dissolve (discrete-state-morph fallback rule, apple/CLAUDE.md §Accessibility).
+    private var coverMorphAnimation: Animation {
+        reduceMotion ? .easeInOut(duration: 0.18) : .spring(response: 0.5, dampingFraction: 0.88)
+    }
+
+    /// Open a ready chapter: the chapter plane recedes and the focused hardback opens into
+    /// the reading canvas in the same gesture-driven beat — the cover art is the shared
+    /// element (matched geometry).
+    private func openReadingSurface(book: Book, chapter: Chapter) {
+        guard chapter.status == .ready else { return }
+        let shelfBook = ShelfBook(book: book, cover: store?.covers[book.id])
+        withAnimation(coverMorphAnimation) {
+            chapterBook = nil
+            reading = ReadingContext(book: book, chapter: chapter, shelfBook: shelfBook)
+        }
+    }
+
+    /// The opened-book state riding above the stack. The canvas itself cross-fades; the
+    /// cover is the matched-geometry shared element flying from the tower card to the
+    /// plate (suppressed under Reduce Motion — the dissolve carries the transition).
+    @ViewBuilder
+    private var readingSurface: some View {
+        if let reading {
+            ReadingSurfaceView(
+                book: reading.shelfBook,
+                chapterIndex: reading.chapter.index,
+                chapterTitle: reading.chapter.title,
+                reduceTransparency: reduceTransparency,
+                onClose: { withAnimation(coverMorphAnimation) { self.reading = nil } },
+                morphNamespace: reduceMotion ? nil : coverMorph
+            )
+            .transition(.opacity)
         }
     }
 
@@ -368,6 +416,10 @@ private struct BookTower: View {
     let reduceMotion: Bool
     /// Active front-slot focus (motion grammar #2); `.none` under Reduce Motion / at the top.
     let focus: BookFocus
+    /// Cover-morph shared element (V17): the card whose book is open hands its geometry to
+    /// the reading surface's cover plate and hides while open.
+    let morphNamespace: Namespace.ID
+    let openedBookId: String?
 
     var body: some View {
         ForEach(Array(shelf.enumerated()), id: \.element.id) { index, book in
@@ -379,7 +431,8 @@ private struct BookTower: View {
     private func card(_ book: ShelfBook, at index: Int) -> some View {
         if reduceMotion {
             // Static-layout fallback (apple/CLAUDE.md §Accessibility): flat FULL-SIZE list,
-            // no per-book rhythm, no transforms.
+            // no per-book rhythm, no transforms. Discrete morphs are dissolves, so no
+            // matched geometry here either.
             HardbackCoverView(book: book)
                 .frame(width: CardGeometry.width(forViewportWidth: size.width))
                 .shadow(color: .black.opacity(0.25), radius: 14, y: 10)
@@ -430,8 +483,25 @@ private struct BookTower: View {
                     radius: 16 + promotion * 10,
                     y: 12 + promotion * 6
                 )
+                // Cover-morph shared element (V17): while this book is open the reading
+                // surface's plate owns the id (this card yields source) and the card hides —
+                // the hardback has "left" the stack; back-morph returns it.
+                .matchedGeometryEffect(
+                    id: "cover-\(book.id)", in: morphNamespace,
+                    isSource: openedBookId != book.id
+                )
+                .opacity(openedBookId == book.id ? 0 : 1)
         }
     }
+}
+
+/// What the reading surface needs from the moment of opening (V17): the persisted rows
+/// (V18 loads the cached bundle + audio from them) and the shelf rendering of the cover
+/// (the matched-geometry shared element).
+struct ReadingContext {
+    let book: Book
+    let chapter: Chapter
+    let shelfBook: ShelfBook
 }
 
 /// Collects each card's viewport midY (keyed by shelf index) so `BookFocus` can find the card
