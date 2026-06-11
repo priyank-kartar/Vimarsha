@@ -15,6 +15,72 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V26 — Library quality re-review 🚧 needs human review (motion feel + focused-state scrub)
+
+**What:** the **[verify]** checkpoint that closes Phase P1.5 — re-judge the library after
+V22 (uniform cards) → V23 (depth/dissolve) → V24 (focus/cluster fixes) → V25 (hero zoom)
+against [ADR-011](../00-overview/decision-log.md#adr-011--uniform-book-card-geometry-in-the-library-stack)
+and the [V09 findings](V09-motion-review.md). Like V09/V21, this is a human-judgement gate:
+the agent-loop environment **cannot inject scroll/drag gestures into the simulator** (no
+idb/assistive access), so the motion *feel* and every scroll-revealed state is fundamentally a
+human scrub. The loop did every machine-verifiable part and left this findings entry + fresh
+captures for the human.
+
+**Wiring:** no code changed — a verify item. Both suites were already green on `main` (V25's
+merge) and re-confirmed this run; the rest captures were refreshed from the current binary.
+
+**Evidence (machine-verifiable):**
+- Both suites green this run: `xcodebuild … -destination 'platform=macOS' test` and
+  `… 'platform=iOS Simulator,name=iPhone 17 Pro' test` → both `** TEST SUCCEEDED **`.
+- Fresh rest captures, iPhone 17 Pro, binary mtime confirmed fresh (14:14, not the
+  stale-binary trap), read back and **looked at**:
+  [`artifacts/V26/01-rest-dark.png`](../../.agent-loop/artifacts/V26/) (ink canvas) +
+  [`02-rest-light.png`](../../.agent-loop/artifacts/V26/) (butter canvas — relaunched so the
+  app re-read the appearance trait; the first light shot was stale-dark).
+- **Confirmed at rest (static quality, both modes):**
+  - **Uniform cards (ADR-011) ✅** — every card is one width; the pile reads as a calm, even
+    editorial staircase (OPTIC → DAVID CROW → HEY → DESIGN BY ACCIDENT → A SENSE OF PLACE),
+    no per-book size scatter. The V09 "not good / messy sizes" verdict is addressed.
+  - **Scrim dissolve (V23) ✅** — the top OPTIC cover fades/melts under the glass top-scrim
+    capsule (lighter top edge, dissolving into the canvas) rather than hard-clipping, in both
+    dark and light.
+  - **Neat stacking ✅** — the tightened overlap (−0.052 vh) reads neat, not scattered.
+
+**Device-gated → NEEDS HUMAN** (each needs a scroll/drag the loop can't inject):
+1. **Hero zoom (V25, motion grammar #5)** — a **rest no-op** by design (`distanceToRest 0` →
+   scale 1.0), so it is *invisible at rest* and untestable headless. Scroll the header off and
+   judge: does the whole tower scale toward the viewer as one rigid group, front cover held on
+   the front-slot anchor, ease-in-out, 1.06 peak the right strength? Watch the in-bounds anchor
+   approximation (`scaleEffect` anchor is in the tower's own bounds — the "fixed point" may
+   drift across a long scroll).
+2. **Focus/cluster fixes (V24)** — **not exercised at rest:** at the imperfect launch alignment
+   the front-slot promotion is ~0 (DESIGN BY ACCIDENT prints its title in full, no metadata
+   reveal / cluster visible). Settle a book onto the slot and judge: debossed title fades as the
+   serif metadata reveal rises (no double title), the glass cluster reads **sky/aqua** (not
+   butter) and sits **inside the focused cover's bottom edge** (above the next book), and
+   grow-to-front at `scaleBoost 0.07` reads as a real promotion. Isolated static proof of these
+   already exists in [`artifacts/V24/`](../../.agent-loop/artifacts/V24/) (title fade + forced
+   `emerge:1` cool-glass cluster).
+3. **Open V24 finding — front-slot vs dominant cover:** `StackTransform.frontSlot 0.72` can land
+   focus on the *behind-stack* book rather than the front-most fully-visible cover. Judge live
+   whether `frontSlot` wants nudging toward the front card; everything is keyed to `focus.index`
+   so the fixes stay correct, but the *dominant* cover isn't always the focused one.
+4. **Slot-emit landing (V08) + recede desaturation (V23) feel** — scroll down and judge the
+   ease-out "springy but no overshoot" rise off the bottom shelf, and whether the 0.85 recede
+   desaturation reads strong enough mid-scroll.
+5. **V05 lensing puck glass strength** — drag on a cover and judge whether the lens reads as a
+   refractive glass drop (V09 noted it looked flat in the `ImageRenderer` snapshot — likely a
+   renderer limitation; confirm live) and stays on the 120Hz flick budget.
+
+**Verdict:** static library quality (uniform sizing, neat stacking, scrim dissolve) is
+**confirmed good** in both modes. Everything scroll-/gesture-revealed (hero zoom, the focused
+state, slot-emit/recede feel, the puck) and the front-slot calibration are a human scrub. Item
+left 🚧; `V26` written to `.agent-loop/NEEDS_HUMAN`. **Human run-book:** the V09 "How to run the
+human review" steps (scroll slowly top→bottom; flick ×2; settle a book onto the slot; scroll the
+header off and back; drag on a cover) — [V09-motion-review.md §How to run](V09-motion-review.md).
+
+---
+
 ## V25 — Coupled scroll+zoom hero settle (motion grammar #5) ✅
 
 **What:** Phase P1.5 #4 — the missing motion grammar **#5**. As the editorial header
