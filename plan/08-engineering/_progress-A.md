@@ -127,6 +127,17 @@ left 🚧; `V26` written to `.agent-loop/NEEDS_HUMAN`. **Human run-book:** the V
 human review" steps (scroll slowly top→bottom; flick ×2; settle a book onto the slot; scroll the
 header off and back; drag on a cover) — [V09-motion-review.md §How to run](V09-motion-review.md).
 
+**Re-confirmation 2026-06-11 (loop iteration N+1):** a fresh agent re-entered the loop and found
+V26 still the first non-✅ item. `NEEDS_HUMAN` had been cleared externally but **no human verdict
+is recorded** and V26 is still 🚧, so the gate is still open. Re-ran both suites on current `main`
+(HEAD `8bc4e0a`, i.e. post-V27 — code moved since the original V26 machine pass) →
+**both `** TEST SUCCEEDED **`** (macOS + iPhone 17 Pro). No new machine-verifiable work exists for
+this item (the static captures + findings above stand). Per the roadmap's P1.5-before-P2 rule
+(don't build real-book plumbing onto a stack the owner hasn't signed off), the loop must **not**
+advance to V10/P2 until a human closes V26. Re-asserted `V26` → `.agent-loop/NEEDS_HUMAN` and
+stopped. **To unblock the loop:** a human runs the run-book above, then either marks V26 ✅ in the
+roadmap (look-and-feel approved → P2 may start) or files a new fix-item phase (as V09→P1.5 did).
+
 ---
 
 ## V25 — Coupled scroll+zoom hero settle (motion grammar #5) ✅
