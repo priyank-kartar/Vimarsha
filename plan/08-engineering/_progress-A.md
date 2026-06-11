@@ -15,6 +15,60 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V15 — [verify] Real EPUB end-to-end 🚧 (machine half done; NEEDS HUMAN)
+
+**What (machine-verified):** the full P2 pipeline proven against the **live local backend**
+(real Chatterbox on MPS, `uvicorn vimarsha.server:app --port 8000`):
+- `POST /toc` with `shared/fixtures/sample.epub` → book meta + 1 chapter
+  ([`artifacts/V15/toc.json`](../../.agent-loop/artifacts/V15/toc.json)).
+- `POST /import?chapter_index=0` → full narrated bundle in **3m18s** (real MPS synth):
+  9 blocks, 3 figures with ms spans, paraTimings for all 9 blocks
+  ([`bundle.json`](../../.agent-loop/artifacts/V15/bundle.json)).
+- `GET /audio/chap1.mp3` → valid MPEG-III mono 24kHz, **24.576s** — consistent with the
+  last paraTiming (24520ms; timings exact-by-construction holds live)
+  ([`chapter.mp3`](../../.agent-loop/artifacts/V15/chapter.mp3)).
+- **The live bundle decodes through the client's actual `ChapterBundleDTO`** (compiled
+  `apple/Vimarsha/Backend/ChapterBundle.swift` standalone against the live JSON) and
+  survives the downloader's re-encode round trip losslessly.
+- Both suites green on merged `main` (macOS + iPhone 17 Pro sim) after the V14 merge.
+
+**Why the rest is human:** the on-device half needs gestures the loop can't inject —
+document-picker tap ("+" → pick a real EPUB), scroll-to-focus, Play-tap (chapter plane),
+chapter-row tap (download), relaunch check.
+
+**Human run-book (the V15 sign-off):**
+1. Backend up: `cd backend && uv run uvicorn vimarsha.server:app --port 8000` (needs
+   `uv sync --extra tts` once). It was running during the machine half.
+2. Launch the app (iPhone 17 Pro sim or macOS), tap the glass "+", pick a **real EPUB
+   with a cover** (the V11 Penguin/Atomic-Habits downloads are no longer on disk — any
+   real book works; sample.epub at `shared/fixtures/` works but has a generated cloth
+   cover and no images).
+3. Check: real cover art renders on the hardback in the stack (V11/V12); scroll the book
+   to focus → Play raises the **chapter plane** (V14) listing the `/toc` chapters; tap a
+   chapter → aqua spinner for **minutes** (MPS is ~7–8× slower than realtime; the model
+   also reloads per request — known debt Q-SYNTH) → filled aqua check.
+4. Relaunch: the chapter stays `ready` (self-heal only fires if cache files vanish).
+5. Error path: a part-divider/empty chapter should land as retry + "Narration failed"
+   (backend raises for un-narratable chapters).
+6. Both modes (dark canonical + light), Reduce Transparency matte plane if convenient.
+
+**Findings / limitations for the record:**
+- `sample.epub` contains **no image files**, so its figures' `image` stays null
+  (backend `extract_images` skips unresolvable assets) — the live `GET /image` caching
+  path is **unverified live**; verify with a real illustrated book (V20/V21 needs it
+  anyway).
+- Carried visual-audit finding (pre-existing, also in the V26 sign-off captures): the
+  focus metadata reveal renders faintly mid-stack at launch rest (stray
+  "Hey / DESIGN & ILLUSTRATION" over the cards) — the reveal's opacity has no emerge
+  threshold like the cluster's. Candidate one-line fix in a polish item.
+- Housekeeping: crashed test runs leave `LibraryStoreTests-*` temp dirs in the macOS
+  test host's sandbox container tmp (`~/Library/Containers/com.vimarsha.apple/Data/tmp`);
+  harmless, purge if disk matters.
+- No delete-book UI affordance exists yet (store API only) — fine for V15, worth a row
+  in a later polish item.
+
+---
+
 ## V14 — Lazy chapter download + status UI ✅
 
 **What:** one chapter narrates and caches on demand; the chapter list surfaces the

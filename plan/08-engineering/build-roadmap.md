@@ -241,9 +241,17 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   +19 tests, both suites green; live plane open is gesture-gated → V15._
   ↳ [app-architecture](../04-architecture/app-architecture.md) ·
   [narration-pipeline](../04-architecture/narration-pipeline.md)
-- **V15** · **[verify]** A real EPUB imported on device: its cover renders in the stack,
+- **V15** 🚧 · **[verify]** A real EPUB imported on device: its cover renders in the stack,
   chapters list from `/toc`, one chapter narrates end-to-end against the local backend
   (`uv run uvicorn vimarsha.server:app --port 8000`). (needs V11, V14)
+  — _Machine half done 2026-06-11: live `/toc` → `/import` (real Chatterbox, 3m18s) →
+  `/audio` (valid 24.6s MP3 matching paraTimings) round-trip with `sample.epub`; the live
+  bundle decodes through the client's actual `ChapterBundleDTO`; both suites green on
+  `main`. Artifacts: [`artifacts/V15/`](../../.agent-loop/artifacts/V15/). **Needs human
+  review:** the on-device gesture flow — pick a real EPUB via "+", cover in the stack,
+  Play → chapter plane, tap-to-narrate (minutes on MPS) → ready, relaunch persistence,
+  error/retry path. Full run-book in [_progress-A](_progress-A.md) V15 entry. Note: live
+  `GET /image` is unverified (fixture has no images — use a real illustrated book)._
 
 ## Phase P3 — Narrated reading
 
