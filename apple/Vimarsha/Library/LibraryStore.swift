@@ -207,13 +207,12 @@ final class LibraryStore {
 
     /// A live Discuss conversation for one open chapter (V32) — in-memory until saved.
     /// Grounding is snapshotted from the player at EACH send (the passage being narrated
-    /// then); the anchor records where Discuss was opened.
+    /// then); the anchor is pinned later, when the panel actually opens (V33).
     func makeChatStore(player: PlayerController) -> ChatStore {
         let bookTitle = player.chapter?.book?.title ?? ""
         let chapterTitle = player.chapter?.title ?? ""
         return ChatStore(
             backend: backend,
-            anchorBlockId: player.currentBlockId,
             contextSnapshot: { [weak player] in
                 ChatContextSnapshot.make(
                     bundle: player?.bundle,

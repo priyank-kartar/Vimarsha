@@ -22,6 +22,10 @@ struct ReadingSurfaceView: View {
     var memoCapture: MemoCapture?
     /// The chapter's voice notes (V30). Nil (previews/snapshots) hides the Notes state.
     var memoNotes: MemoNotes?
+    /// The live Discuss conversation (V33). Nil (previews/snapshots/no backend wiring)
+    /// hides the Discuss entry. Owned by the opener — the thread survives the panel
+    /// closing and reopening; only closing the book discards it.
+    var chatStore: ChatStore?
     var reduceTransparency: Bool = false
     var onClose: () -> Void = {}
     /// The cover-morph namespace; nil (snapshots/Reduce Motion) renders without the
@@ -52,6 +56,11 @@ struct ReadingSurfaceView: View {
     /// never a sheet. Mutually exclusive with the gallery; leaving it stops any
     /// playing memo clip.
     @State private var showNotes = false
+
+    /// The Discuss panel (V33) — a glass plane morphed up within the canvas, never a
+    /// sheet. Opening does NOT pause narration (spec §4); the panel replaces the
+    /// transport while up (the reading body keeps playing behind it).
+    @State private var showDiscuss = false
 
     var body: some View {
         GeometryReader { geo in
@@ -114,71 +123,106 @@ struct ReadingSurfaceView: View {
             // The compact glass transport (V19) floats over the paper body — never a
             // chrome bar — and the figure carrier (V20) auto-pops above it at each
             // figure's startMs, recedes at endMs. Only when a chapter is actually loaded.
+            // The Discuss panel (V33) takes the whole bottom region while up — a glass
+            // plane morphed up within the canvas; narration keeps playing behind it.
             .overlay(alignment: .bottom) {
                 if let player, player.bundle != nil {
-                    VStack(spacing: 14) {
-                        figureCarrier(player: player)
-                        memoStatusChip
-                        HStack(spacing: 10) {
-                            // While a memo records, narration is paused and the transport
-                            // is moot — the aqua waveform puck takes its slot (a discrete
-                            // state morph; the phase spring below carries it, RM dissolves).
-                            // The mic control itself stays in the hierarchy throughout:
-                            // removing it mid-hold would cancel the hold gesture.
-                            if memoCapture?.phase == .recording {
-                                MemoPuckView(
-                                    level: memoCapture?.level ?? 0,
-                                    elapsedMs: memoCapture?.elapsedMs ?? 0,
-                                    reduceTransparency: reduceTransparency
-                                )
-                                .transition(.opacity.combined(with: .scale(scale: 0.92)))
-                            } else {
-                                TransportClusterView(
-                                    positionMs: player.positionMs,
-                                    durationMs: player.durationMs,
-                                    isPlaying: player.isPlaying,
-                                    rate: player.rate,
-                                    reduceTransparency: reduceTransparency,
-                                    onPlayPause: { player.togglePlayPause() },
-                                    onSkip: { player.skip(byMs: $0) },
-                                    onCycleRate: { player.setRate(Transport.nextRate(after: player.rate)) }
-                                )
-                                .transition(.opacity)
-                            }
-                            if let memoCapture {
-                                MemoRecordControl(
-                                    isRecording: memoCapture.phase == .recording,
-                                    reduceTransparency: reduceTransparency,
-                                    onHoldChanged: { holding in
-                                        if holding {
-                                            Task { await memoCapture.beginHold() }
-                                        } else {
-                                            memoCapture.endHold()
-                                        }
-                                    }
-                                )
-                            }
-                        }
+                    if showDiscuss, let chatStore {
+                        DiscussPanelView(
+                            chat: chatStore,
+                            reduceTransparency: reduceTransparency,
+                            onClose: { showDiscuss = false }
+                        )
+                        .frame(maxWidth: 600)
+                        .frame(height: min(geo.size.height * 0.55, 520))
+                        .transition(
+                            reduceMotion ? .opacity
+                                : .move(edge: .bottom).combined(with: .opacity)
+                        )
+                    } else {
+                        transportOverlay(player: player)
                     }
-                    .frame(maxWidth: 380)
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 18)
-                    // Pop/recede is a discrete state morph: interruptible spring keyed
-                    // on the active set; Reduce Motion cross-dissolves instead.
-                    .animation(
-                        reduceMotion ? .easeInOut(duration: 0.15)
-                            : .spring(response: 0.45, dampingFraction: 0.85),
-                        value: FigureOverlaySelection.key(for: player.activeFigures)
+                }
+            }
+            .animation(
+                reduceMotion ? .easeInOut(duration: 0.15)
+                    : .spring(response: 0.4, dampingFraction: 0.88),
+                value: showDiscuss
+            )
+        }
+        .background(Palette.canvas.ignoresSafeArea())
+    }
+
+    /// The resting bottom overlay: figure carrier + status chips + transport/mic
+    /// (V19/V20/V28) — everything the Discuss plane replaces while it's up.
+    private func transportOverlay(player: PlayerController) -> some View {
+        VStack(spacing: 14) {
+            figureCarrier(player: player)
+            memoStatusChip
+            HStack(spacing: 10) {
+                // While a memo records, narration is paused and the transport
+                // is moot — the aqua waveform puck takes its slot (a discrete
+                // state morph; the phase spring below carries it, RM dissolves).
+                // The mic control itself stays in the hierarchy throughout:
+                // removing it mid-hold would cancel the hold gesture.
+                if memoCapture?.phase == .recording {
+                    MemoPuckView(
+                        level: memoCapture?.level ?? 0,
+                        elapsedMs: memoCapture?.elapsedMs ?? 0,
+                        reduceTransparency: reduceTransparency
                     )
-                    .animation(
-                        reduceMotion ? .easeInOut(duration: 0.15)
-                            : .spring(response: 0.4, dampingFraction: 0.85),
-                        value: memoCapture?.phase
+                    .transition(.opacity.combined(with: .scale(scale: 0.92)))
+                } else {
+                    TransportClusterView(
+                        positionMs: player.positionMs,
+                        durationMs: player.durationMs,
+                        isPlaying: player.isPlaying,
+                        rate: player.rate,
+                        reduceTransparency: reduceTransparency,
+                        onPlayPause: { player.togglePlayPause() },
+                        onSkip: { player.skip(byMs: $0) },
+                        onCycleRate: { player.setRate(Transport.nextRate(after: player.rate)) }
+                    )
+                    .transition(.opacity)
+                }
+                if let memoCapture {
+                    MemoRecordControl(
+                        isRecording: memoCapture.phase == .recording,
+                        reduceTransparency: reduceTransparency,
+                        onHoldChanged: { holding in
+                            if holding {
+                                Task { await memoCapture.beginHold() }
+                            } else {
+                                memoCapture.endHold()
+                            }
+                        },
+                        // Dual gesture (spec §4): double-tap opens Discuss
+                        // WITHOUT touching playback — the anchor pins where
+                        // the conversation started.
+                        onDoubleTap: {
+                            guard let chatStore else { return }
+                            chatStore.recordAnchor(player.currentBlockId)
+                            showDiscuss = true
+                        }
                     )
                 }
             }
         }
-        .background(Palette.canvas.ignoresSafeArea())
+        .frame(maxWidth: 380)
+        .padding(.horizontal, 24)
+        .padding(.bottom, 18)
+        // Pop/recede is a discrete state morph: interruptible spring keyed
+        // on the active set; Reduce Motion cross-dissolves instead.
+        .animation(
+            reduceMotion ? .easeInOut(duration: 0.15)
+                : .spring(response: 0.45, dampingFraction: 0.85),
+            value: FigureOverlaySelection.key(for: player.activeFigures)
+        )
+        .animation(
+            reduceMotion ? .easeInOut(duration: 0.15)
+                : .spring(response: 0.4, dampingFraction: 0.85),
+            value: memoCapture?.phase
+        )
     }
 
     /// The narrated reading body: cover plate + masthead scroll away with the text (the
