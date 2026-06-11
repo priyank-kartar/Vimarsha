@@ -25,6 +25,11 @@ struct LibraryStackView: View {
     /// flat list with no front slot) leaves this at `.none`.
     @State private var focus: BookFocus = .none
 
+    /// Each card's viewport top edge, keyed by shelf index — used to anchor the focus
+    /// affordances just inside the focused cover's visible bottom (the next book's top edge),
+    /// so the cluster sits on the focused cover, not floating over the book below it (V24).
+    @State private var cardTops: [Int: CGFloat] = [:]
+
     var body: some View {
         GeometryReader { geo in
             ScrollView(.vertical, showsIndicators: false) {
@@ -47,13 +52,14 @@ struct LibraryStackView: View {
                     ? .none
                     : BookFocus.at(midYs: midYs, viewportHeight: geo.size.height)
             }
+            .onPreferenceChange(CardTopYKey.self) { cardTops = $0 }
             .background(Palette.canvas.ignoresSafeArea())
             // The puck floats in viewport space (it follows the finger, not the content),
             // so the gesture + overlay live on the ScrollView, outside the scrolling tower.
             .simultaneousGesture(lensingDrag(in: geo.size))
             .overlay { LensingPuckView(puck: puck, reduceTransparency: reduceTransparency) }
             .overlay(alignment: .top) { topScrim }
-            .overlay(alignment: .bottom) { focusAffordances }
+            .overlay(alignment: .bottom) { focusAffordances(in: geo.size) }
         }
     }
 
@@ -66,7 +72,7 @@ struct LibraryStackView: View {
     /// V06 note that the bare caption grazed the next rising cover. Hidden when nothing is
     /// settled or under Reduce Motion (focus is `.none`).
     @ViewBuilder
-    private var focusAffordances: some View {
+    private func focusAffordances(in size: CGSize) -> some View {
         if focus.index >= 0, focus.index < BookSeed.shelf.count {
             VStack(spacing: 18) {
                 FocusMetadataView(book: BookSeed.shelf[focus.index], reveal: focus.promotion)
@@ -75,7 +81,13 @@ struct LibraryStackView: View {
                     reduceTransparency: reduceTransparency
                 )
             }
-            .padding(.bottom, 36)
+            // Anchor inside the focused cover's visible bottom — above the next book that
+            // overlaps it — so the cluster reads as extruded from the cover, not floating over
+            // the book below (V24).
+            .padding(.bottom, FocusAffordancePlacement.bottomPadding(
+                nextTopY: cardTops[focus.index + 1],
+                viewportHeight: size.height
+            ))
         }
     }
 
@@ -190,7 +202,10 @@ private struct BookTower: View {
             // Grow-to-front promotion (motion grammar #2): only the focused card grows, and
             // its eased `promotion` deepens the contact shadow as it settles onto the slot.
             let promotion = focus.index == index ? focus.promotion : 0
-            HardbackCoverView(book: book)
+            // Fade this cover's printed title as it settles, so the metadata reveal isn't a
+            // second title in the same eyeline (V24 — kill the double title). Only the focused
+            // card promotes, so only it fades.
+            HardbackCoverView(book: book, titleOpacity: 1 - promotion)
                 // Uniform card width (ADR-011) — one size for every book; the depth-stack
                 // transform alone supplies the staircase, no per-index width rhythm.
                 .frame(width: CardGeometry.width(forViewportWidth: size.width))
@@ -212,13 +227,14 @@ private struct BookTower: View {
                         .saturation(t.saturation)
                         .offset(y: t.yOffset + emit.yOffset)
                 }
-                // Publish this card's viewport midY for front-slot detection.
+                // Publish this card's viewport midY (front-slot detection) and top edge (so the
+                // focus affordances can anchor inside this cover's visible bottom, V24).
                 .background {
                     GeometryReader { proxy in
-                        Color.clear.preference(
-                            key: CardMidYKey.self,
-                            value: [index: proxy.frame(in: .scrollView).midY]
-                        )
+                        let frame = proxy.frame(in: .scrollView)
+                        Color.clear
+                            .preference(key: CardMidYKey.self, value: [index: frame.midY])
+                            .preference(key: CardTopYKey.self, value: [index: frame.minY])
                     }
                 }
                 // Contact shadow; deepens with the grow-to-front promotion → strongest on the
@@ -235,6 +251,15 @@ private struct BookTower: View {
 /// Collects each card's viewport midY (keyed by shelf index) so `BookFocus` can find the card
 /// nearest the front slot. Merges partial maps as cards report during layout.
 private struct CardMidYKey: PreferenceKey {
+    static let defaultValue: [Int: CGFloat] = [:]
+    static func reduce(value: inout [Int: CGFloat], nextValue: () -> [Int: CGFloat]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
+/// Collects each card's viewport top edge (keyed by shelf index) so the focus affordances can
+/// anchor inside the focused cover's visible bottom — the next book's top edge (V24).
+private struct CardTopYKey: PreferenceKey {
     static let defaultValue: [Int: CGFloat] = [:]
     static func reduce(value: inout [Int: CGFloat], nextValue: () -> [Int: CGFloat]) {
         value.merge(nextValue()) { $1 }
