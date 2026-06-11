@@ -473,6 +473,42 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   ([harness-run.log](../../.agent-loop/artifacts/V31/harness-run.log)). No app code changed;
   suites green. **P4 complete.**_
 
+## Phase P-FIX — UI audit fixes (round 3)
+
+> Inserted 2026-06-11 by the **independent UI audit** (fresh `main` build 20:28, iPhone 17
+> Pro sim, rest-state captures dark/light/XXXL/increased-contrast). Findings + artifacts:
+> [ui-audit-log](ui-audit-log.md) §Round 3. Round-1/2 fixes (V37–V44) verified holding;
+> these are XXXL launch-rest composition defects on/around the focused card.
+
+- **V45** · Control cluster renders on the focused cover's debossed text at XXXL rest (both
+  modes): the glass pill row sits across the subtitle — "DESIGN &" reads through the glass
+  between the icons, "HEY" partially behind the pill, "ILLUSTRATION" under its lower edge.
+  V42 restored the deboss as the focus label; the cluster still emerges over that exact
+  spot. Fix direction: keep V42's invariant (the deboss IS the label) but never render
+  icons over glyphs — locally fade/dodge only the deboss lines the pill actually covers, or
+  offset the cluster's emergence anchor below the deboss block; verify XXXL × dark+light
+  shows label + cluster with zero overlap.
+  ↳ [ui-audit-log](ui-audit-log.md) §Round 3 ·
+  `.agent-loop/artifacts/ui-audit-20260611-2028/crop-xxxl-dark-cluster.png`
+- **V46** · Cluster glass frozen mid-meld at XXXL rest (both modes): the four control
+  circles render half-merged into a lumpy scalloped blob — neither the discrete circles of
+  full emergence (V40 artifacts) nor a clean capsule; at rest the cluster sits between its
+  visibility floor and full emergence and freezes in the in-between
+  `GlassEffectContainer` merge shape. Fix direction: resolve the rest state to a terminal
+  form — snap emergence to a stable endpoint when scroll is at rest (merged capsule or
+  fully split circles); mid-meld geometry only while the morph is actually in motion.
+  ↳ [ui-audit-log](ui-audit-log.md) §Round 3 ·
+  `.agent-loop/artifacts/ui-audit-20260611-2028/crop-xxxl-light-cluster.png`
+- **V47** · Unfocused cover's deboss title collides with the neighbor's overhanging
+  fore-edge strip at XXXL (dark clear, light faint): the focused pink card's page-stack
+  lines hang below its cover edge and run straight through the top serifs of the blue
+  card's "DESIGN BY". V44 inset the deboss from the bottom edge only. Fix direction:
+  top-inset the deboss block below the zone the card above overlaps (mirror V44's bottom
+  inset), or clip/z-order the fore-edge strip so it never crosses a neighbor's text area;
+  verify XXXL × dark+light.
+  ↳ [ui-audit-log](ui-audit-log.md) §Round 3 ·
+  `.agent-loop/artifacts/ui-audit-20260611-2028/crop-xxxl-dark-bluetop.png`
+
 ## Phase P5 — Discuss (itemized 2026-06-11; spec = `docs/superpowers/specs/2026-06-10-vimarsha-deep-dive-conversation-design.md`)
 
 > The native rebuild of old Plan 6b. **Read the spec first** — interaction rules (§4) are

@@ -98,3 +98,43 @@ no ghost pill (V39), single title (V41). The round-2 findings are new or compose
   produces a frame pixel-equivalent to normal dark; carry-over, not re-filed ·
   `.agent-loop/artifacts/ui-audit-20260611-1849/05-contrast-dark.png` vs
   `06-rest-dark-medium.png`
+
+## Round 3 — 2026-06-11 (independent audit; fresh `main` build 20:28, iPhone 17 Pro sim, rest state only — no gesture injection)
+
+Round-1/2 fixes **hold**: medium rest is clean in both modes (no seam collision, no ghost
+pill, single title, band contrast reads strong — V37–V39/V41/V43), V42's deboss label is
+present at XXXL, V44's bottom inset keeps "OF DESIGN" off the cover's bottom edge. The
+round-3 findings are all XXXL-rest composition defects on/around the focused card.
+
+- should-fix · library rest, XXXL · both modes · the **control cluster renders directly on
+  the focused cover's debossed text**: the glass pill row sits across the subtitle —
+  "DESIGN &" reads through the glass between/behind the icons, "HEY" is partially behind
+  the pill's upper bulges, "ILLUSTRATION" runs under its lower edge. V42 restored the
+  deboss as the focus label, but the cluster still emerges at rest over that exact spot —
+  controls-on-text collision at launch. (Visible in V42's own pass artifact
+  `.agent-loop/artifacts/V42/01-xxxl-dark.png` — missed, not regressed.) ·
+  `.agent-loop/artifacts/ui-audit-20260611-2028/crop-xxxl-dark-cluster.png`,
+  `crop-xxxl-light-cluster.png`, `03-xxxl-light.png`, `04-xxxl-dark.png`
+- should-fix · library rest, XXXL · both modes · the **cluster glass is frozen mid-meld**:
+  the four control circles render half-merged into a lumpy scalloped blob — neither the
+  discrete full-emergence circles (V40's `artifacts/V40/crop-emerged-dark.png`) nor a clean
+  capsule. At rest the cluster sits between its visibility floor and full emergence and
+  freezes in the in-between `GlassEffectContainer` merge shape; a static rest state should
+  resolve to a terminal form, mid-meld shapes are for in-motion frames ·
+  `.agent-loop/artifacts/ui-audit-20260611-2028/crop-xxxl-dark-cluster.png`,
+  `crop-xxxl-light-cluster.png`
+- should-fix · library rest, XXXL · dark (clear), light (faint) · the unfocused blue
+  cover's **deboss title collides with the focused card's overhanging fore-edge strip**:
+  the pink card's page-stack lines (which hang below its cover edge, over the card behind)
+  run straight through the top serifs of "DESIGN BY". V44 inset the deboss block from the
+  cover's *bottom* edge only; at XXXL the block now reaches the *top* overlap zone ·
+  `.agent-loop/artifacts/ui-audit-20260611-2028/crop-xxxl-dark-bluetop.png`,
+  `crop-xxxl-light-bluetop.png`
+- nit · library rest, XXXL · both modes · carry-over (rounds 1–2): bottom shelf cover still
+  clips "OF PLACE" mid-glyph at the hard screen edge; no meniscus/fade treatment yet ·
+  `.agent-loop/artifacts/ui-audit-20260611-2028/crop-xxxl-dark-shelf.png`
+- nit · increased contrast · dark · carry-over (rounds 1–2), this round measured: the
+  Increase Contrast frame differs from normal dark by at most 20/255 per pixel
+  (anti-aliasing jitter only — no adaptation) ·
+  `.agent-loop/artifacts/ui-audit-20260611-2028/diff-contrast-amplified.png`,
+  `05-contrast-dark.png` vs `06-rest-dark-medium.png`
