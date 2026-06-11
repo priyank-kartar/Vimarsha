@@ -15,6 +15,50 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V11 — [SPIKE] Client-side EPUB cover extraction ✅ (ADR-006 proven)
+
+**What:** the client reads covers out of the EPUB it already holds — no backend change.
+- `Import/ZipArchive.swift` — minimal read-only zip reader (5 tests): central-directory
+  parse (EOCD back-scan), stored + deflate entries (Compression `COMPRESSION_ZLIB` ==
+  zip's headerless DEFLATE). No zip64/encryption/multi-disk (EPUBs never need them).
+- `Import/EpubCover.swift` — the cover ladder (7 tests): `META-INF/container.xml` →
+  rootfile OPF → manifest; **EPUB3** `properties="cover-image"` → **EPUB2**
+  `meta[name=cover]` → cover-ish image id (`cover`/`cover-image`) → **first image** item;
+  hrefs resolved against the OPF dir (`.`/`..` + percent-decoding), extension from
+  media-type. Namespace-prefix-tolerant XML matching (`opf:item`). Best-effort: anything
+  broken → `nil`, the generated cloth cover stays the UI fallback — an import never fails
+  over a cover.
+- `EpubImporter` writes `Library/Books/<id>/cover.<ext>` beside the EPUB and returns
+  `coverRelativePath?` on `ImportedEpub` (+2 importer tests).
+
+**Wiring:** extraction runs inside `importEpub` (already off-main). Nothing renders it yet —
+V12 persists `coverPath`, and the stack swaps generated covers for real art when the seeds
+give way to SwiftData books.
+
+**Evidence:**
+- 14 new tests green on macOS + iPhone 17 Pro sim (zip reader incl. real `sample.epub`
+  fixture + truncation/garbage; ladder rungs incl. `../` href resolution; importer
+  cover-write + coverless-nil). Test EPUBs are real zip bytes built by
+  `VimarshaTests/ZipFixture.swift` (spec-valid CRCs, genuinely deflated entries).
+  `sample.epub` is duplicated into `VimarshaTests/Fixtures/` because the **sandboxed**
+  (V10) macOS test host can't read repo paths.
+- **SPIKE proof on real books** (standalone harness compiling the two production files):
+  a real Penguin EPUB (Atomic Habits preview, ISBN 9781473537804) → its actual cover art,
+  `.agent-loop/artifacts/V11/preview-9781473537804_A2-cover.jpg` — looked at, it's the
+  real cover. Books-app *unpacked-directory* "EPUB" → correctly nil (not a zip).
+- Commits `6649f86` (zip) + `a6d5026` (ladder) + `92c8885` (importer), merged `69aa1c5`.
+
+**Findings (for the record):**
+1. A pirate/Ebook-lib EPUB with NO declared cover fell to first-image and got a **blank
+   A4 scan page** (`.agent-loop/artifacts/V11/Atomic Habits…-cover.jpg`). Designed
+   degradation, but a possible later rung: spine `idref="cover"` XHTML → its `<img>`.
+   Not built — YAGNI until a real library shows more of these.
+2. iCloud Books storage keeps EPUBs as **unpacked directories**; the document picker can
+   hand one over on macOS. The importer copies a file; directory-EPUB support is an
+   open question for V15 if it bites.
+
+---
+
 ## V10 — EPUB import (picker → container copy → entitlements) ✅ (P2 opens)
 
 **What:** the first real-books item — a user-picked EPUB lands in the app container.

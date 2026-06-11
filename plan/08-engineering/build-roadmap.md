@@ -204,9 +204,15 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   sandbox ON; live pick is device-gated → V15._
   ↳ [app-architecture](../04-architecture/app-architecture.md) ·
   Flutter reference: `app/lib/features/library/`
-- **V11** · **[SPIKE]** Client-side cover extraction from EPUB (container.xml → OPF →
+- **V11** ✅ · **[SPIKE]** Client-side cover extraction from EPUB (container.xml → OPF →
   cover-image manifest item; fall back to first image / generated cloth cover). Proves
   [ADR-006](../00-overview/decision-log.md#adr-006--cover-art-is-client-side). (needs V10)
+  — _Done 2026-06-11, merged `69aa1c5`; `ZipArchive` (minimal stored+deflate reader, 5
+  tests) + `EpubCover` ladder (EPUB3 properties → EPUB2 meta → cover-ish id → first image,
+  7 tests) + importer writes `cover.<ext>` (+2). **Proven on a real Penguin EPUB** → true
+  cover art (artifact in `.agent-loop/artifacts/V11/`). Spike findings (blank first-image
+  on cover-less pirate EPUBs; iCloud unpacked-directory EPUBs) logged in
+  [_progress-A](_progress-A.md). Rendering real covers in the stack lands with V12._
 - **V12** · SwiftData models + persistence: Books/Chapters with status + progress; the
   static `BookSeed` shelf becomes the empty-state/demo path. (needs V10)
   ↳ [data-model](../04-architecture/data-model.md)
