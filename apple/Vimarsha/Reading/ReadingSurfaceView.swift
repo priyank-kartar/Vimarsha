@@ -26,6 +26,8 @@ struct ReadingSurfaceView: View {
     /// hides the Discuss entry. Owned by the opener — the thread survives the panel
     /// closing and reopening; only closing the book discards it.
     var chatStore: ChatStore?
+    /// Hold-to-talk for the Discuss panel (V34). Nil hides the panel's mic.
+    var voiceInput: VoiceInput?
     var reduceTransparency: Bool = false
     var onClose: () -> Void = {}
     /// The cover-morph namespace; nil (snapshots/Reduce Motion) renders without the
@@ -130,8 +132,12 @@ struct ReadingSurfaceView: View {
                     if showDiscuss, let chatStore {
                         DiscussPanelView(
                             chat: chatStore,
+                            voice: voiceInput,
                             reduceTransparency: reduceTransparency,
-                            onClose: { showDiscuss = false }
+                            onClose: {
+                                voiceInput?.cancelHold()
+                                showDiscuss = false
+                            }
                         )
                         .frame(maxWidth: 600)
                         .frame(height: min(geo.size.height * 0.55, 520))

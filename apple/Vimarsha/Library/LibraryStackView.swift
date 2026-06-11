@@ -84,6 +84,10 @@ struct LibraryStackView: View {
     /// save-on-demand) only when the book closes.
     @State private var chatStore: ChatStore?
 
+    /// The opened chapter's hold-to-talk voice input (V34): shares the app-lifetime
+    /// recorder; cancelled + released at close like the memo capture.
+    @State private var voiceInput: VoiceInput?
+
     /// The cover-morph shared-element namespace (tower card ↔ reading cover plate).
     @Namespace private var coverMorph
 
@@ -348,6 +352,9 @@ struct LibraryStackView: View {
                 player: candidate, memoEngine: AVFoundationAudioEngine()
             )
             chatStore = store.makeChatStore(player: candidate)
+            if let recorder {
+                voiceInput = store.makeVoiceInput(recorder: recorder, player: candidate)
+            }
         }
         let shelfBook = ShelfBook(book: book, cover: store?.covers[book.id])
         withAnimation(coverMorphAnimation) {
@@ -365,6 +372,8 @@ struct LibraryStackView: View {
         memoNotes?.stopPlayback()
         memoNotes = nil
         chatStore = nil
+        voiceInput?.cancelHold()
+        voiceInput = nil
         player?.pause()
         player = nil
         withAnimation(coverMorphAnimation) { reading = nil }
@@ -384,6 +393,7 @@ struct LibraryStackView: View {
                 memoCapture: memoCapture,
                 memoNotes: memoNotes,
                 chatStore: chatStore,
+                voiceInput: voiceInput,
                 reduceTransparency: reduceTransparency,
                 onClose: { closeReadingSurface() },
                 morphNamespace: reduceMotion ? nil : coverMorph
