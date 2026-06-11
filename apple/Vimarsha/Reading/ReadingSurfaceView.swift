@@ -34,6 +34,11 @@ struct ReadingSurfaceView: View {
     @State private var lastUserScroll: Date = .distantPast
     private static let userScrollCooldown: TimeInterval = 4
 
+    /// The figure carrier's paging memory (V20). The rendered selection is *derived*
+    /// (`FigureOverlaySelection.reconciled`) every frame — this only remembers which
+    /// stacked card the user paged to while the active set stays stable.
+    @State private var figurePaging: FigureOverlaySelection?
+
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
@@ -47,22 +52,33 @@ struct ReadingSurfaceView: View {
                     .padding(.horizontal, 20)
             }
             // The compact glass transport (V19) floats over the paper body — never a
-            // chrome bar. Only when a chapter is actually loaded.
+            // chrome bar — and the figure carrier (V20) auto-pops above it at each
+            // figure's startMs, recedes at endMs. Only when a chapter is actually loaded.
             .overlay(alignment: .bottom) {
                 if let player, player.bundle != nil {
-                    TransportClusterView(
-                        positionMs: player.positionMs,
-                        durationMs: player.durationMs,
-                        isPlaying: player.isPlaying,
-                        rate: player.rate,
-                        reduceTransparency: reduceTransparency,
-                        onPlayPause: { player.togglePlayPause() },
-                        onSkip: { player.skip(byMs: $0) },
-                        onCycleRate: { player.setRate(Transport.nextRate(after: player.rate)) }
-                    )
+                    VStack(spacing: 14) {
+                        figureCarrier(player: player)
+                        TransportClusterView(
+                            positionMs: player.positionMs,
+                            durationMs: player.durationMs,
+                            isPlaying: player.isPlaying,
+                            rate: player.rate,
+                            reduceTransparency: reduceTransparency,
+                            onPlayPause: { player.togglePlayPause() },
+                            onSkip: { player.skip(byMs: $0) },
+                            onCycleRate: { player.setRate(Transport.nextRate(after: player.rate)) }
+                        )
+                    }
                     .frame(maxWidth: 380)
                     .padding(.horizontal, 24)
                     .padding(.bottom, 18)
+                    // Pop/recede is a discrete state morph: interruptible spring keyed
+                    // on the active set; Reduce Motion cross-dissolves instead.
+                    .animation(
+                        reduceMotion ? .easeInOut(duration: 0.15)
+                            : .spring(response: 0.45, dampingFraction: 0.85),
+                        value: FigureOverlaySelection.key(for: player.activeFigures)
+                    )
                 }
             }
         }
@@ -123,6 +139,28 @@ struct ReadingSurfaceView: View {
         lastScrolledTo = id
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35)) {
             proxy.scrollTo(id, anchor: UnitPoint(x: 0.5, y: 0.3))
+        }
+    }
+
+    /// The glass figure carrier (V20): present exactly while figures are active at the
+    /// playhead — auto-pop at `startMs`, recede at `endMs` (TimingIndex owns the spans).
+    @ViewBuilder
+    private func figureCarrier(player: PlayerController) -> some View {
+        let figures = player.activeFigures
+        if let selection = FigureOverlaySelection.reconciled(figurePaging, with: figures) {
+            FigureCarrierView(
+                figures: figures,
+                selectedIndex: selection.index,
+                images: player.blockImages,
+                reduceTransparency: reduceTransparency,
+                onPrevious: { figurePaging = selection.previous(count: figures.count) },
+                onNext: { figurePaging = selection.next(count: figures.count) }
+            )
+            .transition(
+                reduceMotion ? .opacity
+                    : .move(edge: .bottom).combined(with: .opacity)
+                        .combined(with: .scale(scale: 0.92, anchor: .bottom))
+            )
         }
     }
 
