@@ -6,6 +6,10 @@ import SwiftUI
 /// Contact shadow is applied by the stack (it depends on stack position).
 struct HardbackCoverView: View {
     let book: BookSeed
+    /// Opacity of the debossed title block (V24). Defaults to fully printed; the focused card
+    /// fades it toward 0 as its metadata reveal rises, so the title never reads twice in one
+    /// eyeline (the cover's debossed title + the serif metadata reveal below it).
+    var titleOpacity: CGFloat = 1
 
     @ScaledMetric(relativeTo: .title2) private var titleSize: CGFloat = 30
     @ScaledMetric(relativeTo: .caption2) private var authorSize: CGFloat = 10
@@ -62,6 +66,8 @@ struct HardbackCoverView: View {
         .shadow(color: .white.opacity(0.18), radius: 0.5, y: 0.7)
         .padding(.horizontal, 18)
         .lineLimit(3)
+        // Fade the printed title as the metadata reveal takes over (V24 — kill the double title).
+        .opacity(titleOpacity)
     }
 
     /// The page block under the board: stacked paper lines, optionally gilt.
