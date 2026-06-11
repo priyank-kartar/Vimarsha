@@ -353,10 +353,16 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   ghost-free + XXXL cluster intact in `.agent-loop/artifacts/V39/`._
   ↳ [ui-audit-log](ui-audit-log.md) ·
   `.agent-loop/artifacts/ui-audit-20260611-1731/crop-dark-mid.png`
-- **V40** · Cluster glass is untinted grey (XXXL rest, both modes): grey pill + monochrome
+- **V40** ✅ · Cluster glass is untinted grey (XXXL rest, both modes): grey pill + monochrome
   dark-grey icons on the pink cover — violates "tint glass with sky/aqua; avoid untinted
   grey glass". Fix direction: sky-tinted glass for the pill, token-derived icon color;
-  confirm the tint survives on light covers (pink/butter) too.
+  confirm the tint survives on light covers (pink/butter) too. — _Done 2026-06-11, merged
+  `ba000b7`; three causes: weak tints (sky 0.45/aqua 0.52 now), luminance-adaptive glass
+  flipping `textPrimary` icons (glass path → `ink0`), and the unclamped XXXL diameter
+  outgrowing the fixed fan spacing so the controls never split (diameter clamp 68 + derived
+  spacing). Also fixed a V37 regression (`.clipped()` amputated the offset-rendered fan —
+  layout now declares fan width). Forced-emerge XXXL captures over the pink cover, both
+  modes, in `.agent-loop/artifacts/V40/`; suites green._
   ↳ [ui-audit-log](ui-audit-log.md) ·
   `.agent-loop/artifacts/ui-audit-20260611-1731/crop-xxxl-light-cluster.png`
 - **V41** · Title-fade not engaged at rest (double title): the focused cover's debossed

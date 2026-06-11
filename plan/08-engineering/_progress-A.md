@@ -121,6 +121,44 @@ mid-gesture should read as a clean morph-out, not a pop) — next live review.
 
 ---
 
+## V40 — Cluster glass tint (sky pill, token icons, fan that splits) ✅
+
+**What:** the ui-audit "untinted grey pill" had THREE causes, all fixed in
+`ControlClusterView`:
+1. **Tints too weak to own the surface** over light covers — sky 0.26 → 0.45, aqua
+   0.32 → 0.52 (third raise; V24's 0.26 still lost to the pink cover).
+2. **Glass adapts content rendering to the cover's luminance**, flipping the mode-aware
+   `textPrimary` icons dark over the light pink cover (the audit's "monochrome dark-grey
+   icons" in dark mode). Glass path now uses `Palette.ink0` icons — the palette's own
+   ink-on-sky pairing, cover-independent; the Reduce Transparency matte keeps
+   `textPrimary` on `surface`.
+3. **The XXXL diameter (~100pt, unclamped ScaledMetric) outgrew the fixed 64pt fan
+   spacing**, so the four controls could never split — one permanently melded pill at
+   large type. Diameter clamps at 68 (icon 24; still a generous touch target), spacing
+   derives from it (`diameter + 14`).
+
+**Found + fixed en route (V37 regression):** the fan is rendered with `offset`, which
+doesn't grow layout — the cluster's layout box stayed ONE circle wide, and V37's
+`.clipped()` backstop amputated the outer controls at full emerge (invisible until now
+because the V39-gated rest state never reaches full emerge; the forced-emerge capture
+exposed it). The cluster now declares its fan width as its layout frame.
+
+**Evidence:** both suites green. Forced-emerge (`ControlCluster(emerge: 1)`, temp, then
+reverted — the V24 precedent) over the pink cover at XXXL, dark + light, in
+[`artifacts/V40/`](../../.agent-loop/artifacts/V40/) (`crop-emerged-*.png`): four distinct
+glass controls, aqua play + sky trio, crisp ink icons, no clipping. Rest-state
+regression capture clean (`05-rest-medium-dark.png`). Commit `5ee1fcf`, merged `ba000b7`.
+
+**Visual audit findings (whole-frame):** at XXXL the fan (~314pt) slightly overhangs the
+281pt cover's side edges — reads as floating glass, acceptable, but worth an eye in the
+next human pass. Sky tint over pink refracts slightly violet (physics of tinted glass —
+the tint reads, not grey). Double-title (V41) and bottom-edge clipping nit unchanged.
+
+**Device-gated:** live meld/split during scroll-settle with the new derived spacing
+(the blob should split later/cleaner now) — next live review.
+
+---
+
 ## V21 — [verify] Eyes-free run ✅ (machine half; human review deferred to final)
 
 **What:** the P3-closing verify gate, run as far as a machine can take it. A standalone
