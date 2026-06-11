@@ -314,6 +314,46 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   (narration is minutes of server silence) → narration-length session, merged `187a287`.
   Both suites green on `main`._
 
+## Phase P-FIX — UI audit fixes (round 1)
+
+> Inserted 2026-06-11 by the **independent UI audit** (fresh `main` build, iPhone 17 Pro
+> sim, rest-state captures dark/light/XXXL/increased-contrast). Findings + artifacts:
+> [ui-audit-log](ui-audit-log.md) §Round 1. Fix these **before P4** — they are all
+> launch-rest-state defects visible in any App Store screenshot.
+
+- **V37** · **[blocker]** Metadata reveal collides with the neighbor cover: at launch rest
+  the focused book's white serif title + letterspaced subtitle straddle the cover seam and
+  render text-on-text over the card above (at XXXL "Hey" sits directly on "DAVID CROW").
+  Fix direction: anchor the reveal strictly inside the focused cover's own bounds (or a
+  dedicated plate below it) with a hard clip — verify at medium AND XXXL, both modes.
+  ↳ [ui-audit-log](ui-audit-log.md) ·
+  `.agent-loop/artifacts/ui-audit-20260611-1731/crop-xxxl-dark-cluster.png`
+- **V38** · Metadata reveal legibility: bare white text over arbitrary cover colors
+  (white-on-pink ≈2:1, WCAG fail both modes). Fix direction: back the reveal with a
+  sky-tinted glass plate (matte token fallback under Reduce Transparency) or switch to the
+  per-mode text token — never raw white over uncontrolled art.
+  ↳ [ui-audit-log](ui-audit-log.md) ·
+  `.agent-loop/artifacts/ui-audit-20260611-1731/crop-light-mid.png`
+- **V39** · Ghost control-cluster residue at rest: a ~20 px icon-pill ghost floats
+  mid-cover on the focused book at promotion≈0 (medium type, both modes). Fix direction:
+  fully gate the cluster — opacity 0 AND removed from the hierarchy below an emergence
+  threshold, so partial-promotion states never leak a miniature pill.
+  ↳ [ui-audit-log](ui-audit-log.md) ·
+  `.agent-loop/artifacts/ui-audit-20260611-1731/crop-dark-mid.png`
+- **V40** · Cluster glass is untinted grey (XXXL rest, both modes): grey pill + monochrome
+  dark-grey icons on the pink cover — violates "tint glass with sky/aqua; avoid untinted
+  grey glass". Fix direction: sky-tinted glass for the pill, token-derived icon color;
+  confirm the tint survives on light covers (pink/butter) too.
+  ↳ [ui-audit-log](ui-audit-log.md) ·
+  `.agent-loop/artifacts/ui-audit-20260611-1731/crop-xxxl-light-cluster.png`
+- **V41** · Title-fade not engaged at rest (double title): the focused cover's debossed
+  title/subtitle stay full strength while the metadata reveal repeats the same strings
+  ~150 px away — and at XXXL the cluster sits over the un-faded debossed title. Fix
+  direction: drive the V24 deboss-fade from "any focus affordance visible" (metadata OR
+  cluster), not solely from promotion progress.
+  ↳ [ui-audit-log](ui-audit-log.md) ·
+  `.agent-loop/artifacts/ui-audit-20260611-1731/crop-dark-mid.png`
+
 ## Phase P4 — Memos (itemized 2026-06-11; behavioral reference = frozen Flutter Plans 5a–5b)
 
 > Voice notes pinned to the paragraph. Port the *design* from the Flutter client
