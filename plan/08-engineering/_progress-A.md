@@ -15,6 +15,40 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V29 — Memo transcription wiring (live `/transcribe` proven) ✅
+
+**What:** the seam grows `transcribe(audioAt:) → String` (`POST /transcribe`, multipart
+m4a, `TranscribeResponse {text}` contract DTO; reuses the narration-length session) +
+`FakeBackendClient.onTranscribe`. `LibraryStore.transcribeMemo(_:)` owns the job exactly
+like `downloadChapter` (store-owned `transcriptionTasks` keyed by memo id — closing the
+reading surface never kills the fetch): `pending → ready` (whitespace-trimmed transcript)
+or `error` ("Transcription failed", audio + row kept — recording never depends on the
+backend). The SAME call is the retry path (error / stranded-pending rows re-submit);
+`ready` rows and in-flight ids are refused. `MemoCapture.onSaved` hands each successfully
+saved memo straight to transcription (wired in `makeMemoCapture`; discarded clips never
+reach the hook); the saved chip now reads "Voice note saved · transcribing…".
+
+**Wiring:** no new types beyond the DTO — the chapter-status pattern reused end-to-end.
+Stranded `pending` rows (app killed mid-fetch) are NOT auto-healed at load (unlike
+chapters): retry from Notes (V30) is the recovery, mirroring the Flutter design — noted
+for V30 to surface pending-without-task as retryable.
+
+**Evidence:** +8 tests (5 `MemoTranscriptionTests` incl. retry-after-error and the
+in-flight guard; onSaved flow incl. discard; contract decode), both suites green both
+destinations. **Live round-trip ALL PASS** through the PRODUCTION
+`URLSessionBackendClient` against the running backend
+([harness-run.log](../../.agent-loop/artifacts/V29/harness-run.log), harness source
+alongside): `/speak` rendered the fixture sentence with real Chatterbox (32KB MP3, 33s)
+→ `transcribe(audioAt:)` → faster-whisper returned it essentially verbatim ("The quick
+brown fox jumps over the lazy dog near the riverbank.") — fox/lazy/dog/river all present.
+Commit `8c81b5c`, merged `76d94fa`.
+
+**Device-gated:** nothing new beyond V28's mic-feel items (the transcript pipeline is
+fully machine-proven); the visible transcript lifecycle UI (pending/ready/error rows +
+retry affordance) is V30's Notes state.
+
+---
+
 ## V28 — Hold-to-record voice memos (mic seam + Memo model + recording UI) ✅
 
 **What:** P4's first item, porting the frozen Flutter Plan-5 *design*. Three layers:

@@ -398,10 +398,14 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   `.agent-loop/artifacts/V28/`. Real-mic feel → V31 deferred checklist._
   ↳ [data-model](../04-architecture/data-model.md) ·
   [screen-flows §Memo record](../03-design/screen-flows.md)
-- **V29** · Transcription wiring: memo audio → `POST /transcribe` (faster-whisper, live
+- **V29** ✅ · Transcription wiring: memo audio → `POST /transcribe` (faster-whisper, live
   backend) → transcript on the Memo; status pending/ready/error + retry, mirroring the
   chapter-status pattern. Live round-trip with a fixture WAV through the real backend.
-  (needs V28, V13)
+  (needs V28, V13) — _Done 2026-06-11, merged `76d94fa`; seam `transcribe(audioAt:)` +
+  `LibraryStore.transcribeMemo` (store-owned task = retry path too; error keeps audio+row)
+  + `MemoCapture.onSaved` auto-feed. +8 tests, both suites green. **Live ALL PASS:**
+  `/speak` (real Chatterbox) rendered the fixture sentence → production client `/transcribe`
+  (faster-whisper) returned it verbatim — `.agent-loop/artifacts/V29/harness-run.log`._
 - **V30** · Notes state: morphed list state on the surface (never a sheet) — play memo,
   open-at-pin (jump narration to the paragraph), retry, delete; accessibility per the
   [matrix](../03-design/accessibility.md). (needs V29)
