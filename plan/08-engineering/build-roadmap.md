@@ -241,7 +241,7 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   +19 tests, both suites green; live plane open is gesture-gated → V15._
   ↳ [app-architecture](../04-architecture/app-architecture.md) ·
   [narration-pipeline](../04-architecture/narration-pipeline.md)
-- **V15** 🚧 · **[verify]** A real EPUB imported on device: its cover renders in the stack,
+- **V15** ✅ · **[verify]** A real EPUB imported on device: its cover renders in the stack,
   chapters list from `/toc`, one chapter narrates end-to-end against the local backend
   (`uv run uvicorn vimarsha.server:app --port 8000`). (needs V11, V14)
   — _Machine half done 2026-06-11: live `/toc` → `/import` (real Chatterbox, 3m18s) →
@@ -251,7 +251,9 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   review:** the on-device gesture flow — pick a real EPUB via "+", cover in the stack,
   Play → chapter plane, tap-to-narrate (minutes on MPS) → ready, relaunch persistence,
   error/retry path. Full run-book in [_progress-A](_progress-A.md) V15 entry. Note: live
-  `GET /image` is unverified (fixture has no images — use a real illustrated book)._
+  `GET /image` is unverified (fixture has no images — use a real illustrated book). **Closed 2026-06-11 under the deferred-review
+  directive** — pipeline proven live (toc/import/audio + DTO decode); the on-device UX run
+  moved to [final-review-checklist](final-review-checklist.md)._
 
 ## Phase P3 — Narrated reading
 
@@ -277,6 +279,54 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   highlight tracks, figures pop on cue, seek/speed/resume all work, offline replay from
   cache works. (needs V19, V20)
 
+## Phase P4 — Memos (itemized 2026-06-11; behavioral reference = frozen Flutter Plans 5a–5b)
+
+> Voice notes pinned to the paragraph. Port the *design* from the Flutter client
+> (`app/lib/features/`), specs in `docs/superpowers/specs/` (2026-06 memo specs) — read them
+> first; link-don't-reinvent. Mic permission strings + entitlements are part of V28.
+
+- **V28** · Memo recording: hold-to-record on the cluster's Memo control (long-press, aqua
+  waveform puck while held), AVAudioRecorder behind the audio/mic seam, SwiftData `Memo`
+  model (chapter + paragraphIndex pin), audio saved to the container. Mic permission primer.
+  (needs V07, V16) ↳ [data-model](../04-architecture/data-model.md) ·
+  [screen-flows §Memo record](../03-design/screen-flows.md)
+- **V29** · Transcription wiring: memo audio → `POST /transcribe` (faster-whisper, live
+  backend) → transcript on the Memo; status pending/ready/error + retry, mirroring the
+  chapter-status pattern. Live round-trip with a fixture WAV through the real backend.
+  (needs V28, V13)
+- **V30** · Notes state: morphed list state on the surface (never a sheet) — play memo,
+  open-at-pin (jump narration to the paragraph), retry, delete; accessibility per the
+  [matrix](../03-design/accessibility.md). (needs V29)
+- **V31** · **[verify]** Memos end-to-end: fixture-audio memo → live transcript → Notes →
+  open-at-pin seeks correctly; suites + captures; real-mic hold-to-record feel → deferred
+  checklist. (needs V30)
+
+## Phase P5 — Discuss (itemized 2026-06-11; spec = `docs/superpowers/specs/2026-06-10-vimarsha-deep-dive-conversation-design.md`)
+
+> The native rebuild of old Plan 6b. **Read the spec first** — interaction rules (§4) are
+> binding: open-without-pausing, pause-on-audio-conflict, save-on-demand. Needs **Ollama**
+> live (`ollama serve` + `llama3.2:3b`); if absent, do machine-testable parts against the
+> LLM seam's test double and note the live gap in the deferred checklist.
+
+- **V32** · Chat data layer: `ChatContext` snapshot from the player state, grounded
+  `POST /chat` via `BackendClient`, in-memory `ChatStore` (mirror Flutter `ChatController`
+  semantics: send-guard, error states), SwiftData `ChatThread`/`ChatLine` +
+  save-on-demand repository. (needs V13, V16)
+  ↳ [conversation-ai](../04-architecture/conversation-ai.md) · [data-model](../04-architecture/data-model.md)
+- **V33** · Discuss panel: glass plane morphs up *within* the canvas (never `.sheet`;
+  keyboard is the one sanctioned OS surface) — keyboard-default input + send, replies
+  text-first; opening does NOT pause narration. (needs V32, V17)
+  ↳ [screen-flows §Discuss](../03-design/screen-flows.md)
+- **V34** · Voice input: hold-to-talk → `/transcribe` → input field; **pause-on-audio-
+  conflict** while voice-typing (pause narration, resume if it was playing). (needs V33, V28)
+- **V35** · Spoken replies + persistence: speaker control → `POST /speak` → played on the
+  shared audio engine with the same pause/resume rule; **Save** persists the thread;
+  Conversations as a morphed list state (reopen read-only, delete). (needs V33)
+  ↳ [sound-design §audio-priority ladder](../03-design/sound-design.md)
+- **V36** · **[verify]** Discuss end-to-end vs live Ollama + backend: grounded answer about
+  the actual passage, spoken reply pauses/resumes narration, saved thread reopens; suites +
+  captures; conversational *feel* → deferred checklist. (needs V34, V35)
+
 ---
 
 ## Expansion buckets (itemized only when we get there — deliberately not sprints)
@@ -284,10 +334,6 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
 > Each bucket becomes a detailed phase (with V-items) via its own spec pass when it's next
 > up. Order is the default; reshuffle by decision.
 
-- **P4 — Memos:** hold-to-record at the paragraph pin → `/transcribe` → Notes state.
-  (Flutter behavioral reference: old Plans 5a–5b.)
-- **P5 — Discuss:** the native rebuild of the old Plan 6b spec — grounded chat, hold-to-talk,
-  spoken replies, pause-on-audio-conflict, Conversations. ↳ [conversation-ai](../04-architecture/conversation-ai.md)
 - **P6 — Figure intelligence:** LLM fallback at import for fuzzy mentions (old Plan 7) +
   the [figure-accuracy](../06-content-pipeline/figure-accuracy.md) corpus.
 - **P7 — Hosted backend alpha:** queue + workers + Sign in with Apple + metered minutes.

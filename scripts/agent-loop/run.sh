@@ -24,6 +24,8 @@ MAX_RUNS="${MAX_RUNS:-10}"
 MAX_CONSECUTIVE_FAILURES=2
 PERMS="${PERMS:-full}"
 MODEL="${MODEL:-claude-fable-5[1m]}"   # Fable 5, 1M context — batches need the headroom
+AUDIT_EVERY="${AUDIT_EVERY:-2}"        # independent UI-audit agent after every N build runs
+AUDIT_PROMPT="scripts/agent-loop/ui-audit-prompt.md"
 
 mkdir -p "$LOOP_DIR/logs" "$LOOP_DIR/artifacts"
 rm -f "$LOOP_DIR/COMPLETE" "$LOOP_DIR/NEEDS_HUMAN" "$LOOP_DIR/BLOCKED"
@@ -80,6 +82,13 @@ while :; do
   else
     failures=0
     echo "[loop] Run #$run recorded progress ✓"
+  fi
+
+  if [ $((run % AUDIT_EVERY)) -eq 0 ]; then
+    auditlog="$LOOP_DIR/logs/audit-$(date +%Y%m%d-%H%M%S).log"
+    echo "[loop] UI-audit pass (independent agent) → $auditlog"
+    claude -p "$(cat "$AUDIT_PROMPT")" --model "$MODEL" --dangerously-skip-permissions >"$auditlog" 2>&1 \
+      && echo "[loop] UI-audit pass done" || echo "[loop] UI-audit pass FAILED (non-fatal), see $auditlog"
   fi
 done
 

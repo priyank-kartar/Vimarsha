@@ -57,11 +57,14 @@ pick up cold after ANY item.
 
 ## Special cases
 
-- **`[verify]` items needing human judgment** (e.g. V09 motion feel): do every part that is
-  machine-verifiable (run suites, capture screenshots/recordings into
-  `.agent-loop/artifacts/VXX/`), write your findings to the progress log, mark the item 🚧
-  with "needs human review: <what to look at>", then write the item id to
-  `.agent-loop/NEEDS_HUMAN` and stop. Do NOT mark such items ✅ yourself.
+- **`[verify]` items — human review is DEFERRED (user directive 2026-06-11):** do every
+  machine-verifiable part (suites, live round-trips, captures into
+  `.agent-loop/artifacts/VXX/`, hostile self-audit of every capture), then mark the item
+  ✅ with the note "human review deferred to final". APPEND every check that genuinely
+  needs human eyes/hands (motion feel, mic, device UX) to
+  `plan/08-engineering/final-review-checklist.md` — one actionable line each (what to do +
+  what to judge + artifact refs). Do NOT write NEEDS_HUMAN; do NOT stop the batch for it.
+  A `[verify]` item still ends your batch (it's a natural seam), but the loop continues.
 - **Blocked** (missing dependency, broken main, anything you cannot resolve inside this
   item's scope): write a description to `.agent-loop/BLOCKED`, commit nothing half-broken
   to main, and stop.
