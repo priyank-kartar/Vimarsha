@@ -46,6 +46,25 @@ struct ReadingSurfaceView: View {
                     .padding(.top, 14)
                     .padding(.horizontal, 20)
             }
+            // The compact glass transport (V19) floats over the paper body — never a
+            // chrome bar. Only when a chapter is actually loaded.
+            .overlay(alignment: .bottom) {
+                if let player, player.bundle != nil {
+                    TransportClusterView(
+                        positionMs: player.positionMs,
+                        durationMs: player.durationMs,
+                        isPlaying: player.isPlaying,
+                        rate: player.rate,
+                        reduceTransparency: reduceTransparency,
+                        onPlayPause: { player.togglePlayPause() },
+                        onSkip: { player.skip(byMs: $0) },
+                        onCycleRate: { player.setRate(Transport.nextRate(after: player.rate)) }
+                    )
+                    .frame(maxWidth: 380)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 18)
+                }
+            }
         }
         .background(Palette.canvas.ignoresSafeArea())
     }
@@ -67,10 +86,11 @@ struct ReadingSurfaceView: View {
                     ReadingBlocksView(
                         blocks: bundle.blocks,
                         activeBlockId: player.currentBlockId,
-                        images: player.blockImages
+                        images: player.blockImages,
+                        onTapBlock: { id in player.seekToBlock(id) }
                     )
                     .padding(.horizontal, 22)
-                    // Keep the last lines clear of the transport cluster (V19) zone.
+                    // Keep the last lines clear of the transport cluster.
                     .padding(.bottom, 150)
                 }
                 .frame(maxWidth: 600)
