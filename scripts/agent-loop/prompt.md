@@ -27,6 +27,12 @@ you — leave the repo in a state where it can pick up cold.
   and launch on the booted simulator, take screenshots with
   `xcrun simctl io <device> screenshot`, save them under `.agent-loop/artifacts/VXX/`, and
   LOOK at them (Read the files) to confirm the result before declaring success.
+- **Whole-screen visual audit (mandatory with every capture):** judge the ENTIRE frame,
+  not just your item — anything that looks empty, broken, misaligned, redundant, dangling,
+  or unexplained gets filed in your progress entry under "Visual audit findings", even when
+  it's out of your item's scope and even if it was "designed" that way. "It matches the
+  spec" is not the same as "it looks right" — flag both kinds of wrong. Check dark AND
+  light mode.
 - Review your own diff critically before merging (correctness, scope, the named motion
   pattern if applicable).
 - Merge with `git merge --no-ff` to `main` and push.

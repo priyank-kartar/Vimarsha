@@ -157,12 +157,24 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   approximation → V26 re-review._
   ↳ [apple/CLAUDE.md §Motion grammar #5](../../apple/CLAUDE.md) ·
   [reference analysis](../../apple/docs/reference/ref-books-video-analysis.md)
+- **V27** · Glass top-scrim redesign — contextual visibility (user finding 2026-06-11):
+  at rest the scrim capsule reads as a **giant empty pill dangling at the top** (both modes,
+  worse on the light/butter canvas) — it has been in every screenshot since V03 and only
+  spec-compliance was audited, never whether it looks right. Make it earn its place:
+  **visible only while covers actually recede under the top region** (opacity a scroll-driven
+  function of nearest-cover proximity to the top — invisible at rest, fades in as a cover
+  approaches/dissolves, fades out after), hug the top safe area (much smaller, not a fat
+  free-floating capsule), re-tune tint per mode. The dissolve target (glass moment #1 /
+  grammar #3) must keep working; the Reduce Transparency matte fallback follows the same
+  visibility rule. Update affected snapshots. ↳ [apple/CLAUDE.md §Glass moments #1](../../apple/CLAUDE.md) ·
+  [V09-motion-review](V09-motion-review.md)
 - **V26** 🚧 · **[verify]** Library quality re-review: rebuild; capture rest / mid-scroll /
   focused states (dark + light) + a scroll recording if possible; check uniform sizing,
   neat stacking, scrim dissolve, hero zoom, and the cluster fixes against
   [ADR-011](../00-overview/decision-log.md#adr-011--uniform-book-card-geometry-in-the-library-stack)
   and the V09 findings; also eyeball the V05 puck's glass strength and the slot-emit landing
-  character; then stop for human sign-off. (needs V24, V25)
+  character; **verify the V27 scrim behavior (invisible at rest, appears only during
+  recede)**; then stop for human sign-off. (needs V24, V25, V27)
   — _**Machine half done 2026-06-11; needs human review.** Both suites green; fresh rest
   captures (dark+light) in [`artifacts/V26/`](../../.agent-loop/artifacts/V26/) confirm the
   STATIC quality: uniform cards (ADR-011), neat stacking, scrim dissolve — both modes.
