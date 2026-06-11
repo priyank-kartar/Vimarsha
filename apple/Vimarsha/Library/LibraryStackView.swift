@@ -9,6 +9,7 @@ import SwiftUI
 struct LibraryStackView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
 
     /// Scroll distance-to-rest (≥ 0; 0 at the top). Drives the settle contrast shift
     /// (motion grammar #7) via `HeaderContrast` — header-only state, so the book tower is
@@ -67,7 +68,7 @@ struct LibraryStackView: View {
             // so the gesture + overlay live on the ScrollView, outside the scrolling tower.
             .simultaneousGesture(lensingDrag(in: geo.size))
             .overlay { LensingPuckView(puck: puck, reduceTransparency: reduceTransparency) }
-            .overlay(alignment: .top) { topScrim }
+            .overlay(alignment: .top) { topScrim(in: geo.size) }
             .overlay(alignment: .bottom) { focusAffordances(in: geo.size) }
         }
     }
@@ -141,23 +142,43 @@ struct LibraryStackView: View {
 
     // MARK: Glass top scrim (glass moment #1 — receding covers dissolve under it)
 
+    /// A glass band hugging the top safe area that receding covers dissolve into. Redesigned
+    /// in V27 to be *contextual*: it used to read as a fat empty pill dangling at the top in
+    /// every state. Now it hugs the top edge (full-width, bottom-rounded — not a free-floating
+    /// capsule) and its opacity is a scroll-driven function of the nearest cover's proximity
+    /// to the top (`TopScrim`) — invisible at rest, fading in only while a cover dissolves
+    /// under it, fading back out after. The Reduce Transparency matte fallback obeys the same
+    /// visibility rule. Tint is re-tuned per mode (lighter on the butter/light canvas where
+    /// the old pill read worst).
     @ViewBuilder
-    private var topScrim: some View {
+    private func topScrim(in size: CGSize) -> some View {
+        let visibility = TopScrim.opacity(
+            cardTopEdges: Array(cardTops.values), viewportHeight: size.height
+        )
+        let shape = UnevenRoundedRectangle(
+            bottomLeadingRadius: 26, bottomTrailingRadius: 26, style: .continuous
+        )
         Group {
             if reduceTransparency {
                 // Opaque fallback (apple/CLAUDE.md §Accessibility): token-tinted matte.
-                Capsule().fill(Palette.surface)
-                    .frame(height: 54)
+                shape.fill(Palette.surface)
             } else {
-                Color.clear
-                    .frame(height: 54)
-                    .glassEffect(.regular.tint(Palette.sky.opacity(0.18)), in: Capsule())
+                Color.clear.glassEffect(.regular.tint(scrimTint), in: shape)
             }
         }
-        .padding(.horizontal, 100)
-        .padding(.top, 6)
+        .frame(maxWidth: .infinity)
+        .frame(height: 84)
+        .opacity(visibility)
+        // Hug the physical top edge / safe area rather than float below it.
+        .ignoresSafeArea(edges: .top)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+
+    /// Glass tint for the top scrim, re-tuned per mode (V27). Sky reads as cool glass on the
+    /// `ink` canvas; lighter on the `butter`/light canvas so it occludes without muddying.
+    private var scrimTint: Color {
+        colorScheme == .dark ? Palette.sky.opacity(0.22) : Palette.sky.opacity(0.13)
     }
 }
 
