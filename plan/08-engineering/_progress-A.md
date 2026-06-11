@@ -15,6 +15,59 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V12 — SwiftData models + persisted shelf ✅
+
+**What:** the library becomes real data; the seed shelf becomes the empty-state/demo path.
+- `Persistence/Models.swift` — `Book` (unique UUID, title/author, container-relative
+  `epubPath`/`coverPath?`, `addedAt`/`lastOpenedAt?`, cascade `chapters`) + `Chapter`
+  (backend `index`, `status` over a raw-string column — `none|pending|ready|error`,
+  `errorReason?`, `bundlePath?`/`audioPath?`, `progressMs`/`durationMs?`) — the
+  data-model.md v1 slice mirroring the Drift lineage.
+- `Library/LibraryStore.swift` (@Observable, MainActor): `load()` (sorted `addedAt`) →
+  `shelf` (books, or `ShelfBook.seeds` when empty); `addBook(from:)` = detached V10 copy +
+  V11 cover + **`EpubInfo`** (NEW: `dc:title`/`dc:creator` via the shared `EpubPackage`
+  container→OPF navigation) → persisted row; `deleteBook` = row (cascades) + container
+  subtree (data-model.md deletion rule). Honest `importError` status, no alerts.
+- `BookSeed` → **`ShelfBook`** display model (string id, optional pre-rendered `cover`
+  Image; persisted books get stable slate/sky-derived fallback cloth — launch-stable
+  derivation, NOT `hashValue` which is per-process seeded). `HardbackCoverView` draws real
+  art over the board (clipped to the board shape, sheen on top, debossed title yields to
+  art); `CoverArt` (ImageIO downsample, 920px cap) decodes covers **off-main at load,
+  never during scroll** (apple/CLAUDE.md performance budget).
+- `VimarshaApp` opens the `ModelContainer`; open-failure degrades to the seed shelf with
+  no import affordance (no crash). `LibraryStackView(store:)` — previews/snapshots pass
+  nil and render seeds.
+
+**Wiring:** the `+` button now imports through `store.addBook`; the shelf re-renders live
+when `books`/`covers` mutate (Observation). `BookTower`/`focusAffordances` consume the
+dynamic `shelf` (focus/midY plumbing unchanged, index-keyed).
+
+**Evidence:**
+- Both suites green (macOS + iPhone 17 Pro sim): 9 `LibraryStoreTests` (real in-memory
+  SwiftData + temp-dir files: round-trip, raw-status persistence, cascade, addBook
+  end-to-end incl. cover file on disk, failure-persists-nothing, delete-removes-subtree,
+  sort), 3 `EpubInfoTests` (real fixture: "Test Book"/"Ada Lovelace"), 2 `CoverArtTests`
+  (downsample cap + junk→nil), art-vs-cloth `ImageRenderer` snapshot — **looked at**
+  (`artifacts/V12/12-cover-real-art.png`): art fills the board, fore-edge + sheen intact,
+  no debossed title over art.
+- Fresh-binary sim captures (dark+light, `artifacts/V12/01/02-empty-state-*.png`): the
+  empty-state seed shelf + glass "+" render exactly as before — the store is live
+  underneath (empty DB → seeds).
+- Commits `61797d5` + `c3a5805` + `3c3e1af`, merged `3710c6d`.
+
+**Debug note (for the next agent):** an early version of the art snapshot test did
+`ModelContainer(...).mainContext` on a *temporary* container — SwiftData traps (SIGTRAP)
+and the whole parallel test host goes down as instant 0.000s failures across unrelated
+suites. Keep the container alive, or avoid SwiftData where a plain value will do.
+
+**Visual audit findings:** unchanged from V10 (the faint "Hey" metadata ghost mid-stack
+at rest in dark mode persists — the open `frontSlot` calibration debt; light mode clean).
+
+**Device-gated:** live picker→shelf round-trip with a real EPUB (real cover in the
+stack) — that is exactly V15's [verify]; machine-side equivalents are all test-covered.
+
+---
+
 ## V11 — [SPIKE] Client-side EPUB cover extraction ✅ (ADR-006 proven)
 
 **What:** the client reads covers out of the EPUB it already holds — no backend change.

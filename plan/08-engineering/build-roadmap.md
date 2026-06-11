@@ -213,8 +213,13 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   cover art (artifact in `.agent-loop/artifacts/V11/`). Spike findings (blank first-image
   on cover-less pirate EPUBs; iCloud unpacked-directory EPUBs) logged in
   [_progress-A](_progress-A.md). Rendering real covers in the stack lands with V12._
-- **V12** · SwiftData models + persistence: Books/Chapters with status + progress; the
+- **V12** ✅ · SwiftData models + persistence: Books/Chapters with status + progress; the
   static `BookSeed` shelf becomes the empty-state/demo path. (needs V10)
+  — _Done 2026-06-11, merged `3710c6d`; `Book`/`Chapter` @Models (data-model.md v1 slice,
+  raw-string status, cascade) + `LibraryStore` (@Observable: load/addBook/deleteBook,
+  `EpubInfo` dc:title/creator, off-main `CoverArt` downsample) + `BookSeed`→`ShelfBook`
+  (seeds = empty state; real cover art renders on the hardback board). 14 new tests +
+  art-vs-cloth snapshot; both suites green. Live picker round-trip → V15._
   ↳ [data-model](../04-architecture/data-model.md)
 - **V13** · `BackendClient` seam: protocol + URLSession impl + test double; wire `POST /toc`
   (multipart EPUB upload → book meta + chapters). (needs V12)
