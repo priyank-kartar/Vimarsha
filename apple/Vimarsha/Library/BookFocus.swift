@@ -24,8 +24,10 @@ struct BookFocus: Equatable {
     static let settleWindow: CGFloat = 0.18
 
     /// Extra grow-to-front scale applied to the focused card on top of `StackTransform`'s
-    /// front-slot 1.0 — the promotion bump (motion grammar #2).
-    static let scaleBoost: CGFloat = 0.04
+    /// front-slot 1.0 — the promotion bump (motion grammar #2). Bumped 0.04 → 0.07 in V24:
+    /// the +4% promotion read too faint against the uniform-card stack (V09 finding #2), so the
+    /// settled book now grows a clearer ~7% to claim the front slot.
+    static let scaleBoost: CGFloat = 0.07
 
     /// Eased emphasis (steeper near the front, motion grammar #2 "steeper curve near the
     /// front"): grows slowly then accelerates as the card settles onto the slot. Drives the

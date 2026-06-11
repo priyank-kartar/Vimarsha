@@ -76,9 +76,13 @@ struct ControlClusterView: View {
 
     /// Play is the active action → `aqua` (live); the rest are interactive → `sky`
     /// (apple/CLAUDE.md §Liquid Glass: tint interactive with sky, live/active with aqua).
+    /// V24: the tint opacities were raised (sky 0.16 → 0.26, aqua 0.22 → 0.32) because the
+    /// glass read too weak — the warm cover beneath refracted through and the controls looked
+    /// butter/gold (V09 monitoring note). A stronger tint makes the sky/aqua read regardless of
+    /// the cover beneath.
     private func tint(for control: ControlCluster.Control, opaque: Bool = false) -> Color {
         let base = control == .play ? Palette.aqua : Palette.sky
-        return base.opacity(opaque ? 0.5 : (control == .play ? 0.22 : 0.16))
+        return base.opacity(opaque ? 0.5 : (control == .play ? 0.32 : 0.26))
     }
 }
 
