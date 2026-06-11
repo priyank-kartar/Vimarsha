@@ -15,6 +15,58 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V35 — Spoken replies + Save + Conversations ✅
+
+**What:** the rest of the Discuss feature set (spec §4/§6; apple/CLAUDE.md states 6–7).
+**Spoken replies:** `ReplySpeaker` (@Observable, `Discuss/ReplySpeaker.swift`) sends the
+reply text to `POST /speak` and plays the MP3 on its **own ephemeral engine** (the
+MemoNotes rule — the chapter's shared engine keeps its loaded MP3 + resume position).
+Audio-conflict choreography: narration KEEPS playing while audio is fetched (waiting is
+not a conflict — the V34 rule, and `/speak` is minutes-class on a dev backend), pauses
+the moment speech starts, and **resumes afterward if it was playing** (unlike Notes
+review — spec §4). Toggle-to-stop; one reply at a time (no pile-up); a failed fetch
+flags the chip ~2.5s and the text answer stays (spec §6). Assistant bubbles carry the
+speaker chip (mini spinner while fetching / aqua stop while live), hidden in read-only
+threads. **Save:** a header chip appears once `hasExchange`; it calls
+`DiscussArchive.save` → `LibraryStore.saveChatThread`, titled by
+`ChatStore.suggestedTitle` (the opening question, 60-char trim + ellipsis); aqua
+"Saved" flash; each Save inserts a NEW thread (save-on-demand). **Conversations:** a
+morphed face of the SAME panel plane (`PanelState` live/conversations/thread — never a
+new surface): the bookmark control flips to the saved list (`ConversationsListView`:
+matte serif-title rows, "n turns · date", delete trash, open chevron; honest empty
+state), tapping a row reopens it **read-only** (transcript without an input row;
+deleted-meanwhile ids fall back to the list), back returns to the live chat.
+
+**Wiring:** `LibraryStore.makeReplySpeaker(player:speechEngine:)`; `LibraryStackView`
+owns the speaker (stopped + released at book close) and builds the `DiscussArchive`
+(threads/save/delete closures over the reading context — the panel never holds the
+store). The panel's close chevron stops a live reply; `ReadingSurfaceView` passes
+speaker + archive through (nil = hidden, previews/snapshots).
+
+**Evidence:**
+- 7 `ReplySpeakerTests` (pause-on-speech-start with the chapter MP3 still loaded on its
+  own engine, finish/stop resume, paused-stays-paused, toggle, second-speak ignored,
+  failure keeps narration + flags) + `suggestedTitle` rule + 3 snapshot tests
+  (conversation rows, empty state, speaker-chip raster diff). **Both suites green**
+  (post-revert re-run).
+- Captures (temp `CaptureRoot` + temp default-state flip, both reverted):
+  `01-live-speaker-save-dark.png` + `02-…-light.png` (Save chip + bookmark + speaker
+  chip on the assistant bubble), `03-conversations-dark.png` (the saved list face).
+  `.agent-loop/artifacts/V35/`.
+
+**Visual audit findings (whole-frame):** the conversations row carries three
+affordances (whole-row open + chevron + top-right trash) — slightly busy but each is
+labeled; trash sits close to a long title's last line. Same pre-existing plate-title
+ellipsis as V33 (filed there). Conversations face captured dark-only (light judged via
+the shared row tokens already exercised in V30's light captures).
+
+**Device-gated:** spoken-reply latency UX against the real backend (minutes-class
+Chatterbox — does the fetching chip read as honest?), the pause→speak→resume seam by
+ear, Save→reopen round-trip on device → **V36** (next: the P5 [verify] gate — backend +
+`ollama serve` + `llama3.2:3b` were live today; V32's artifacts prove the endpoints).
+
+---
+
 ## V34 — Discuss voice input (hold-to-talk) ✅
 
 **What:** the panel's secondary input affordance (spec §4; typed stays the default).

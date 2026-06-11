@@ -507,9 +507,17 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   fallbacks; permission-race guard) + panel `HoldToTalkButton` with live Listening…/
   Transcribing… rows; transcript appends to the draft, never auto-sent. 9 tests, both
   suites green; dark/light captures in `.agent-loop/artifacts/V34/`._
-- **V35** · Spoken replies + persistence: speaker control → `POST /speak` → played on the
+- **V35** ✅ · Spoken replies + persistence: speaker control → `POST /speak` → played on the
   shared audio engine with the same pause/resume rule; **Save** persists the thread;
   Conversations as a morphed list state (reopen read-only, delete). (needs V33)
+  — _Done 2026-06-11, merged `fd34f5f`; `ReplySpeaker` (own ephemeral engine — the
+  chapter MP3 survives; pause at speech start, resume-if-was-playing; toggle-stop;
+  failure flags, text stays) + speaker chips on assistant bubbles; Save header chip →
+  `saveChatThread` titled by the opening question; Conversations = a morphed face of the
+  same panel plane (list → read-only thread → back; delete). 11 new tests, both suites
+  green; captures in `.agent-loop/artifacts/V35/`. Note: plays on its OWN ephemeral
+  engine rather than literally "the shared audio engine" — the established MemoNotes
+  pattern, same audible outcome with the chapter's resume position preserved._
   ↳ [sound-design §audio-priority ladder](../03-design/sound-design.md)
 - **V36** · **[verify]** Discuss end-to-end vs live Ollama + backend: grounded answer about
   the actual passage, spoken reply pauses/resumes narration, saved thread reopens; suites +
