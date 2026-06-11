@@ -56,6 +56,10 @@ Voice memos at paragraph pins (Whisper transcripts, Notes state); the native Dis
 (grounded chat, hold-to-talk, spoken replies, pause-on-audio-conflict, Conversations).
 **DoD:** full parity with the frozen Flutter client + the old Plan 6b spec, natively, on the
 one surface; Ollama-backed live test passes.
+**Memos half (P4) ✅ done 2026-06-11 (machine; feel-review deferred to final):** V28–V31
+merged; the V31 live harness drove fixture-memo → verbatim Whisper transcript → Notes →
+exact open-at-pin seek through the production store/player — 22/22 PASS
+([final-review-checklist](final-review-checklist.md) §V31). Discuss half (P5, V32–V36) open.
 
 ## M5 — Hosted backend alpha (bucket P7)
 

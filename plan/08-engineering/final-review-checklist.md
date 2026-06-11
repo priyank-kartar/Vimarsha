@@ -54,3 +54,24 @@ judge, artifact refs. Never delete completed history; tick instead. -->
 - [ ] **V20 light-mode polish calls:** gallery tiles read loud saturated aqua on butter,
   and the tiles' aqua waveform glyph is invisible aqua-on-aqua (`artifacts/V20/04`) —
   decide if a quieter butter-derived tile token is wanted (file a polish V-item if so).
+
+### V31 — memos end-to-end (P4; appended 2026-06-11)
+
+- [ ] **Real-mic hold-to-record feel (V28):** in a ready chapter, long-press the mic on the
+  transport → judge the aqua waveform puck's live metering against your voice, the
+  pause-while-recording → resume beat, the ≥400ms too-short discard, and the mic-permission
+  primer flow on a fresh install. Ref: `artifacts/V28/` puck snapshots.
+- [ ] **Live transcript honesty:** record a real memo with the backend up — the saved chip
+  should read "Voice note saved · transcribing…" and the Notes row flip pending → ready with
+  YOUR words (machine proof used a Chatterbox-rendered clip: verbatim —
+  `artifacts/V31/harness-run.log`). Then kill the backend, record another, judge the error
+  row + retry affordance.
+- [ ] **Notes morph + clip playback by ear (V30):** toggle Notes on the closeBar — judge the
+  body ⇄ notes reflow as a morph (never a sheet), play a memo clip (narration must pause and
+  NOT auto-resume), and check the chapter keeps its position after the clip (machine-proven:
+  MP3 stays loaded, `harness-run.log`).
+- [ ] **Open-at-pin UX:** from Notes, open-at-pin → reading view returns at the pinned
+  paragraph with the highlight there (the seek itself is machine-exact: 12144 == 12144ms);
+  judge that the morph-back + scroll position read as "taken to the right place".
+- [ ] **VoiceOver sweep over memo flows (V28/V30):** record control, Notes rows
+  (play/open-at-pin/retry/delete actions), honest pending/error labels.

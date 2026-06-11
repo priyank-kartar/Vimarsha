@@ -15,6 +15,49 @@ Motion items also record a simulator/device capture for the motion review.
 
 ---
 
+## V31 — [verify] Memos end-to-end ✅ (machine half; human review deferred to final)
+
+**What:** the P4-closing verify gate, run as far as a machine can take it. A standalone
+harness ([`artifacts/V31/harness/main.swift`](../../.agent-loop/artifacts/V31/harness/main.swift),
+the V21/V29 precedent — but compiling the **entire production tree** minus the app entry:
+store, models, player, MemoNotes, seams, views) drove the real memo pipeline against the
+LIVE local backend (real Chatterbox + faster-whisper), **22/22 PASS**
+([harness-run.log](../../.agent-loop/artifacts/V31/harness-run.log)):
+1. **Production import flow live:** `store.addBook(from: sample.epub)` → `/toc` → book +
+   chapter rows; `store.downloadChapter` → `/import` (real Chatterbox, 77s warm) → cache;
+   the real `PlayerController`/`AVFoundationAudioEngine` loads the 24.3s chapter.
+2. **Fixture-audio memo:** `/speak` rendered a known sentence (28.5KB) saved into
+   `Library/Books/<id>/memos/<id>.m4a` — exactly where `MemoCapture` saves clips (the
+   recorder seam is the sanctioned double; the clip feeds the same path a mic hold would).
+3. **Live transcript on the row:** `store.transcribeMemo` → `/transcribe` → faster-whisper
+   returned the sentence **verbatim** ("Remember to compare this passage with the figure
+   on memory."), status `ready`.
+4. **Notes over real rows/files:** lists the memo; `play()` runs the clip on its own
+   engine, **pauses narration** (audio-conflict rule) while the chapter MP3 stays loaded;
+   `openAtPin()` stops the clip and seeks narration to the **exact** pinned ms
+   (12144 == 12144); `delete()` removes row + audio file.
+
+**Wiring:** no app code changed — the gate passed clean on the first run (V21's timeout
+fix and the V28–V30 TDD held).
+
+**Evidence:** harness source + ALL PASS log in
+[`artifacts/V31/`](../../.agent-loop/artifacts/V31/); post-batch launch-rest regression
+captures (dark+light, medium) clean — the V42/V43 fixes visible (labeled band, AA
+contrast). Both suites green on this tree (V44 merge runs). Marked ✅ under the
+2026-06-11 deferred-review directive.
+
+**Visual audit findings:** none new — rest frames match the V43/V44 post-fix state;
+known nits (shelf-edge clip, XXXL cluster-over-subtitle) stand as filed.
+
+**Deferred to the final human review** ([final-review-checklist §V31](final-review-checklist.md)):
+real-mic hold-to-record feel + permission primer, live transcript honesty with YOUR
+voice + offline error/retry, the Notes morph + clip playback by ear, open-at-pin UX
+feel, VoiceOver sweep over the memo flows.
+
+**P4 (Memos) complete — next eligible: P5 Discuss (V32), needs Ollama for live testing.**
+
+---
+
 ## V44 — XXXL deboss block fitted to the cover face ✅
 
 **What:** ui-audit round 2: the blue cover's debossed bottom line ("OF DESIGN") rode

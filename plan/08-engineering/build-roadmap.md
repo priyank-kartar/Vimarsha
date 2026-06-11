@@ -462,9 +462,16 @@ check it against the named pattern). Mark the item ✅/🚧 here when you update
   behind a glass toggle on the reading closeBar. Chapter-scoped by design (cross-book
   Notes = logged parity gap). Both suites green; row snapshots + rest regression in
   `.agent-loop/artifacts/V30/`. Live morph/VO/clip-playback feel → V31._
-- **V31** · **[verify]** Memos end-to-end: fixture-audio memo → live transcript → Notes →
+- **V31** ✅ · **[verify]** Memos end-to-end: fixture-audio memo → live transcript → Notes →
   open-at-pin seeks correctly; suites + captures; real-mic hold-to-record feel → deferred
-  checklist. (needs V30)
+  checklist. (needs V30) — _Machine half done 2026-06-11, **human review deferred to final**
+  ([checklist](final-review-checklist.md) §V31). Live harness over the ENTIRE production
+  tree: `addBook`→`/toc`, `/import` (real Chatterbox 77s) → real player; `/speak`-rendered
+  memo clip in the book's memos/ subtree → `store.transcribeMemo` → faster-whisper returned
+  the sentence **verbatim**; MemoNotes play (own engine, narration paused, MP3 retained),
+  open-at-pin seek EXACT (12144==12144ms), delete sweeps row+file — **22/22 PASS**
+  ([harness-run.log](../../.agent-loop/artifacts/V31/harness-run.log)). No app code changed;
+  suites green. **P4 complete.**_
 
 ## Phase P5 — Discuss (itemized 2026-06-11; spec = `docs/superpowers/specs/2026-06-10-vimarsha-deep-dive-conversation-design.md`)
 
