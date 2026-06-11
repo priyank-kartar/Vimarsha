@@ -6,6 +6,9 @@ struct ImportedEpub: Equatable, Sendable {
     /// Container-relative path (`Library/Books/<bookId>/book.epub`). Persisted paths are
     /// container-relative because the container moves between installs (data-model.md).
     let relativePath: String
+    /// Container-relative path of the extracted cover (`…/cover.<ext>`, V11) — `nil` when
+    /// the EPUB declares no usable image; the generated cloth cover is the UI fallback.
+    var coverRelativePath: String?
 }
 
 /// Copies a user-picked EPUB into the app container, following the cache layout in
@@ -42,6 +45,20 @@ nonisolated struct EpubImporter {
             try? fm.removeItem(at: bookDir)
             throw error
         }
-        return ImportedEpub(bookId: id, relativePath: relativePath)
+        return ImportedEpub(
+            bookId: id,
+            relativePath: relativePath,
+            coverRelativePath: extractCover(fromEpubAt: destination, bookDir: bookDir)
+        )
+    }
+
+    /// Best-effort cover extraction (V11, ADR-006) into `cover.<ext>` beside the EPUB.
+    /// Never fails the import — a coverless/broken EPUB just keeps the generated cloth
+    /// cover as its art.
+    private func extractCover(fromEpubAt epubURL: URL, bookDir: URL) -> String? {
+        guard let cover = EpubCover.extract(fromEpubAt: epubURL) else { return nil }
+        let coverURL = bookDir.appending(path: "cover.\(cover.fileExtension)")
+        guard (try? cover.data.write(to: coverURL)) != nil else { return nil }
+        return "Library/Books/\(bookDir.lastPathComponent)/cover.\(cover.fileExtension)"
     }
 }

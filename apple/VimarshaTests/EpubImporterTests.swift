@@ -52,6 +52,46 @@ struct EpubImporterTests {
         #expect(FileManager.default.fileExists(atPath: root.appending(path: second.relativePath).path))
     }
 
+    @Test func importExtractsCoverNextToTheEpub() throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let png = Data([0x89, 0x50, 0x4E, 0x47, 7, 7])
+        let epub = ZipFixture.epub(
+            opf: """
+            <package xmlns="http://www.idpf.org/2007/opf" version="3.0">
+              <manifest>
+                <item id="art" href="front.png" media-type="image/png" properties="cover-image"/>
+              </manifest>
+            </package>
+            """,
+            files: [.init(name: "OEBPS/front.png", data: png)]
+        )
+        let source = root.appending(path: "picked.epub")
+        try epub.write(to: source)
+
+        let id = UUID()
+        let importer = EpubImporter(containerRoot: root, makeId: { id })
+        let imported = try importer.importEpub(at: source)
+
+        // V11: the extracted cover lands beside the EPUB (data-model.md cache layout).
+        #expect(imported.coverRelativePath == "Library/Books/\(id.uuidString)/cover.png")
+        let cover = root.appending(path: try #require(imported.coverRelativePath))
+        #expect(try Data(contentsOf: cover) == png)
+    }
+
+    @Test func coverlessEpubImportsWithNilCoverPath() throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        // A real (zip-valid) EPUB with no images — and V10's plain-bytes "EPUB" is also
+        // covered by the broken-zip branch: both import fine, cover stays nil.
+        let source = root.appending(path: "picked.epub")
+        try sampleEpubData().write(to: source)
+
+        let imported = try EpubImporter(containerRoot: root).importEpub(at: source)
+        #expect(imported.coverRelativePath == nil)
+        #expect(FileManager.default.fileExists(atPath: root.appending(path: imported.relativePath).path))
+    }
+
     @Test func failedImportLeavesNoHalfState() throws {
         let root = try makeRoot()
         defer { try? FileManager.default.removeItem(at: root) }
