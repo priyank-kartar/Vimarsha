@@ -117,12 +117,16 @@ nonisolated struct URLSessionBackendClient: BackendClient {
     var session = URLSessionBackendClient.narrationSession
 
     /// `URLSession.shared`'s 60s idle timeout kills any real `/import` — Chatterbox
-    /// narration is MINUTES of server silence before the bundle arrives (MPS is ~7–8×
-    /// slower than realtime; the V21 live harness caught the timeout). Allow a long
-    /// quiet wait; the 7-day resource ceiling stays at its default.
+    /// narration is MINUTES (sometimes hours) of server SILENCE before the bundle arrives:
+    /// `/import` streams nothing until the whole chapter is stitched, so
+    /// `timeoutIntervalForRequest` (the inter-data wait) runs the *entire* narration. MPS is
+    /// ~7–8× slower than realtime and a long chapter can exceed 30 min, so the old 30-min
+    /// ceiling aborted healthy imports client-side as "Narration failed" while the backend
+    /// was still happily synthesizing (root-caused 2026-06-12). 3 hours gives even a large
+    /// chapter room to finish; the 7-day resource ceiling stays at its default.
     static let narrationSession: URLSession = {
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 30 * 60
+        config.timeoutIntervalForRequest = 3 * 60 * 60
         return URLSession(configuration: config)
     }()
 

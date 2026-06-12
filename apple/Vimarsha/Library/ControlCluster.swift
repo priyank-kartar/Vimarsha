@@ -10,9 +10,14 @@ import CoreGraphics
 /// reverses it (the blob re-melds and fades back into the cover). No state, no timers — the
 /// `GlassEffectContainer` meld/split renders this scalar (`StackTransform`/`BookFocus` style).
 struct ControlCluster: Equatable {
-    /// The four affordances that grow from the focused cover, in display order (left→right).
+    /// The book-level affordances that grow from the focused cover, in display order
+    /// (left→right). Book-level only: Play opens the chapter list; Voice notes and Saved
+    /// discussions open this book's archives across all chapters. Figures is NOT here — it's
+    /// a reading-time control that lives on the reading surface, and only when the open
+    /// chapter actually has figures. Live Discuss likewise lives only inside the reading
+    /// surface; the cluster surfaces the SAVED conversations.
     enum Control: Int, CaseIterable, Identifiable, Hashable {
-        case play, figures, memo, discuss
+        case play, memo, conversations
 
         var id: Int { rawValue }
 
@@ -20,9 +25,8 @@ struct ControlCluster: Equatable {
         var symbol: String {
             switch self {
             case .play: "play.fill"
-            case .figures: "photo.on.rectangle.angled"
             case .memo: "mic.fill"
-            case .discuss: "bubble.left.and.bubble.right.fill"
+            case .conversations: "bubble.left.and.bubble.right.fill"
             }
         }
 
@@ -30,9 +34,8 @@ struct ControlCluster: Equatable {
         var label: String {
             switch self {
             case .play: "Play"
-            case .figures: "Figures"
-            case .memo: "Voice note"
-            case .discuss: "Discuss"
+            case .memo: "Voice notes"
+            case .conversations: "Saved discussions"
             }
         }
     }

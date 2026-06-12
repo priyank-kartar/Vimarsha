@@ -43,6 +43,14 @@ struct LibraryStackView: View {
     /// flat list with no front slot) leaves this at `.none`.
     @State private var focus: BookFocus = .none
 
+    /// Tap-to-focus override: the index of a cover the user tapped to summon its control
+    /// cluster, regardless of where it sits in the tower. The front-slot settle model needs
+    /// a tall tower to bring a book onto the slot — a small library (one or two books) sits
+    /// above the slot and can never scroll down to it, so scroll-focus alone would never
+    /// emerge the cluster. A tap pins full focus here; the next scroll interaction clears it
+    /// and hands control back to the scroll-driven settle.
+    @State private var tappedIndex: Int?
+
     /// Each card's viewport LAYOUT top edge, keyed by shelf index — drives the top scrim's
     /// contextual visibility (V27, tuned against layout tops).
     @State private var cardTops: [Int: CGFloat] = [:]
@@ -77,6 +85,19 @@ struct LibraryStackView: View {
     /// sheet. Opened from the focused book's Play control (the stand-in trigger until the
     /// audio engine/reading morph lands in V16/V17); closed by the X or the backdrop.
     @State private var chapterBook: Book?
+
+    /// The book whose Voice-notes archive plane is risen (library cluster mic control) —
+    /// every memo across the book's chapters, with playback. Nil = closed.
+    @State private var memoBook: Book?
+    /// Playback for the open Voice-notes archive; created with `memoBook`, stopped + released
+    /// when it closes (its own ephemeral engine, the MemoNotes precedent).
+    @State private var bookMemoPlayer: BookMemoPlayer?
+
+    /// The book whose Saved-discussions archive plane is risen (library cluster speech-bubble
+    /// control) — every saved conversation across the book's chapters. Nil = closed.
+    @State private var conversationsBook: Book?
+    /// Within the conversations archive, the thread opened read-only (nil = the list).
+    @State private var openThreadId: UUID?
 
     /// The opened chapter (V17): a ready chapter row morphs the hardback OPEN into the
     /// reading surface — a state of this same surface, never a push. Closing back-morphs.
@@ -132,7 +153,8 @@ struct LibraryStackView: View {
                         shelf: shelf, size: geo.size, reduceMotion: reduceMotion, focus: focus,
                         metadataRevealShown: metadataRevealShown,
                         debossDodge: debossDodge(in: geo.size),
-                        morphNamespace: coverMorph, openedBookId: reading?.shelfBook.id
+                        morphNamespace: coverMorph, openedBookId: reading?.shelfBook.id,
+                        onTapBook: { focusBook(at: $0) }
                     )
                         .scaleEffect(
                             heroSettle(in: geo.size).scale,
@@ -151,6 +173,11 @@ struct LibraryStackView: View {
             // scrubbing is the animation, and the whole stack is in motion anyway).
             // Reduce Motion swaps the spring for an instant resolve.
             .onScrollPhaseChange { _, newPhase in
+                // A real scroll gesture reclaims focus from a tap-pin (the tower's settle
+                // takes back over the moment the user starts browsing again).
+                if newPhase == .interacting || newPhase == .decelerating {
+                    tappedIndex = nil
+                }
                 let atRest = newPhase == .idle
                 guard atRest != scrollAtRest else { return }
                 withAnimation(reduceMotion ? nil : .smooth(duration: 0.35)) {
@@ -166,9 +193,7 @@ struct LibraryStackView: View {
             // Scroll-settle detection (motion grammar #2): each card publishes its viewport
             // midY; the nearest to the front slot owns focus. Suppressed under Reduce Motion.
             .onPreferenceChange(CardMidYKey.self) { midYs in
-                focus = reduceMotion
-                    ? .none
-                    : BookFocus.at(midYs: midYs, viewportHeight: geo.size.height)
+                focus = resolvedFocus(midYs: midYs, viewportHeight: geo.size.height)
             }
             .onPreferenceChange(CardTopYKey.self) { cardTops = $0 }
             .onPreferenceChange(CardVisualTopKey.self) { cardVisualTops = $0 }
@@ -187,6 +212,8 @@ struct LibraryStackView: View {
             .onPreferenceChange(ClusterFrameKey.self) { clusterGlobalFrame = $0 }
             .overlay(alignment: .topTrailing) { addBookButton }
             .overlay { chapterListPlane }
+            .overlay { bookMemosPlane }
+            .overlay { bookConversationsPlane }
             .overlay { readingSurface }
             .fileImporter(
                 isPresented: $showsEpubPicker,
@@ -316,11 +343,17 @@ struct LibraryStackView: View {
             cluster: displayedCluster,
             reduceTransparency: reduceTransparency,
             onActivate: { control in
-                // Play raises the chapter list plane (V14) — the stand-in until
-                // the audio engine (V16) and reading morph (V17) take it over.
-                // Other controls stay stubs; seeds have no chapters to show.
-                if control == .play, let book = focusedBook {
+                // Book-level controls; seeds (no persisted book) have nothing to show.
+                guard let book = focusedBook else { return }
+                switch control {
+                case .play:
+                    // Raises the chapter list plane (V14) → pick a chapter → reading surface.
                     withAnimation(chapterPlaneAnimation) { chapterBook = book }
+                case .memo:
+                    openBookMemos(book)
+                case .conversations:
+                    openThreadId = nil
+                    withAnimation(chapterPlaneAnimation) { conversationsBook = book }
                 }
             }
         )
@@ -353,6 +386,29 @@ struct LibraryStackView: View {
                 midY: midY, viewportHeight: size.height, promotion: focus.promotion
             )
         )
+    }
+
+    /// The effective focus (motion grammar #2): a tap-pin wins when present (full
+    /// promotion, so the cluster fully emerges under the tapped cover wherever it sits);
+    /// otherwise the scroll-driven settle. Reduce Motion (flat list, no front slot) stays
+    /// `.none`. A pinned index that's fallen out of range (book deleted) is ignored.
+    private func resolvedFocus(midYs: [Int: CGFloat], viewportHeight: CGFloat) -> BookFocus {
+        guard !reduceMotion else { return .none }
+        if let tappedIndex, tappedIndex >= 0, tappedIndex < shelf.count {
+            return BookFocus(index: tappedIndex, emphasis: 1)
+        }
+        return BookFocus.at(midYs: midYs, viewportHeight: viewportHeight)
+    }
+
+    /// Tap-to-focus (apple/CLAUDE.md §Accessibility — gesture affordances): pin focus to the
+    /// tapped cover so its cluster emerges; tapping the already-focused book is a no-op (its
+    /// cluster is already up). Animated so the cluster grows rather than popping.
+    private func focusBook(at index: Int) {
+        guard index >= 0, index < shelf.count else { return }
+        withAnimation(reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.86)) {
+            tappedIndex = index
+            focus = BookFocus(index: index, emphasis: 1)
+        }
     }
 
     /// The focused book as a persisted row — nil for the seed shelf (nothing to narrate).
@@ -399,6 +455,134 @@ struct LibraryStackView: View {
                     : .move(edge: .bottom).combined(with: .opacity)
             )
         }
+    }
+
+    // MARK: Book-level archives (library cluster — morphed list states, never sheets)
+
+    /// Reusable glass plane chrome for the book archives (Voice notes / Saved discussions),
+    /// matching `ChapterListView`: a labelled, glass-backed plane that rises within the
+    /// surface, scrollable matte content, an `xmark` close. Reduce Transparency → matte.
+    @ViewBuilder
+    private func archivePlane<Content: View>(
+        label: String, title: String, onClose: @escaping () -> Void,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        ZStack {
+            Palette.ink0.opacity(0.45)
+                .ignoresSafeArea()
+                .onTapGesture(perform: onClose)
+                .accessibilityLabel("Dismiss")
+                .accessibilityAddTraits(.isButton)
+            VStack(spacing: 0) {
+                VStack(spacing: 6) {
+                    Text(label)
+                        .font(.system(size: 10, weight: .medium))
+                        .tracking(4)
+                        .foregroundStyle(Palette.textPrimary.opacity(0.55))
+                    Text(title)
+                        .font(.system(size: 20, weight: .regular, design: .serif))
+                        .tracking(1)
+                        .foregroundStyle(Palette.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .padding(.horizontal, 56)
+                }
+                .frame(maxWidth: .infinity)
+                .overlay(alignment: .topTrailing) {
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Palette.textPrimary.opacity(0.7))
+                            .frame(width: 34, height: 34)
+                    }
+                    .buttonStyle(.plain)
+                    .background(Circle().fill(Palette.textPrimary.opacity(0.06)))
+                    .padding(.trailing, 14)
+                    .accessibilityLabel("Close")
+                }
+                .padding(.top, 22)
+                .padding(.bottom, 14)
+                ScrollView {
+                    content()
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 18)
+                }
+            }
+            .frame(maxWidth: 420)
+            .frame(maxHeight: 520)
+            .background {
+                let shape = RoundedRectangle(cornerRadius: 28, style: .continuous)
+                if reduceTransparency {
+                    shape.fill(Palette.surface)
+                } else {
+                    Color.clear.glassEffect(.regular.tint(Palette.sky.opacity(0.18)), in: shape)
+                }
+            }
+            .padding(.horizontal, 24)
+        }
+        .transition(
+            reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity)
+        )
+    }
+
+    /// The book's Voice notes archive — every memo across its chapters, with playback and
+    /// delete. No open-at-pin (there's no open chapter at the library surface).
+    @ViewBuilder
+    private var bookMemosPlane: some View {
+        if let book = memoBook, let player = bookMemoPlayer {
+            archivePlane(label: "VOICE NOTES", title: book.title, onClose: { closeBookMemos() }) {
+                MemoNotesView(
+                    memos: player.memos,
+                    playingMemoId: player.playingMemoId,
+                    reduceTransparency: reduceTransparency,
+                    onPlay: { player.play($0) },
+                    onRetry: { player.retry($0) },
+                    onDelete: { player.delete($0) }
+                )
+            }
+        }
+    }
+
+    /// The book's Saved discussions archive — every saved conversation across its chapters;
+    /// tap reopens one read-only, trash deletes (threads are user content).
+    @ViewBuilder
+    private var bookConversationsPlane: some View {
+        if let book = conversationsBook, let store {
+            archivePlane(
+                label: "SAVED DISCUSSIONS", title: book.title,
+                onClose: { withAnimation(chapterPlaneAnimation) { conversationsBook = nil } }
+            ) {
+                if let openThreadId,
+                   let thread = store.bookChatThreads(book).first(where: { $0.id == openThreadId }) {
+                    DiscussTranscriptView(
+                        messages: thread.lines
+                            .sorted { $0.index < $1.index }
+                            .map { ChatMessageDTO(role: $0.role, text: $0.text) }
+                    )
+                } else {
+                    ConversationsListView(
+                        threads: store.bookChatThreads(book),
+                        onOpen: { openThreadId = $0.id },
+                        onDelete: { store.deleteChatThread($0) }
+                    )
+                }
+            }
+        }
+    }
+
+    /// Open the Voice notes archive: spin up a playback controller on its own ephemeral
+    /// engine, then rise the plane.
+    private func openBookMemos(_ book: Book) {
+        guard let store else { return }
+        bookMemoPlayer = store.makeBookMemoPlayer(for: book, memoEngine: AVFoundationAudioEngine())
+        withAnimation(chapterPlaneAnimation) { memoBook = book }
+    }
+
+    /// Close the Voice notes archive: stop any clip and release the controller.
+    private func closeBookMemos() {
+        bookMemoPlayer?.stop()
+        bookMemoPlayer = nil
+        withAnimation(chapterPlaneAnimation) { memoBook = nil }
     }
 
     // MARK: Reading surface (V17 — the cover morphs open; back-morph on close)
@@ -644,10 +828,22 @@ private struct BookTower: View {
     /// the reading surface's cover plate and hides while open.
     let morphNamespace: Namespace.ID
     let openedBookId: String?
+    /// Tap-to-focus (a small library can't scroll a book onto the front slot): tapping a
+    /// cover pins focus to it so its control cluster emerges.
+    let onTapBook: (Int) -> Void
 
     var body: some View {
         ForEach(Array(shelf.enumerated()), id: \.element.id) { index, book in
             card(book, at: index)
+                // Tap-to-focus: summon this cover's control cluster (the front-slot settle
+                // can't reach a book in a small library). `contentShape` makes the whole
+                // cover tappable; the visualEffect transforms are render-only, so the hit
+                // target stays the card's layout frame.
+                .contentShape(Rectangle())
+                .onTapGesture { onTapBook(index) }
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint("Shows playback controls")
+                .accessibilityAction { onTapBook(index) }
         }
     }
 

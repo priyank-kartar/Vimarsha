@@ -3,6 +3,15 @@ import SwiftUI
 
 @main
 struct VimarshaApp: App {
+    /// The app-lifetime `ModelContainer`. MUST be retained for the whole process: a
+    /// container's own `mainContext` holds only a WEAK reference back to it, so if the
+    /// container deallocates, the next `context.insert`/`save` dereferences a nil weak
+    /// container and traps inside SwiftData. Created once (App structs are re-instantiated
+    /// by SwiftUI; a `static` keeps a single container alive regardless).
+    static let sharedContainer: ModelContainer? = try? ModelContainer(
+        for: Book.self, Chapter.self, Memo.self, ChatThread.self, ChatLine.self
+    )
+
     /// The persisted library (V12). A store-opening failure (corrupt/locked database)
     /// degrades to the seed shelf with no import affordance rather than crashing —
     /// honest states on the one surface.
@@ -14,9 +23,7 @@ struct VimarshaApp: App {
     @State private var recorder = AVAudioRecorderEngine()
 
     init() {
-        if let container = try? ModelContainer(
-            for: Book.self, Chapter.self, Memo.self, ChatThread.self, ChatLine.self
-        ) {
+        if let container = Self.sharedContainer {
             _store = State(initialValue: LibraryStore(context: container.mainContext))
         }
     }

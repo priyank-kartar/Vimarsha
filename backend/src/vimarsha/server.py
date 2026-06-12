@@ -56,9 +56,20 @@ async def chat(req: ChatRequest, llm: LlmClient = Depends(get_llm)):
     return {"reply": reply}
 
 
+_synth: Synthesizer | None = None
+
+
 def get_synth() -> Synthesizer:
-    """Default to the real Chatterbox synth; overridden in tests."""
-    return ChatterboxSynth()
+    """Cached Chatterbox synth (loaded ONCE, like the transcriber); overridden in tests.
+
+    Returning a fresh ``ChatterboxSynth()`` per call reloaded the whole model on every
+    ``/import`` and ``/speak`` — ballooning memory and disk (Chatterbox re-materializes its
+    weights each ``from_pretrained``). One process-wide instance fixes that.
+    """
+    global _synth
+    if _synth is None:
+        _synth = ChatterboxSynth()
+    return _synth
 
 
 _transcriber: Transcriber | None = None
