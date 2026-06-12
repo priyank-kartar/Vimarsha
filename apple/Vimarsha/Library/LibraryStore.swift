@@ -5,6 +5,7 @@ import SwiftUI
 /// The library's store (app-architecture.md layering: view → store → seams): owns the
 /// persisted `Book` rows and the import flow (V10 copy → V11 cover → V12 row). UI-facing
 /// and `@Observable`; file IO runs detached off the main actor.
+@MainActor
 @Observable
 final class LibraryStore {
     private let context: ModelContext
@@ -134,8 +135,27 @@ final class LibraryStore {
             try context.save()
             load()
         } catch {
-            importError = "Couldn't import book"
+            importError = Self.importErrorMessage(for: error)
         }
+    }
+
+    /// Honest error posture (the store's stated design): name the cause so the user can
+    /// act on it. The dominant real-world failure is the backend being unreachable — the
+    /// import flow needs `POST /toc` — which a generic "Couldn't import book" hid.
+    static func importErrorMessage(for error: any Error) -> String {
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .cannotConnectToHost, .cannotFindHost, .networkConnectionLost,
+                 .notConnectedToInternet, .timedOut:
+                return "Can't reach the backend — is it running on localhost:8000?"
+            default:
+                return "Network error: \(urlError.localizedDescription)"
+            }
+        }
+        if case BackendError.badStatus(let code) = error {
+            return "Backend rejected the book (HTTP \(code))"
+        }
+        return "Couldn't import book: \(error.localizedDescription)"
     }
 
     /// Lazily narrate + cache one chapter (V14): `none/error → pending → ready/error`.
@@ -266,6 +286,22 @@ final class LibraryStore {
         book.chatThreads
             .filter { $0.chapterIndex == chapterIndex }
             .sorted { $0.createdAt > $1.createdAt }
+    }
+
+    /// The whole book's saved conversations across every chapter, newest first — the
+    /// library cluster's "Saved discussions" archive.
+    func bookChatThreads(_ book: Book) -> [ChatThread] {
+        book.chatThreads.sorted { $0.createdAt > $1.createdAt }
+    }
+
+    /// A playback controller for the book-level Voice notes archive (V-library cluster) —
+    /// same container as the library; an ephemeral engine so nothing else's loaded clip is
+    /// disturbed (the MemoNotes precedent).
+    func makeBookMemoPlayer(for book: Book, memoEngine: any AudioEngine) -> BookMemoPlayer {
+        BookMemoPlayer(
+            book: book, memoEngine: memoEngine,
+            store: self, containerRoot: importer.containerRoot
+        )
     }
 
     /// Remove one saved conversation (lines cascade; the confirm lives in the UI —

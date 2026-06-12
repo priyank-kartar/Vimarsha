@@ -7,9 +7,9 @@ import CoreGraphics
 /// scrubbable function of the focus promotion; per-control offsets fan the melded blob apart.
 @Suite("ControlCluster — emerge / fan-out math")
 struct ControlClusterTests {
-    @Test("the four controls are play, figures, memo, discuss in order")
+    @Test("the book-level controls are play, memo, conversations in order")
     func controlOrder() {
-        #expect(ControlCluster.Control.allCases == [.play, .figures, .memo, .discuss])
+        #expect(ControlCluster.Control.allCases == [.play, .memo, .conversations])
     }
 
     @Test("promotion at or below the threshold leaves the cluster fully absorbed")
