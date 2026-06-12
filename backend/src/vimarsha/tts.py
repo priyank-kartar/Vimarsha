@@ -60,12 +60,26 @@ class ChatterboxSynth:
                 else "cpu"
             )
         self._model = ChatterboxTTS.from_pretrained(device=device)
+        self._device = device
         self.sample_rate = self._model.sr
         self._audio_prompt_path = audio_prompt_path
 
     def synthesize(self, text: str) -> np.ndarray:
+        import torch
+
         kwargs = {}
         if self._audio_prompt_path:
             kwargs["audio_prompt_path"] = self._audio_prompt_path
         wav = self._model.generate(text, **kwargs)  # torch tensor [1, N]
-        return wav.squeeze(0).detach().cpu().numpy().astype("float32")
+        out = wav.squeeze(0).detach().cpu().numpy().astype("float32")
+        # Bound memory across a long chapter: the MPS/CUDA allocator caches the
+        # per-call generation tensors, so without releasing them hundreds of blocks
+        # climb into tens of GB and push the machine into swap (disk then fills →
+        # OSError 28). Drop the tensor and hand the device's cached blocks back each
+        # block so peak memory stays flat regardless of chapter length.
+        del wav
+        if self._device == "mps":
+            torch.mps.empty_cache()
+        elif self._device == "cuda":
+            torch.cuda.empty_cache()
+        return out
