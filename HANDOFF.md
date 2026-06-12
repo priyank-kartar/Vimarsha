@@ -3,15 +3,32 @@
 A resume-here note for the next agent. Read **`CLAUDE.md`** for architecture,
 conventions, and the full gotcha list; this file is "where we are + what to do next."
 
-_Last updated: 2026-06-12 · branch `fix/import-crash-narration-stability-cluster` (4 commits,
-NOT yet merged/pushed) off `main` @ `067140f`._
+_Last updated: 2026-06-12 (session 2, end) · `fix/import-crash-narration-stability-cluster`
+merged to `main` + pushed._
 
-## ⚠️ RESUME HERE (2026-06-12 session) — live-bring-up of the native Swift client
+## ⚠️ RESUME HERE (next session) — buy a RunPod instance, check narration speed live
+
+The native client loop works end-to-end locally; the bottleneck is **narration speed on
+MPS** (M4 is ~7–8× slower than realtime; a big chapter like Bohm ch01 = 64k chars takes a
+long while). **Next session's goal: stand up the CUDA backend on RunPod and measure real
+speed**, then decide on hardware (see `plan/08-engineering/runpod-cost-and-buy-trigger.md`).
+
+**First steps next time:**
+1. **Build + push the Docker image** (`cd backend && docker build -t <registry>/vimarsha-backend . && docker push …`) — the CUDA image is ready and already includes the model-cache + per-block `empty_cache` fixes. See `backend/docs/runpod.md`.
+2. **Create a RunPod pod** from that image, expose port 8000.
+3. **Point the client at it** — ⚠️ the Swift client **hardcodes `baseURL = http://localhost:8000`** in `apple/Vimarsha/Backend/BackendClient.swift`; there's NO settings UI yet. Either change that line or add a minimal backend-URL setting first (small task).
+4. **Narrate a chapter on RunPod and capture: it/s, chapter-min/wall-min, $/chapter.** Use a SMALL chapter to iterate fast — Wholeness **INTRODUCTION (app idx 6, ~18k chars)**, or front-matter (idx 1/5, ~0.5k chars) for a smoke test. ch01 (idx 7) is one of the biggest.
+5. Feed RunPod usage into the cost ledger; re-check the buy-trigger.
+6. **Then** (own branch `feat/batched-narration`) prototype block batching in `narrate_bundle` — biggest single lever on $/chapter (~10×); safe plan = additive `synthesize_batch` seam + sequential fallback + TDD vs current output, real GPU batching gated off.
+
+---
+
+## Session 2 (2026-06-12) — what shipped (merged to `main`)
 
 First end-to-end run of the `apple/` client against the real backend. Got the whole flow
 working: **import a book → focus (tap) → Play → chapter list → download/narrate → reading
-surface → Discuss**. Several real bugs found and fixed; **all committed on branch
-`fix/import-crash-narration-stability-cluster` (4 commits, not merged/pushed yet).**
+surface → Discuss**. Several real bugs found and fixed; **all merged to `main`** on branch
+`fix/import-crash-narration-stability-cluster` (7 commits).
 
 **Fixes this session (committed):**
 1. **Import crash** — `VimarshaApp.init` kept only `container.mainContext` and let the
@@ -30,20 +47,18 @@ surface → Discuss**. Several real bugs found and fixed; **all committed on bra
    (book-level archives across all chapters); Figures stays reading-surface-only (and only
    when the chapter has figures); live Discuss stays in the reading surface.
 
-**State at handoff / DO THIS NEXT:**
-- **REBOOT REQUIRED** before more narration: this session's earlier leaks left ~50 GB of
-  stale macOS swap that won't reclaim without a reboot; it slowed TTS ~150× (6 s/iter vs
-  0.04) and was the proximate cause of the timeouts. After reboot, RAM is clean and the
-  memory fixes keep it flat.
-- After reboot: restart backend (`cd backend && uv run uvicorn vimarsha.server:app --port
-  8000`), reopen the app, **narrate ONE chapter** to confirm it finishes at full speed under
-  the new timeout. Then `git merge --no-ff` the branch to `main` + push.
-- **Recommended but NOT done:** serialize chapter downloads (one `/import` at a time) — the
-  user declined for now, but concurrent imports narrate on one shared model and multiply
-  memory, which is what blew up swap. Small client change, worth doing.
+**Verified this session:** rebooted (cleared ~50 GB stale swap that had slowed TTS ~150×);
+backend restarted with the fixes; a chapter began narrating at full speed with **flat
+memory** (backend RSS ~0.3 GB, swap not climbing) — the memory fixes hold. Full app +
+backend test suites green; macOS build clean. Merged to `main`.
+
+**Carry-over notes (not blockers):**
+- **Serialize chapter downloads** (one `/import` at a time) — recommended, NOT done. Concurrent
+  imports narrate on one shared model and multiply memory (what blew up swap). Small client win.
 - **Discuss needs Ollama:** `/chat` 500s with `:11434 404` until `ollama serve` +
   `ollama pull llama3.2:3b`. "No Reply" in the panel = Ollama not running.
 - Freed ~33 GB of unrelated HF models earlier (kept only `chatterbox` + `faster-whisper`).
+- Swift client backend URL is hardcoded (no settings UI) — see step 3 of RESUME HERE.
 
 Everything below predates this session (Flutter-era plan notes); architecture/conventions in
 `CLAUDE.md` and `apple/CLAUDE.md` are still current.
