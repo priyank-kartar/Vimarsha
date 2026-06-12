@@ -3,7 +3,54 @@
 A resume-here note for the next agent. Read **`CLAUDE.md`** for architecture,
 conventions, and the full gotcha list; this file is "where we are + what to do next."
 
-_Last updated: 2026-06-10 · `main` @ commit `ab66218` (local == GitHub remote)._
+_Last updated: 2026-06-12 · branch `fix/import-crash-narration-stability-cluster` (4 commits,
+NOT yet merged/pushed) off `main` @ `067140f`._
+
+## ⚠️ RESUME HERE (2026-06-12 session) — live-bring-up of the native Swift client
+
+First end-to-end run of the `apple/` client against the real backend. Got the whole flow
+working: **import a book → focus (tap) → Play → chapter list → download/narrate → reading
+surface → Discuss**. Several real bugs found and fixed; **all committed on branch
+`fix/import-crash-narration-stability-cluster` (4 commits, not merged/pushed yet).**
+
+**Fixes this session (committed):**
+1. **Import crash** — `VimarshaApp.init` kept only `container.mainContext` and let the
+   `ModelContainer` deallocate; `mainContext`'s back-reference is WEAK, so the next
+   `context.insert` trapped in SwiftData. Fixed by holding the container in a `static`.
+   (Root-caused under lldb: `swift_weakLoadStrong → nil → brk`.)
+2. **Backend memory** — `get_synth()` reloaded the model per request (now cached, like
+   `get_transcriber`); and per-block MPS tensors weren't freed (now `empty_cache` per block
+   in `ChatterboxSynth.synthesize`). These were the memory/disk balloon.
+3. **Narration timeout** — client request timeout was 30 min; `/import` is silent for the
+   whole narration, so long chapters tripped it → "Narration failed" even though the backend
+   returned 200. Raised to 3 h (`BackendClient.narrationSession`).
+4. **Tap-to-focus** — small libraries can't scroll a cover onto the 0.72 front slot, so the
+   control cluster never emerged; tapping a cover now pins focus.
+5. **Cluster redesign** — library cluster is now **Play · Voice notes · Saved discussions**
+   (book-level archives across all chapters); Figures stays reading-surface-only (and only
+   when the chapter has figures); live Discuss stays in the reading surface.
+
+**State at handoff / DO THIS NEXT:**
+- **REBOOT REQUIRED** before more narration: this session's earlier leaks left ~50 GB of
+  stale macOS swap that won't reclaim without a reboot; it slowed TTS ~150× (6 s/iter vs
+  0.04) and was the proximate cause of the timeouts. After reboot, RAM is clean and the
+  memory fixes keep it flat.
+- After reboot: restart backend (`cd backend && uv run uvicorn vimarsha.server:app --port
+  8000`), reopen the app, **narrate ONE chapter** to confirm it finishes at full speed under
+  the new timeout. Then `git merge --no-ff` the branch to `main` + push.
+- **Recommended but NOT done:** serialize chapter downloads (one `/import` at a time) — the
+  user declined for now, but concurrent imports narrate on one shared model and multiply
+  memory, which is what blew up swap. Small client change, worth doing.
+- **Discuss needs Ollama:** `/chat` 500s with `:11434 404` until `ollama serve` +
+  `ollama pull llama3.2:3b`. "No Reply" in the panel = Ollama not running.
+- Freed ~33 GB of unrelated HF models earlier (kept only `chatterbox` + `faster-whisper`).
+
+Everything below predates this session (Flutter-era plan notes); architecture/conventions in
+`CLAUDE.md` and `apple/CLAUDE.md` are still current.
+
+---
+
+_Earlier handoff (2026-06-10):_
 
 ## What Vimarsha is
 
@@ -98,9 +145,8 @@ cd app && flutter test test_integration/real_backend_test.dart  # opt-in, real C
 
 ## Known issues / deferred improvements (good follow-ups)
 
-- **`get_synth()` reloads the Chatterbox model per `/import` request** — the main
-  cause of memory ballooning + latency. Caching it (like `get_transcriber`/`get_llm`)
-  is a cheap, high-value win.
+- ~~**`get_synth()` reloads the Chatterbox model per `/import` request**~~ — **FIXED
+  2026-06-12** (cached + per-block `empty_cache`; see the resume-here block at top).
 - **Local narration is heavy on this Mac:** MPS synthesis ~7–8× slower than realtime;
   a full chapter is many minutes and large temp files. `backend/Dockerfile` +
   `backend/docs/runpod.md` exist for offloading heavy synth to a RunPod CUDA box.
