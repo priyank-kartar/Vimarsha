@@ -16,6 +16,9 @@ final class Book {
     var coverPath: String?
     var addedAt: Date
     var lastOpenedAt: Date?
+    /// The chosen narrator voice id (`VoiceCatalog` display name). Defaulted so adding it is a
+    /// SwiftData lightweight migration; existing books open as "Aria".
+    var voiceId: String = VoiceCatalog.defaultId
     @Relationship(deleteRule: .cascade, inverse: \Chapter.book)
     var chapters: [Chapter] = []
     @Relationship(deleteRule: .cascade, inverse: \ChatThread.book)
@@ -57,6 +60,9 @@ final class Chapter {
     /// Set when `ready`: `Library/Books/<bookId>/chapters/<index>/bundle.json` / `chapter.mp3`.
     var bundlePath: String?
     var audioPath: String?
+    /// The voice the cached `chapter.mp3` was rendered in; nil until first narrated. When it
+    /// differs from the owning book's `voiceId`, the cached audio is stale (re-render needed).
+    var narratedVoiceId: String?
     /// Resume position + scrubber length.
     var progressMs: Int
     var durationMs: Int?
