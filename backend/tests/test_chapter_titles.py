@@ -32,12 +32,14 @@ _OPF = """<?xml version="1.0" encoding="utf-8"?>
     <item id="ch1" href="ch1.xhtml" media-type="application/xhtml+xml"/>
     <item id="notes" href="notes.xhtml" media-type="application/xhtml+xml"/>
     <item id="back" href="back.xhtml" media-type="application/xhtml+xml"/>
+    <item id="blank" href="text00008.xhtml" media-type="application/xhtml+xml"/>
   </manifest>
   <spine toc="ncx">
     <itemref idref="intro"/>
     <itemref idref="ch1"/>
     <itemref idref="notes"/>
     <itemref idref="back"/>
+    <itemref idref="blank"/>
   </spine>
 </package>
 """
@@ -76,6 +78,7 @@ def titled_epub(tmp_path: Path) -> Path:
         z.writestr("OEBPS/ch1.xhtml", _doc("<h1>1</h1><p>The first chapter.</p>"))
         z.writestr("OEBPS/notes.xhtml", _doc("<h2>Notes</h2><p>Some notes.</p>"))
         z.writestr("OEBPS/back.xhtml", _doc("<p>Back matter.</p>"))
+        z.writestr("OEBPS/text00008.xhtml", _doc("<p>A decorative break.</p>"))
     return path
 
 
@@ -85,7 +88,8 @@ def test_titles_prefer_toc_then_heading_then_filename(titled_epub):
         "Introduction",   # from the TOC (no in-page heading on this page)
         "Chapter One",    # TOC label WINS over the in-page heading "1"
         "Notes",          # not in TOC → falls back to the in-page heading
-        "Back",           # not in TOC, no heading → humanized filename
+        "Back",           # not in TOC, no heading, real-word stem → humanized filename
+        "Untitled",       # not in TOC, no heading, generic name (text00008) → graceful
     ]
 
 
@@ -96,7 +100,9 @@ def test_read_chapters_exposes_toc_title(titled_epub):
     assert chapters["back"].toc_title is None   # not in the TOC
 
 
-def test_humanize_filename_cleans_and_recognizes_front_matter():
+def test_humanize_filename_front_matter_realword_and_graceful_generic():
     assert _humanize_filename("OEBPS/cover1.html") == "Cover"          # front-matter keyword
-    assert _humanize_filename("text00000.html") == "Text00000"         # path + extension stripped
-    assert ".html" not in _humanize_filename("xhtml/Coyl_epub3_cop_r1.xhtml")  # never a raw filename
+    assert _humanize_filename("back.xhtml") == "Back"                  # real-word stem kept
+    assert _humanize_filename("text00000.html") == "Untitled"          # generic stub → graceful
+    assert _humanize_filename("xhtml/Coyl_9780804177009_epub3_p001_r1.xhtml") == "Untitled"
+    assert ".html" not in _humanize_filename("text00000.html")         # never a raw filename
