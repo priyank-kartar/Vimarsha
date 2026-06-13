@@ -14,6 +14,7 @@ struct ChapterListView: View {
     var reduceTransparency: Bool = false
     var onDownload: (Chapter) -> Void = { _ in }
     var onOpen: (Chapter) -> Void = { _ in }
+    var onRerender: (Chapter) -> Void = { _ in }
     var onClose: () -> Void = {}
 
     @ScaledMetric(relativeTo: .title3) private var titleSize: CGFloat = 20
@@ -29,9 +30,15 @@ struct ChapterListView: View {
                 .padding(.top, 22)
                 .padding(.bottom, 14)
             ScrollView {
-                ChapterRowsView(chapters: chapters, onDownload: onDownload, onOpen: onOpen)
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 18)
+                ChapterRowsView(
+                    chapters: chapters,
+                    currentVoiceId: book.voiceId,
+                    onDownload: onDownload,
+                    onOpen: onOpen,
+                    onRerender: onRerender
+                )
+                .padding(.horizontal, 20)
+                .padding(.bottom, 18)
             }
         }
         .frame(maxWidth: 420)
@@ -82,13 +89,21 @@ struct ChapterListView: View {
 /// directly (`ImageRenderer` doesn't rasterize ScrollView content).
 struct ChapterRowsView: View {
     let chapters: [Chapter]
+    let currentVoiceId: String
     var onDownload: (Chapter) -> Void = { _ in }
     var onOpen: (Chapter) -> Void = { _ in }
+    var onRerender: (Chapter) -> Void = { _ in }
 
     var body: some View {
         VStack(spacing: 0) {
             ForEach(chapters) { chapter in
-                ChapterRow(chapter: chapter, onDownload: onDownload, onOpen: onOpen)
+                ChapterRow(
+                    chapter: chapter,
+                    currentVoiceId: currentVoiceId,
+                    onDownload: onDownload,
+                    onOpen: onOpen,
+                    onRerender: onRerender
+                )
                 if chapter.id != chapters.last?.id {
                     Divider().overlay(Palette.textPrimary.opacity(0.08))
                 }
@@ -101,11 +116,21 @@ struct ChapterRowsView: View {
 /// when actionable (download/retry) — never a bare 28pt icon target.
 private struct ChapterRow: View {
     let chapter: Chapter
+    let currentVoiceId: String
     var onDownload: (Chapter) -> Void
     var onOpen: (Chapter) -> Void
+    var onRerender: (Chapter) -> Void
 
     @ScaledMetric(relativeTo: .caption2) private var indexSize: CGFloat = 10
     @ScaledMetric(relativeTo: .body) private var rowTitleSize: CGFloat = 15
+
+    private var isStale: Bool {
+        ChapterStaleness.isStale(
+            status: chapter.status,
+            narratedVoiceId: chapter.narratedVoiceId,
+            bookVoiceId: currentVoiceId
+        )
+    }
 
     var body: some View {
         // Only actionable rows are buttons — a disabled Button would dim the title, and a
@@ -117,14 +142,21 @@ private struct ChapterRow: View {
                 Button { onDownload(chapter) } label: { rowContent }
                     .buttonStyle(.plain)
             case .ready:
-                Button { onOpen(chapter) } label: { rowContent }
-                    .buttonStyle(.plain)
+                Button {
+                    switch ChapterOpenRouting.action(status: .ready, isStale: isStale) {
+                    case .rerender: onRerender(chapter)
+                    case .open: onOpen(chapter)
+                    case .download: onDownload(chapter)
+                    }
+                } label: { rowContent }
+                .buttonStyle(.plain)
             case .pending:
                 rowContent
             }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
+        .onLongPressGesture(minimumDuration: 0.5) { onRerender(chapter) }
     }
 
     private var rowContent: some View {
@@ -142,6 +174,11 @@ private struct ChapterRow: View {
                     Text(reason)
                         .font(.caption2)
                         .foregroundStyle(Palette.textPrimary.opacity(0.55))
+                }
+                if isStale {
+                    Text("Will re-narrate in \(currentVoiceId)")
+                        .font(.caption2)
+                        .foregroundStyle(Palette.sky.opacity(0.85))
                 }
             }
             Spacer(minLength: 12)

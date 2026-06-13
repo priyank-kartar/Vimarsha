@@ -461,6 +461,7 @@ struct LibraryStackView: View {
                     reduceTransparency: reduceTransparency,
                     onDownload: { chapter in store?.downloadChapter(chapter) },
                     onOpen: { chapter in openReadingSurface(book: book, chapter: chapter) },
+                    onRerender: { chapter in store?.rerenderChapter(chapter) },
                     onClose: { withAnimation(chapterPlaneAnimation) { chapterBook = nil } }
                 )
             }
