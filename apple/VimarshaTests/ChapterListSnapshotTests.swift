@@ -39,7 +39,10 @@ struct ChapterListSnapshotTests {
     /// Renders the rows column directly — `ImageRenderer` doesn't rasterize the
     /// ScrollView content inside the full plane (it drew header-only, rows blank).
     private func render(_ book: Book) -> CGImage? {
-        let view = ChapterRowsView(chapters: book.chapters.sorted { $0.index < $1.index })
+        let view = ChapterRowsView(
+            chapters: book.chapters.sorted { $0.index < $1.index },
+            currentVoiceId: book.voiceId
+        )
             .frame(width: 380)
             .padding(20)
             .background(Palette.canvas)

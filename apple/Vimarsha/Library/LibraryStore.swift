@@ -173,6 +173,9 @@ final class LibraryStore {
         return narrate(chapter, book: book)
     }
 
+    /// Persist pending model edits (e.g. a voice change made in the UI).
+    func saveContext() throws { try context.save() }
+
     /// Re-narrate a chapter in the book's CURRENT voice, regardless of its present status
     /// (hold-to-re-render, or a stale chapter opened). Cancels any in-flight job for it first.
     @discardableResult

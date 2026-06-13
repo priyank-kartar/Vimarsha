@@ -19,3 +19,17 @@ extension Chapter {
         )
     }
 }
+
+/// What tapping a chapter row should do, given its status and staleness — keeps the decision
+/// pure and testable, off the view.
+nonisolated enum ChapterOpenRouting {
+    enum Action: Equatable { case open, rerender, download }
+
+    static func action(status: ChapterStatus, isStale: Bool) -> Action {
+        switch status {
+        case .ready: return isStale ? .rerender : .open
+        case .none, .error: return .download
+        case .pending: return .open   // unreachable (pending rows aren't buttons); harmless default
+        }
+    }
+}
