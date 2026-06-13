@@ -24,6 +24,17 @@ tts = [
     "torch",
     "torchaudio",
 ]
+# Alternative narration engine (faster, lighter than Chatterbox). Select at runtime with
+# VIMARSHA_TTS=kokoro. `misaki[en]` is Kokoro's English G2P; faster-whisper is kept so
+# /transcribe still works on the Kokoro-only stack.
+kokoro = [
+    "kokoro>=0.9",
+    "misaki[en]>=0.9",
+    "faster-whisper",
+    "torch",
+    "torchaudio",
+    "soundfile",
+]
 
 [project.scripts]
 vimarsha = "vimarsha:main"

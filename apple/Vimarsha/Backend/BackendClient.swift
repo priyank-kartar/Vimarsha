@@ -115,6 +115,10 @@ nonisolated enum BackendError: Error {
 nonisolated struct URLSessionBackendClient: BackendClient {
     var baseURL = URL(string: "http://localhost:8000")!
     var session = URLSessionBackendClient.narrationSession
+    /// Narration engine the backend should use (`?engine=` on `/import` and `/speak`):
+    /// `"kokoro"` (fast, default) or `"chatterbox"` (more expressive). `nil` lets the backend's
+    /// own `VIMARSHA_TTS` default decide. One backend-routing knob until a settings surface lands.
+    var engine: String? = "kokoro"
 
     /// `URLSession.shared`'s 60s idle timeout kills any real `/import` — Chatterbox
     /// narration is MINUTES (sometimes hours) of server SILENCE before the bundle arrives:
@@ -140,7 +144,8 @@ nonisolated struct URLSessionBackendClient: BackendClient {
         try JSONDecoder().decode(
             ChapterBundleDTO.self,
             from: try await uploadEpub(
-                at: url, to: Self.importURL(baseURL: baseURL, chapterIndex: chapterIndex)
+                at: url,
+                to: Self.importURL(baseURL: baseURL, chapterIndex: chapterIndex, engine: engine)
             )
         )
     }
@@ -177,9 +182,11 @@ nonisolated struct URLSessionBackendClient: BackendClient {
     }
 
     func speak(text: String) async throws -> Data {
-        let request = try Self.jsonRequest(
-            url: baseURL.appending(path: "speak"), body: SpeakRequestBody(text: text)
-        )
+        var url = baseURL.appending(path: "speak")
+        if let engine, !engine.isEmpty {
+            url = url.appending(queryItems: [URLQueryItem(name: "engine", value: engine)])
+        }
+        let request = try Self.jsonRequest(url: url, body: SpeakRequestBody(text: text))
         let (data, response) = try await session.data(for: request)
         try Self.validate(response)
         return data
@@ -194,10 +201,14 @@ nonisolated struct URLSessionBackendClient: BackendClient {
         return request
     }
 
-    /// `chapter_index` rides as a query parameter (the FastAPI signature), not form data.
-    static func importURL(baseURL: URL, chapterIndex: Int) -> URL {
-        baseURL.appending(path: "import")
-            .appending(queryItems: [URLQueryItem(name: "chapter_index", value: "\(chapterIndex)")])
+    /// `chapter_index` (and optional `engine`) ride as query parameters (the FastAPI
+    /// signature), not form data.
+    static func importURL(baseURL: URL, chapterIndex: Int, engine: String? = nil) -> URL {
+        var items = [URLQueryItem(name: "chapter_index", value: "\(chapterIndex)")]
+        if let engine, !engine.isEmpty {
+            items.append(URLQueryItem(name: "engine", value: engine))
+        }
+        return baseURL.appending(path: "import").appending(queryItems: items)
     }
 
     private func uploadEpub(at url: URL, to endpoint: URL) async throws -> Data {

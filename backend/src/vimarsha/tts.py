@@ -83,3 +83,90 @@ class ChatterboxSynth:
         elif self._device == "cuda":
             torch.cuda.empty_cache()
         return out
+
+
+def _pick_device(device: str | None) -> str:
+    """Resolve cuda > mps > cpu unless an explicit device is given."""
+    if device is not None:
+        return device
+    import torch
+
+    if torch.cuda.is_available():
+        return "cuda"
+    if torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
+
+
+class KokoroSynth:
+    """Kokoro-82M TTS adapter (StyleTTS2-based) — far faster than autoregressive Chatterbox.
+
+    Same ``Synthesizer`` contract (mono float32 @ ``sample_rate``); swappable per-request via
+    ``VIMARSHA_TTS=kokoro``. Requires the ``[kokoro]`` extra. Lazily imports ``kokoro`` so the
+    rest of the package runs without it. Kokoro renders at 24 kHz.
+    """
+
+    sample_rate = 24000
+
+    def __init__(
+        self,
+        device: str | None = None,
+        voice: str = "af_heart",
+        lang_code: str = "a",
+        speed: float = 1.0,
+    ):
+        from kokoro import KPipeline
+
+        resolved = _pick_device(device)
+        # Kokoro's iSTFT vocoder calls ``aten::angle``, which Apple's MPS backend doesn't
+        # implement (pytorch#141287) — it crashes there. Kokoro-82M is small, so on MPS we run
+        # on CPU (still near real-time). CUDA, the production target, is unaffected.
+        if resolved == "mps":
+            resolved = "cpu"
+        self._device = resolved
+        self._voice = voice
+        self._speed = speed
+        # lang_code 'a' = American English (Kokoro's misaki G2P; no system espeak needed for en).
+        self._pipeline = KPipeline(lang_code=lang_code, device=self._device)
+
+    def synthesize(self, text: str) -> np.ndarray:
+        if not text.strip():
+            return np.zeros(0, dtype=np.float32)
+        parts: list[np.ndarray] = []
+        # Kokoro yields one (graphemes, phonemes, audio) tuple per internal split; concatenate
+        # them so a block maps to one contiguous waveform, exactly like the Chatterbox path.
+        for _gs, _ps, audio in self._pipeline(text, voice=self._voice, speed=self._speed):
+            if hasattr(audio, "detach"):  # torch tensor
+                arr = audio.detach().cpu().numpy().astype("float32")
+            else:
+                arr = np.asarray(audio, dtype="float32")
+            parts.append(arr)
+        if not parts:
+            return np.zeros(0, dtype=np.float32)
+        return np.concatenate(parts)
+
+
+# Pluggable engine registry: name -> Synthesizer class (constructed lazily by the server so
+# selecting an engine never loads a model until it's actually used).
+_ENGINES: dict[str, type] = {
+    "chatterbox": ChatterboxSynth,
+    "kokoro": KokoroSynth,
+}
+_DEFAULT_ENGINE = "chatterbox"
+
+
+def synth_class(name: str | None) -> type:
+    """Resolve a TTS engine name to its ``Synthesizer`` class (no instantiation).
+
+    Case-insensitive, whitespace-trimmed; ``None``/empty selects the default (Chatterbox, so
+    existing deployments are unchanged). Unknown names raise ``ValueError``.
+    """
+    key = (name or "").strip().lower()
+    if not key:
+        key = _DEFAULT_ENGINE
+    try:
+        return _ENGINES[key]
+    except KeyError:
+        raise ValueError(
+            f"unknown TTS engine {name!r}; choose one of {sorted(_ENGINES)}"
+        ) from None
