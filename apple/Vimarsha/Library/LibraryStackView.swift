@@ -93,6 +93,8 @@ struct LibraryStackView: View {
     /// when it closes (its own ephemeral engine, the MemoNotes precedent).
     @State private var bookMemoPlayer: BookMemoPlayer?
 
+    /// The book pending a remove-confirmation (nil = no confirm shown).
+    @State private var pendingDeleteBook: Book?
     /// The book whose narrator-voice picker is open (nil = closed).
     @State private var voiceBook: Book?
     /// Ephemeral player for voice previews — a DEDICATED engine so previews never disturb the
@@ -165,7 +167,13 @@ struct LibraryStackView: View {
                         metadataRevealShown: metadataRevealShown,
                         debossDodge: debossDodge(in: geo.size),
                         morphNamespace: coverMorph, openedBookId: reading?.shelfBook.id,
-                        onTapBook: { focusBook(at: $0) }
+                        onTapBook: { focusBook(at: $0) },
+                        onRequestDelete: { index in
+                            // Seed/empty covers have no persisted row — guard by bounds.
+                            if let store, index >= 0, index < store.books.count {
+                                pendingDeleteBook = store.books[index]
+                            }
+                        }
                     )
                         .scaleEffect(
                             heroSettle(in: geo.size).scale,
@@ -227,6 +235,25 @@ struct LibraryStackView: View {
             .overlay { bookConversationsPlane }
             .overlay { voicePickerPlane }
             .overlay { readingSurface }
+            // Destructive confirm for removing a book — a transient system confirmation (like
+            // the file importer below), not a navigation surface.
+            .confirmationDialog(
+                "Remove “\(pendingDeleteBook?.title ?? "")”?",
+                isPresented: Binding(
+                    get: { pendingDeleteBook != nil },
+                    set: { if !$0 { pendingDeleteBook = nil } }
+                ),
+                titleVisibility: .visible,
+                presenting: pendingDeleteBook
+            ) { book in
+                Button("Remove Book", role: .destructive) {
+                    store?.deleteBook(book)
+                    pendingDeleteBook = nil
+                }
+                Button("Cancel", role: .cancel) { pendingDeleteBook = nil }
+            } message: { _ in
+                Text("Removes the book from Vimarsha along with its narration, voice notes, and saved discussions. You can re-import it from the original EPUB.")
+            }
             .fileImporter(
                 isPresented: $showsEpubPicker,
                 allowedContentTypes: [.epub]
@@ -881,6 +908,8 @@ private struct BookTower: View {
     /// Tap-to-focus (a small library can't scroll a book onto the front slot): tapping a
     /// cover pins focus to it so its control cluster emerges.
     let onTapBook: (Int) -> Void
+    /// Long-press / right-click a cover → request its removal (a destructive confirm follows).
+    var onRequestDelete: (Int) -> Void = { _ in }
 
     var body: some View {
         // Inter-card overlap lives HERE (not the outer tower VStack) so it stays proportional
@@ -897,9 +926,18 @@ private struct BookTower: View {
                     // target stays the card's layout frame.
                     .contentShape(Rectangle())
                     .onTapGesture { onTapBook(index) }
+                    // Remove-book affordance (long-press / right-click). A system context menu
+                    // is the one OS-driven surface sanctioned here (like the keyboard) — the
+                    // long-press is itself the deliberate gesture; a confirm still follows.
+                    .contextMenu {
+                        Button(role: .destructive) { onRequestDelete(index) } label: {
+                            Label("Remove Book", systemImage: "trash")
+                        }
+                    }
                     .accessibilityAddTraits(.isButton)
                     .accessibilityHint("Shows playback controls")
                     .accessibilityAction { onTapBook(index) }
+                    .accessibilityAction(named: "Remove book") { onRequestDelete(index) }
             }
         }
     }
