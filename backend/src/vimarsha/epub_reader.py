@@ -43,19 +43,37 @@ _FRONT_MATTER = {
 }
 
 
+# Generic stub words EPUB toolchains use for auto-named documents; on their own they carry no
+# real title, so a page named only with one of these (plus digits) gets a graceful placeholder.
+_GENERIC_STEMS = {
+    "text", "page", "part", "split", "item", "section", "body", "content", "doc",
+    "document", "file", "leaf", "chap", "chapter", "ch", "pg", "id", "index", "html",
+    "xhtml", "untitled", "blank",
+}
+
+_UNTITLED = "Untitled"
+
+
 def _humanize_filename(name: str) -> str:
     """A readable last-resort label from a document filename (no TOC entry, no heading).
 
-    Recognizes common front-matter names (``cover1.html`` → ``Cover``); otherwise strips the
-    path + extension and title-cases the stem — never returns a raw ``.html`` filename.
+    Recognizes common front-matter names (``cover1.html`` → ``Cover``); for auto-generated
+    names with no real title (``text00000.html``, ``part0007``, ``…epub3_p001_r1``) returns a
+    graceful ``Untitled`` rather than the ugly stem; otherwise title-cases a real-word stem
+    (``back.xhtml`` → ``Back``). Never returns a raw ``.html`` filename.
     """
     base = name.rsplit("/", 1)[-1]
     stem = base.rsplit(".", 1)[0]
-    key = re.sub(r"[^a-z]", "", stem.lower())  # letters only, for front-matter matching
+    key = re.sub(r"[^a-z]", "", stem.lower())  # letters only, for keyword matching
     if key in _FRONT_MATTER:
         return _FRONT_MATTER[key]
+    # Generic generated name: a stub word (optionally with digits), or any token carrying a run
+    # of 2+ consecutive digits (page numbers, ISBNs, split indices) — no title to recover.
+    flat = re.sub(r"[_\-\s]+", "", stem.lower())
+    if not flat or key in _GENERIC_STEMS or re.search(r"\d{2,}", flat):
+        return _UNTITLED
     cleaned = re.sub(r"[_\-]+", " ", stem).strip()
-    return cleaned.title() if cleaned else base
+    return cleaned.title() if cleaned else _UNTITLED
 
 
 def _add_toc_entry(mapping: dict[str, str], href: object, title: object) -> None:
