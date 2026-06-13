@@ -44,11 +44,40 @@ back inside ~12 months. Until then, rent (serverless scale-to-zero).
 - Benchmark first: rent a 4090 + an A100/H100 for ~1 hr each (~$1–3), run batched
   `narrate_bundle` on a real chapter, record **it/s, chapter-min/wall-min, $/chapter**.
 
+## Measured throughput — live benchmark (2026-06-13)
+
+First live CUDA run. **RunPod A40** (~696 GB/s, $0.44/hr, Ubuntu base image + `uv sync --extra tts`),
+real `narrate_bundle` path on an 18.5k-char prose chapter (Flatland slice). Unbatched, single-stream.
+
+| Metric | MPS (M4, prior) | **A40 (measured)** |
+|---|---|---|
+| Chatterbox sampling loop | ~2 it/s | **~55 it/s (~27×)** |
+| 18.5k-char chapter wall | hours (ch01 didn't finish in 2h) | **502.7 s (8.4 min)** |
+| Audio produced | — | 898 s (15.0 min) |
+| Realtime factor (audio÷wall) | ~0.13× | **1.79× (faster than realtime)** |
+| chars/sec | — | 36.8 |
+| Model load (one-time/process) | — | 44.3 s |
+| **$/18k chapter** | — | **$0.061** |
+| **$/64k chapter** (Bohm ch01) | — | **~$0.21** |
+| GPU mem after block | climbed → swap | flat, released to 0 (CUDA `empty_cache` OK) |
+
+**Read-across (bandwidth-bound autoregressive decode scales ~linearly with mem bandwidth):**
+| GPU | Bandwidth | ~Realtime factor | ~$/18k chapter @ typical RunPod rate |
+|---|---:|---:|---:|
+| A40 (measured) | 696 GB/s | 1.79× | $0.061 @ $0.44 |
+| RTX 4090 (buy-target) | ~1008 GB/s | ~2.6× | ~$0.044 @ $0.50 |
+| RTX 5090 (buy-target) | ~1792 GB/s | ~4.6× | needs torch≥cu128 (lockfile pins cu124) |
+| H100 | ~3350 GB/s | ~8.6× | ~$0.012 @ $2.50 |
+
+Notes: ~$2/book unbatched single-stream on A40. **Block batching** (deferred `feat/batched-narration`)
+is a further ~10× on $/chapter and re-derives everything. The 5090 (only available consumer card)
+is blocked by our torch 2.6+cu124 pin (no sm_120 kernels) — bump to cu128 before benchmarking it.
+
 ## Usage ledger (append monthly — feed me your RunPod billing export)
 
 | Month | GPU-hrs | $ spent | Avg GPU type/$hr | Shape (steady/spiky) | Verdict vs buy-line |
 |---|---:|---:|---|---|---|
-| _2026-06_ | _tbd_ | _tbd_ | _tbd_ | _tbd_ | below — keep renting |
+| _2026-06_ | ~0.7 (benchmark) | ~$0.30 | A40 @ $0.44 | one-off test | below — keep renting |
 
 **How to update:** paste your RunPod usage (GPU-hours + $ for the month, or the billing CSV)
 and I'll append a row, recompute months-to-payback at current burn, and flag when you cross a
