@@ -5,7 +5,7 @@ multi-hundred-MB model, so that stays an opt-in integration concern (like real C
 """
 import pytest
 
-from vimarsha.tts import ChatterboxSynth, KokoroSynth, synth_class
+from vimarsha.tts import ChatterboxSynth, KokoroSynth, kokoro_lang, synth_class
 
 
 def test_synth_class_selects_by_name():
@@ -38,7 +38,7 @@ class _Fake:
         return np.zeros(1, dtype=np.float32)
 
 
-def test_get_synth_honors_env(monkeypatch):
+def test_get_synth_honors_vimarsha_tts_env_var(monkeypatch):
     """get_synth() picks the engine named by VIMARSHA_TTS, via synth_class."""
     import vimarsha.server as server
 
@@ -101,9 +101,6 @@ def test_speak_rejects_unknown_engine():
         assert resp.status_code == 400
     finally:
         app.dependency_overrides.clear()
-
-
-from vimarsha.tts import kokoro_lang  # noqa: E402
 
 
 def test_kokoro_lang_from_voice_prefix():

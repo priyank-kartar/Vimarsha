@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+import threading
 from pathlib import Path
 
 import numpy as np
@@ -59,14 +60,17 @@ async def chat(req: ChatRequest, llm: LlmClient = Depends(get_llm)):
 # One cached instance per engine class (loaded ONCE, like the transcriber) so switching
 # engines per request never reloads a model — reloading on every call ballooned memory/disk.
 _synth_cache: dict[str, Synthesizer] = {}
+_synth_cache_lock = threading.Lock()
 
 
 def _cached_synth(engine: str | None, voice: str | None) -> Synthesizer:
     cls = synth_class(engine)  # raises ValueError on an unknown name
-    key = f"{cls.__name__}:{voice or ''}"
-    if key not in _synth_cache:
-        _synth_cache[key] = cls(voice=voice) if voice else cls()
-    return _synth_cache[key]
+    norm_voice = (voice or "").strip() or None
+    key = f"{cls.__name__}:{norm_voice or ''}"
+    with _synth_cache_lock:
+        if key not in _synth_cache:
+            _synth_cache[key] = cls(voice=norm_voice) if norm_voice else cls()
+        return _synth_cache[key]
 
 
 def get_synth() -> Synthesizer:

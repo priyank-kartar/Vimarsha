@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import threading
 from typing import Protocol
 
 import numpy as np
@@ -121,6 +122,7 @@ class KokoroSynth:
     # Shared KPipeline per (device, lang) — the model loads once per language, not per voice,
     # so the server can cache a cheap KokoroSynth per (engine, voice).
     _pipelines: dict[tuple[str, str], object] = {}
+    _pipelines_lock = threading.Lock()
 
     def __init__(
         self,
@@ -141,10 +143,11 @@ class KokoroSynth:
         self._speed = speed
         lang_code = kokoro_lang(voice)
         key = (resolved, lang_code)
-        pipe = KokoroSynth._pipelines.get(key)
-        if pipe is None:
-            pipe = KPipeline(lang_code=lang_code, device=resolved)
-            KokoroSynth._pipelines[key] = pipe
+        with KokoroSynth._pipelines_lock:
+            pipe = KokoroSynth._pipelines.get(key)
+            if pipe is None:
+                pipe = KPipeline(lang_code=lang_code, device=resolved)
+                KokoroSynth._pipelines[key] = pipe
         self._pipeline = pipe
 
     def synthesize(self, text: str) -> np.ndarray:

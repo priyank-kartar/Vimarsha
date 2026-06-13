@@ -9,8 +9,9 @@ class FakeSynth:
 
     sample_rate = 16000
 
-    def __init__(self, samples_per_char: int = 100):
+    def __init__(self, samples_per_char: int = 100, voice: str | None = None):
         self.samples_per_char = samples_per_char
+        self.voice = voice
 
     def synthesize(self, text: str) -> np.ndarray:
         n = max(1, len(text) * self.samples_per_char)
