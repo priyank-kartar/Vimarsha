@@ -113,12 +113,14 @@ class KokoroSynth:
     """
 
     sample_rate = 24000
+    # Shared KPipeline per (device, lang) — the model loads once per language, not per voice,
+    # so the server can cache a cheap KokoroSynth per (engine, voice).
+    _pipelines: dict[tuple[str, str], object] = {}
 
     def __init__(
         self,
-        device: str | None = None,
         voice: str = "af_heart",
-        lang_code: str = "a",
+        device: str | None = None,
         speed: float = 1.0,
     ):
         from kokoro import KPipeline
@@ -132,8 +134,13 @@ class KokoroSynth:
         self._device = resolved
         self._voice = voice
         self._speed = speed
-        # lang_code 'a' = American English (Kokoro's misaki G2P; no system espeak needed for en).
-        self._pipeline = KPipeline(lang_code=lang_code, device=self._device)
+        lang_code = kokoro_lang(voice)
+        key = (resolved, lang_code)
+        pipe = KokoroSynth._pipelines.get(key)
+        if pipe is None:
+            pipe = KPipeline(lang_code=lang_code, device=resolved)
+            KokoroSynth._pipelines[key] = pipe
+        self._pipeline = pipe
 
     def synthesize(self, text: str) -> np.ndarray:
         if not text.strip():
