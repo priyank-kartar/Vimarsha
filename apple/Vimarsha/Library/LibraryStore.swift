@@ -172,21 +172,62 @@ final class LibraryStore {
         try? context.save()
 
         let downloader = ChapterDownloader(containerRoot: importer.containerRoot, backend: backend)
-        let (epubPath, bookId, index, chapterId) = (book.epubPath, book.id, chapter.index, chapter.id)
+        let voice = VoiceCatalog.voice(id: book.voiceId)
+        let (epubPath, bookId, index, chapterId, voiceId, kokoroVoice, engine) =
+            (book.epubPath, book.id, chapter.index, chapter.id, book.voiceId, voice.kokoroVoice, voice.engine)
         let task = Task { [weak self] in
             do {
                 let cached = try await downloader.download(
                     epubRelativePath: epubPath, bookId: bookId, chapterIndex: index,
-                    engine: nil, voice: nil
+                    engine: engine, voice: kokoroVoice
                 )
                 guard let self, !Task.isCancelled else { return }
                 chapter.bundlePath = cached.bundleRelativePath
                 chapter.audioPath = cached.audioRelativePath
+                chapter.narratedVoiceId = voiceId
                 chapter.status = .ready
                 try? self.context.save()
             } catch {
                 // A cancelled job (book deleted / app teardown) must not touch the row —
                 // it may already be gone.
+                guard let self, !Task.isCancelled, !(error is CancellationError) else { return }
+                chapter.status = .error
+                chapter.errorReason = "Narration failed"
+                try? self.context.save()
+            }
+            self?.downloadTasks[chapterId] = nil
+        }
+        downloadTasks[chapterId] = task
+        return task
+    }
+
+    /// Re-narrate a chapter in the book's CURRENT voice, regardless of its present status
+    /// (hold-to-re-render, or a stale chapter opened). Cancels any in-flight job for it first.
+    @discardableResult
+    func rerenderChapter(_ chapter: Chapter) -> Task<Void, Never>? {
+        guard let book = chapter.book else { return nil }
+        downloadTasks[chapter.id]?.cancel()
+        chapter.status = .pending
+        chapter.errorReason = nil
+        try? context.save()
+
+        let downloader = ChapterDownloader(containerRoot: importer.containerRoot, backend: backend)
+        let voice = VoiceCatalog.voice(id: book.voiceId)
+        let (epubPath, bookId, index, chapterId, voiceId, kokoroVoice, engine) =
+            (book.epubPath, book.id, chapter.index, chapter.id, book.voiceId, voice.kokoroVoice, voice.engine)
+        let task = Task { [weak self] in
+            do {
+                let cached = try await downloader.download(
+                    epubRelativePath: epubPath, bookId: bookId, chapterIndex: index,
+                    engine: engine, voice: kokoroVoice
+                )
+                guard let self, !Task.isCancelled else { return }
+                chapter.bundlePath = cached.bundleRelativePath
+                chapter.audioPath = cached.audioRelativePath
+                chapter.narratedVoiceId = voiceId
+                chapter.status = .ready
+                try? self.context.save()
+            } catch {
                 guard let self, !Task.isCancelled, !(error is CancellationError) else { return }
                 chapter.status = .error
                 chapter.errorReason = "Narration failed"
