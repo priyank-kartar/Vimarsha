@@ -87,9 +87,12 @@ struct VoicePickerView: View {
         .padding(.vertical, 13)
         .contentShape(Rectangle())
         .onTapGesture { onSelect(voice) }
-        .accessibilityElement(children: .combine)
+        // `.ignore` (not `.combine`): combining + an explicit label erased the preview button's
+        // own label, leaving VoiceOver no way to preview. Expose both as named actions instead.
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(voice.id)\(voice.id == currentVoiceId ? ", selected" : "")")
         .accessibilityAddTraits(.isButton)
         .accessibilityAction { onSelect(voice) }
+        .accessibilityAction(named: "Preview") { onPreview(voice) }
     }
 }

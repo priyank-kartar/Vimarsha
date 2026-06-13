@@ -157,6 +157,9 @@ private struct ChapterRow: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
         .onLongPressGesture(minimumDuration: 0.5) { onRerender(chapter) }
+        // VoiceOver equivalent of the hold gesture (apple/CLAUDE.md §Accessibility: every
+        // gesture-only interaction needs an accessibility action).
+        .accessibilityAction(named: "Re-narrate chapter") { onRerender(chapter) }
     }
 
     private var rowContent: some View {
