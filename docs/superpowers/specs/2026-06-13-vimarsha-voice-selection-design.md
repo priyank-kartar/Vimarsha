@@ -24,15 +24,16 @@ catalog, global app-wide settings, per-chapter voice.
 ## Voice catalog (client-owned, static)
 
 A `NarratorVoice` value: `{ id: String (display name), kokoroVoice: String, engine: String }`.
-v1 entries (engine = `"kokoro"`); names are easy to tweak:
+Each voice gets a distinct **proper name** (used everywhere in the app — the "global" name the
+reader sees), not an adjective label. v1 entries (engine = `"kokoro"`); easy to rename:
 
-| Display | Kokoro voice | Notes |
+| Name | Kokoro voice | Character |
 |---|---|---|
-| **Warm** | `af_heart` | American female — **default** |
-| **Bright** | `af_bella` | American female, expressive |
-| **Calm** | `am_michael` | American male, steady |
-| **British** | `bf_emma` | British English female |
-| **Deep** | `bm_george` | British English male |
+| **Aria** | `af_heart` | American female, warm — **default** |
+| **Stella** | `af_bella` | American female, bright |
+| **Milo** | `am_michael` | American male, calm |
+| **Imogen** | `bf_emma` | British female |
+| **Edmund** | `bm_george` | British male, deep |
 
 Kokoro's language is **inferred from the voice prefix** (`a*` = American → `lang_code 'a'`,
 `b*` = British → `'b'`), so the client only ever sends the voice id. The catalog lives in one
@@ -58,7 +59,7 @@ names, the default, and the bundled-preview filenames.
 
 ## Persistence (SwiftData — schema bump)
 
-- `Book.voiceId: String` — default `"Warm"` (the catalog default id).
+- `Book.voiceId: String` — default `"Aria"` (the catalog default id).
 - `Chapter.narratedVoiceId: String?` — the voice a cached `chapter.mp3` was rendered in;
   `nil` until first narrated.
 
@@ -74,9 +75,17 @@ store — same approach as the existing Memos/ChatThreads migrations.
   `narratedVoiceId != book.voiceId`. On open/play of a stale chapter, it is treated like
   `none`/`pending` and re-downloaded through the existing `pending → ready` flow (the old
   `chapter.mp3` is replaced atomically, same all-or-nothing teardown).
-- The **chapter list** marks stale chapters (e.g. a small "will re-narrate in <voice>" hint),
-  so the change is honest, not silent.
 - Changing `book.voiceId` itself computes nothing — it only flips the stale predicate.
+- **Two ways to re-render, both graceful:**
+  1. **Lazy on play** — opening/playing a stale chapter re-narrates it automatically (above).
+  2. **Hold-to-re-render in the chapter list** — long-pressing a chapter row triggers an
+     immediate re-render in the book's current voice (re-download through the same flow,
+     showing `pending` progress). Lets the reader proactively refresh chapters (one, or each)
+     instead of waiting for playback. A non-stale chapter can still be held to re-render (a
+     manual refresh); a stale one shows the affordance prominently.
+- The **chapter list** marks stale chapters (a small "will re-narrate in <voice>" hint) and
+  exposes the hold gesture, so the change is honest and the reader is never surprised by a
+  mid-play stall.
 
 ## UI (book-focus surface — morph, never a page)
 
@@ -86,10 +95,13 @@ store — same approach as the existing Memos/ChatThreads migrations.
   its `allCases` test updates.)
 - **Voice-list panel** — tapping "Narrator" opens a glass list panel built on the **same
   pattern as the chapter list / `bookMemosPlane` / `bookConversationsPlane`** archive planes
-  already in `LibraryStackView` (a morphed list state of the surface, not a `.sheet`). Rows:
-  - the catalog voices, the current one check-marked;
+  already in `LibraryStackView` (a morphed list state of the surface, not a `.sheet`). Layout:
+  - a short **warning notice** at the top: *"Changing the voice re-downloads each chapter in
+    the new voice before it plays."* — so the cost of switching is clear up front;
+  - rows: the catalog voices, the current one check-marked;
   - a **▶ preview** button per row (see below);
-  - tapping a row sets `book.voiceId` and dismisses the panel.
+  - tapping a row sets `book.voiceId` and dismisses the panel (no chapters re-render yet — that
+    happens lazily on play, or eagerly via hold-to-re-render in the chapter list).
 - **Preview playback** — each row plays a **bundled** clip
   (`Resources/VoicePreviews/<kokoroVoice>.mp3`) through a lightweight ephemeral player; it
   **ducks/pauses** any chapter narration while previewing (the memo-playback courtesy), then
@@ -116,7 +128,9 @@ store — same approach as the existing Memos/ChatThreads migrations.
   preview resource;
 - `importURL` / `ChapterDownloader` carry `voice`;
 - stale predicate: `ready` + `narratedVoiceId != voiceId` ⇒ stale; equal ⇒ fresh;
-- migration: a prior-schema store opens with `voiceId == "Warm"`, `narratedVoiceId == nil`;
+- hold-to-re-render: invoking the chapter's re-render action downloads with the **book's
+  current voice** and stamps `narratedVoiceId` to match (fake backend records the voice);
+- migration: a prior-schema store opens with `voiceId == "Aria"`, `narratedVoiceId == nil`;
 - `ControlCluster.Control.allCases` includes `.narrator`.
 
 Both suites + both platform builds green; no new runtime stub modes (real Kokoro behind the
@@ -127,8 +141,9 @@ network seam, faked in unit tests as today).
 1. **Backend** `?voice=` + lang-from-prefix + `(engine,voice)` cache (+ tests).
 2. **Catalog + persistence** — `NarratorVoice.swift`, `Book.voiceId`, `Chapter.narratedVoiceId`,
    migration (+ tests). Generate & commit the **preview clips**.
-3. **Download path** — `ChapterDownloader.voice`, stamp `narratedVoiceId`, stale predicate, and
-   re-narrate-on-play wiring (+ tests).
-4. **UI** — "Narrator" cluster control + voice-list panel + preview playback (+ tests).
+3. **Download path** — `ChapterDownloader.voice`, stamp `narratedVoiceId`, stale predicate,
+   re-narrate-on-play, and the explicit re-render action (+ tests).
+4. **UI** — "Narrator" cluster control + voice-list panel (with the re-download warning) +
+   preview playback + chapter-list stale hint and **hold-to-re-render** gesture (+ tests).
 
 Each lands on `main` via a `--no-ff` merge from a feature branch, per repo convention.
