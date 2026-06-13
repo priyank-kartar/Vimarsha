@@ -99,6 +99,18 @@ struct BackendClientTests {
         #expect(url.absoluteString == "http://localhost:8000/import?chapter_index=3")
     }
 
+    @Test func importURLCarriesTheEngineWhenSet() {
+        let url = URLSessionBackendClient.importURL(
+            baseURL: URL(string: "http://localhost:8000")!, chapterIndex: 3, engine: "kokoro"
+        )
+        #expect(url.absoluteString == "http://localhost:8000/import?chapter_index=3&engine=kokoro")
+    }
+
+    @Test func defaultClientNarratesWithKokoro() {
+        // The frontend drives the engine; Kokoro is the wired default until a settings UI lands.
+        #expect(URLSessionBackendClient().engine == "kokoro")
+    }
+
     @Test func defaultSessionOutlivesRealNarrationTimes() {
         // The V21 live harness caught this: `URLSession.shared`'s 60s request timeout
         // killed every real `/import` (MPS narration is minutes of server silence).
