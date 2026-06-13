@@ -61,32 +61,33 @@ async def chat(req: ChatRequest, llm: LlmClient = Depends(get_llm)):
 _synth_cache: dict[str, Synthesizer] = {}
 
 
-def _cached_synth(engine: str | None) -> Synthesizer:
+def _cached_synth(engine: str | None, voice: str | None) -> Synthesizer:
     cls = synth_class(engine)  # raises ValueError on an unknown name
-    key = cls.__name__
+    key = f"{cls.__name__}:{voice or ''}"
     if key not in _synth_cache:
-        _synth_cache[key] = cls()
+        _synth_cache[key] = cls(voice=voice) if voice else cls()
     return _synth_cache[key]
 
 
 def get_synth() -> Synthesizer:
     """The default-engine synth (``VIMARSHA_TTS`` → ``vimarsha.tts.synth_class``); cached and
     dependency-injected so tests can override it with a fake."""
-    return _cached_synth(os.environ.get("VIMARSHA_TTS"))
+    return _cached_synth(os.environ.get("VIMARSHA_TTS"), None)
 
 
-def synth_for(engine: str | None, default: Synthesizer) -> Synthesizer:
-    """Per-request engine override (the client picks via ``?engine=``). ``None``/blank keeps the
-    injected ``default`` (so the env default and test overrides win); a name selects a cached
-    instance of that engine. Raises ``ValueError`` on an unknown name."""
-    if not (engine and engine.strip()):
+def synth_for(engine: str | None, voice: str | None, default: Synthesizer) -> Synthesizer:
+    """Per-request engine/voice override (the client picks via ``?engine=`` / ``?voice=``).
+    Blank engine AND voice keep the injected ``default`` (so the env default and test overrides
+    win); otherwise a cached instance for that (engine, voice). Raises ``ValueError`` on an
+    unknown engine name."""
+    if not (engine and engine.strip()) and not (voice and voice.strip()):
         return default
-    return _cached_synth(engine)
+    return _cached_synth(engine, voice)
 
 
-def _resolve_synth(engine: str | None, default: Synthesizer) -> Synthesizer:
+def _resolve_synth(engine: str | None, voice: str | None, default: Synthesizer) -> Synthesizer:
     try:
-        return synth_for(engine, default)
+        return synth_for(engine, voice, default)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
 

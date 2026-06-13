@@ -59,21 +59,31 @@ def test_get_synth_honors_env(monkeypatch):
         server._synth_cache.clear()
 
 
-def test_synth_for_override_caches_per_engine(monkeypatch):
-    """A per-request engine builds a cached instance; blank keeps the injected default."""
+def test_synth_for_passes_voice_and_caches_per_engine_and_voice(monkeypatch):
+    """A per-request (engine, voice) builds a cached instance carrying that voice; blank
+    engine+voice keeps the injected default."""
     import vimarsha.server as server
 
-    default = _Fake()
+    class _RecordingFake:
+        sample_rate = 16000
+
+        def __init__(self, voice=None):
+            self.voice = voice
+
+        def synthesize(self, text):  # noqa: ARG002
+            import numpy as np
+            return np.zeros(1, dtype=np.float32)
+
+    default = _RecordingFake(voice="default")
     server._synth_cache.clear()
-    monkeypatch.setattr(server, "synth_class", lambda name: _Fake)
+    monkeypatch.setattr(server, "synth_class", lambda name: _RecordingFake)
     try:
-        # blank/None → the injected default object is returned unchanged
-        assert server.synth_for(None, default) is default
-        assert server.synth_for("  ", default) is default
-        # a named engine → a *different* cached instance, stable across calls
-        a = server.synth_for("kokoro", default)
-        b = server.synth_for("kokoro", default)
-        assert a is b and a is not default
+        assert server.synth_for(None, None, default) is default
+        a = server.synth_for("kokoro", "af_bella", default)
+        assert a.voice == "af_bella"
+        assert server.synth_for("kokoro", "af_bella", default) is a
+        b = server.synth_for("kokoro", "bm_george", default)
+        assert b is not a and b.voice == "bm_george"
     finally:
         server._synth_cache.clear()
 

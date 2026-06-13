@@ -49,7 +49,12 @@ class ChatterboxSynth:
     Lazily imports torch/chatterbox so the rest of the package runs without them.
     """
 
-    def __init__(self, device: str | None = None, audio_prompt_path: str | None = None):
+    def __init__(
+        self,
+        voice: str | None = None,  # accepted for a uniform factory; Chatterbox has one voice
+        device: str | None = None,
+        audio_prompt_path: str | None = None,
+    ):
         import torch
         from chatterbox.tts import ChatterboxTTS
 
