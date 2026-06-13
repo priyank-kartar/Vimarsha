@@ -7,11 +7,9 @@ import Foundation
 protocol BackendClient: Sendable {
     /// `POST /toc` — multipart EPUB upload → book meta + chapter list (no audio, fast).
     func fetchToc(epubAt url: URL) async throws -> TocResponse
-    /// `POST /import?chapter_index=N` — narrate ONE chapter → the full `ChapterBundle`
-    /// (blocks, figureMap with ms spans, audio name, paraTimings). Minutes-long on a dev
-    /// backend (MPS ~7–8× slower than realtime) — callers surface `pending`, never a
-    /// bare spinner (narration-pipeline.md).
-    func importChapter(epubAt url: URL, chapterIndex: Int) async throws -> ChapterBundleDTO
+    /// `POST /import?chapter_index=N&engine=…&voice=…` — narrate ONE chapter → the full
+    /// `ChapterBundle`. `engine`/`voice` are the per-book narrator selection.
+    func importChapter(epubAt url: URL, chapterIndex: Int, engine: String?, voice: String?) async throws -> ChapterBundleDTO
     /// `GET /audio/{name}` — the stitched chapter MP3 bytes.
     func downloadAudio(named name: String) async throws -> Data
     /// `GET /image/{name}` — figure image bytes.
@@ -22,9 +20,8 @@ protocol BackendClient: Sendable {
     /// `POST /chat` — the running conversation + a passage-context snapshot → one
     /// grounded LLM reply (V32; Ollama behind the backend's `LlmClient` seam).
     func chat(messages: [ChatMessageDTO], context: ChatContextDTO) async throws -> String
-    /// `POST /speak` — arbitrary text → Chatterbox MP3 bytes (V32; the read-the-reply-
-    /// aloud path — same voice as narration, one narrator persona).
-    func speak(text: String) async throws -> Data
+    /// `POST /speak?engine=…&voice=…` — arbitrary text → MP3 bytes in the chosen voice.
+    func speak(text: String, engine: String?, voice: String?) async throws -> Data
 }
 
 // MARK: - /toc contract (mirrors backend/src/vimarsha/models.py; camelCase, no remapping)
@@ -115,10 +112,6 @@ nonisolated enum BackendError: Error {
 nonisolated struct URLSessionBackendClient: BackendClient {
     var baseURL = URL(string: "http://localhost:8000")!
     var session = URLSessionBackendClient.narrationSession
-    /// Narration engine the backend should use (`?engine=` on `/import` and `/speak`):
-    /// `"kokoro"` (fast, default) or `"chatterbox"` (more expressive). `nil` lets the backend's
-    /// own `VIMARSHA_TTS` default decide. One backend-routing knob until a settings surface lands.
-    var engine: String? = "kokoro"
 
     /// `URLSession.shared`'s 60s idle timeout kills any real `/import` — Chatterbox
     /// narration is MINUTES (sometimes hours) of server SILENCE before the bundle arrives:
@@ -140,12 +133,15 @@ nonisolated struct URLSessionBackendClient: BackendClient {
         )
     }
 
-    func importChapter(epubAt url: URL, chapterIndex: Int) async throws -> ChapterBundleDTO {
+    func importChapter(
+        epubAt url: URL, chapterIndex: Int, engine: String?, voice: String?
+    ) async throws -> ChapterBundleDTO {
         try JSONDecoder().decode(
             ChapterBundleDTO.self,
             from: try await uploadEpub(
                 at: url,
-                to: Self.importURL(baseURL: baseURL, chapterIndex: chapterIndex, engine: engine)
+                to: Self.importURL(baseURL: baseURL, chapterIndex: chapterIndex,
+                                   engine: engine, voice: voice)
             )
         )
     }
@@ -181,11 +177,12 @@ nonisolated struct URLSessionBackendClient: BackendClient {
         return try JSONDecoder().decode(ChatReplyResponse.self, from: data).reply
     }
 
-    func speak(text: String) async throws -> Data {
+    func speak(text: String, engine: String?, voice: String?) async throws -> Data {
+        var items: [URLQueryItem] = []
+        if let engine, !engine.isEmpty { items.append(URLQueryItem(name: "engine", value: engine)) }
+        if let voice, !voice.isEmpty { items.append(URLQueryItem(name: "voice", value: voice)) }
         var url = baseURL.appending(path: "speak")
-        if let engine, !engine.isEmpty {
-            url = url.appending(queryItems: [URLQueryItem(name: "engine", value: engine)])
-        }
+        if !items.isEmpty { url = url.appending(queryItems: items) }
         let request = try Self.jsonRequest(url: url, body: SpeakRequestBody(text: text))
         let (data, response) = try await session.data(for: request)
         try Self.validate(response)
@@ -201,13 +198,14 @@ nonisolated struct URLSessionBackendClient: BackendClient {
         return request
     }
 
-    /// `chapter_index` (and optional `engine`) ride as query parameters (the FastAPI
+    /// `chapter_index` (and optional `engine`/`voice`) ride as query parameters (the FastAPI
     /// signature), not form data.
-    static func importURL(baseURL: URL, chapterIndex: Int, engine: String? = nil) -> URL {
+    static func importURL(
+        baseURL: URL, chapterIndex: Int, engine: String? = nil, voice: String? = nil
+    ) -> URL {
         var items = [URLQueryItem(name: "chapter_index", value: "\(chapterIndex)")]
-        if let engine, !engine.isEmpty {
-            items.append(URLQueryItem(name: "engine", value: engine))
-        }
+        if let engine, !engine.isEmpty { items.append(URLQueryItem(name: "engine", value: engine)) }
+        if let voice, !voice.isEmpty { items.append(URLQueryItem(name: "voice", value: voice)) }
         return baseURL.appending(path: "import").appending(queryItems: items)
     }
 

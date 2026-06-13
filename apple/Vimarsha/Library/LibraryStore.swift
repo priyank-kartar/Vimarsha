@@ -170,22 +170,45 @@ final class LibraryStore {
         chapter.status = .pending
         chapter.errorReason = nil
         try? context.save()
+        return narrate(chapter, book: book)
+    }
 
+    /// Re-narrate a chapter in the book's CURRENT voice, regardless of its present status
+    /// (hold-to-re-render, or a stale chapter opened). Cancels any in-flight job for it first.
+    @discardableResult
+    func rerenderChapter(_ chapter: Chapter) -> Task<Void, Never>? {
+        guard let book = chapter.book else { return nil }
+        downloadTasks[chapter.id]?.cancel()
+        chapter.status = .pending
+        chapter.errorReason = nil
+        try? context.save()
+        return narrate(chapter, book: book)
+    }
+
+    /// Shared narration job: download `chapter` in `book`'s current voice, cache it, and stamp
+    /// the row (`.ready` + `narratedVoiceId`, or `.error`). The caller owns the entry guard and
+    /// the `.pending` transition; this owns the download task + its registration/cleanup.
+    @discardableResult
+    private func narrate(_ chapter: Chapter, book: Book) -> Task<Void, Never> {
         let downloader = ChapterDownloader(containerRoot: importer.containerRoot, backend: backend)
-        let (epubPath, bookId, index, chapterId) = (book.epubPath, book.id, chapter.index, chapter.id)
+        let voice = VoiceCatalog.voice(id: book.voiceId)
+        let (epubPath, bookId, index, chapterId, voiceId, kokoroVoice, engine) =
+            (book.epubPath, book.id, chapter.index, chapter.id, book.voiceId, voice.kokoroVoice, voice.engine)
         let task = Task { [weak self] in
             do {
                 let cached = try await downloader.download(
-                    epubRelativePath: epubPath, bookId: bookId, chapterIndex: index
+                    epubRelativePath: epubPath, bookId: bookId, chapterIndex: index,
+                    engine: engine, voice: kokoroVoice
                 )
                 guard let self, !Task.isCancelled else { return }
                 chapter.bundlePath = cached.bundleRelativePath
                 chapter.audioPath = cached.audioRelativePath
+                chapter.narratedVoiceId = voiceId
                 chapter.status = .ready
                 try? self.context.save()
             } catch {
-                // A cancelled job (book deleted / app teardown) must not touch the row —
-                // it may already be gone.
+                // A cancelled job (book deleted / app teardown, or a re-render superseding this
+                // one) must not touch the row — it may already be gone or owned by a newer job.
                 guard let self, !Task.isCancelled, !(error is CancellationError) else { return }
                 chapter.status = .error
                 chapter.errorReason = "Narration failed"
