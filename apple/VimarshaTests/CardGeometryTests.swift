@@ -22,9 +22,18 @@ struct CardGeometryTests {
         #expect(CardGeometry.width(forViewportWidth: 300) < CardGeometry.width(forViewportWidth: 500))
     }
 
-    @Test("aspect is a single uniform constant (~0.50), independent of any book")
+    @Test("aspect is a single uniform upright-book constant (~1.5), independent of any book")
     func uniformAspect() {
-        #expect(CardGeometry.aspect == 0.50)
+        #expect(CardGeometry.aspect == 1.5)
+    }
+
+    @Test("height is width · aspect, and stack overlap is a fraction of that height")
+    func heightAndOverlap() {
+        let w = CardGeometry.width(forViewportWidth: 400)
+        #expect(CardGeometry.height(forViewportWidth: 400) == w * CardGeometry.aspect)
+        // Inter-card spacing is negative (cards tuck) and exactly the overlap fraction of height.
+        #expect(CardGeometry.stackSpacing(forViewportWidth: 400)
+                == -CardGeometry.height(forViewportWidth: 400) * CardGeometry.stackOverlapFraction)
     }
 
     @Test("non-positive viewport is safe (never negative)")

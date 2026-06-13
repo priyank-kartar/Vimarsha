@@ -143,7 +143,12 @@ struct LibraryStackView: View {
                 VStack(spacing: reduceMotion ? 24 : -geo.size.height * 0.052) {
                     LibraryHeader(contrast: contrast(in: geo.size))
                         .padding(.top, 64)
-                        .padding(.bottom, 72)
+                        // Top scroll headroom (mirrors the bottom `0.22·H` at line below): without
+                        // it the FIRST book can never settle down onto the front slot (0.72·H) — it
+                        // sits jammed under the header in the receded zone, which got obvious once
+                        // covers became tall upright boards (ADR-011 aspect 1.5). This gap lets the
+                        // first cover scroll into full focus while the header stays pinned at the top.
+                        .padding(.bottom, geo.size.height * 0.18)
                     // Coupled scroll+zoom hero settle (motion grammar #5): as the header above
                     // translates off, the whole tower scales toward the viewer as one rigid
                     // group, anchored on the front slot. One scale on the tower as a whole —
@@ -833,17 +838,24 @@ private struct BookTower: View {
     let onTapBook: (Int) -> Void
 
     var body: some View {
-        ForEach(Array(shelf.enumerated()), id: \.element.id) { index, book in
-            card(book, at: index)
-                // Tap-to-focus: summon this cover's control cluster (the front-slot settle
-                // can't reach a book in a small library). `contentShape` makes the whole
-                // cover tappable; the visualEffect transforms are render-only, so the hit
-                // target stays the card's layout frame.
-                .contentShape(Rectangle())
-                .onTapGesture { onTapBook(index) }
-                .accessibilityAddTraits(.isButton)
-                .accessibilityHint("Shows playback controls")
-                .accessibilityAction { onTapBook(index) }
+        // Inter-card overlap lives HERE (not the outer tower VStack) so it stays proportional
+        // to card height — the shingled staircase reads the same now that cards are upright
+        // book boards (ADR-011 aspect 1.5), and the header↔tower gap is decoupled from it.
+        // Reduce Motion: a flat full-size list with a calm positive gap, no tuck.
+        let spacing = reduceMotion ? 24 : CardGeometry.stackSpacing(forViewportWidth: size.width)
+        VStack(spacing: spacing) {
+            ForEach(Array(shelf.enumerated()), id: \.element.id) { index, book in
+                card(book, at: index)
+                    // Tap-to-focus: summon this cover's control cluster (the front-slot settle
+                    // can't reach a book in a small library). `contentShape` makes the whole
+                    // cover tappable; the visualEffect transforms are render-only, so the hit
+                    // target stays the card's layout frame.
+                    .contentShape(Rectangle())
+                    .onTapGesture { onTapBook(index) }
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityHint("Shows playback controls")
+                    .accessibilityAction { onTapBook(index) }
+            }
         }
     }
 
