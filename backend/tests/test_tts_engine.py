@@ -103,7 +103,7 @@ def test_speak_rejects_unknown_engine():
         app.dependency_overrides.clear()
 
 
-from vimarsha.tts import kokoro_lang
+from vimarsha.tts import kokoro_lang  # noqa: E402
 
 
 def test_kokoro_lang_from_voice_prefix():
@@ -113,3 +113,32 @@ def test_kokoro_lang_from_voice_prefix():
     assert kokoro_lang("bm_george") == "b"
     assert kokoro_lang("") == "a"            # empty → default American
     assert kokoro_lang("B_weird") == "b"     # case-insensitive prefix
+
+
+def test_speak_threads_voice_to_synth(monkeypatch):
+    """POST /speak?engine=kokoro&voice=af_bella builds a synth carrying that voice."""
+    from fastapi.testclient import TestClient
+    import vimarsha.server as server
+
+    class _RecordingFake:
+        sample_rate = 16000
+
+        def __init__(self, voice=None):
+            self.voice = voice
+            _RecordingFake.last_voice = voice
+
+        def synthesize(self, text):  # noqa: ARG002
+            import numpy as np
+            return np.ones(8000, dtype=np.float32) * 0.01
+
+    server._synth_cache.clear()
+    monkeypatch.setattr(server, "synth_class", lambda name: _RecordingFake)
+    server.app.dependency_overrides[server.get_synth] = lambda: _RecordingFake(voice="default")
+    try:
+        client = TestClient(server.app)
+        resp = client.post("/speak?engine=kokoro&voice=af_bella", json={"text": "hello there"})
+        assert resp.status_code == 200
+        assert _RecordingFake.last_voice == "af_bella"
+    finally:
+        server.app.dependency_overrides.clear()
+        server._synth_cache.clear()

@@ -148,10 +148,11 @@ async def toc(file: UploadFile = File(...)):
 async def import_chapter(
     chapter_index: int = 0,
     engine: str | None = None,
+    voice: str | None = None,
     file: UploadFile = File(...),
     synth: Synthesizer = Depends(get_synth),
 ):
-    synth = _resolve_synth(engine, synth)
+    synth = _resolve_synth(engine, voice, synth)
     data = await file.read()
     with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as tmp:
         tmp.write(data)
@@ -200,9 +201,10 @@ def get_audio(name: str):
 async def speak(
     req: SpeakRequest,
     engine: str | None = None,
+    voice: str | None = None,
     synth: Synthesizer = Depends(get_synth),
 ):
-    synth = _resolve_synth(engine, synth)
+    synth = _resolve_synth(engine, voice, synth)
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="empty text")
 
