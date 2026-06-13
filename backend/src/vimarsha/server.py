@@ -20,7 +20,7 @@ from vimarsha.models import ChatContextModel, ChatRequest, ChapterSummary, Speak
 from vimarsha.narrate import narrate_bundle
 from vimarsha.stitch import assemble
 from vimarsha.transcribe import FasterWhisperTranscriber, Transcriber
-from vimarsha.tts import ChatterboxSynth, Synthesizer, chunk_text
+from vimarsha.tts import Synthesizer, chunk_text, synth_class
 
 app = FastAPI(title="Vimarsha backend")
 app.state.audio_dir = tempfile.mkdtemp(prefix="vimarsha-audio-")
@@ -56,20 +56,39 @@ async def chat(req: ChatRequest, llm: LlmClient = Depends(get_llm)):
     return {"reply": reply}
 
 
-_synth: Synthesizer | None = None
+# One cached instance per engine class (loaded ONCE, like the transcriber) so switching
+# engines per request never reloads a model — reloading on every call ballooned memory/disk.
+_synth_cache: dict[str, Synthesizer] = {}
+
+
+def _cached_synth(engine: str | None) -> Synthesizer:
+    cls = synth_class(engine)  # raises ValueError on an unknown name
+    key = cls.__name__
+    if key not in _synth_cache:
+        _synth_cache[key] = cls()
+    return _synth_cache[key]
 
 
 def get_synth() -> Synthesizer:
-    """Cached Chatterbox synth (loaded ONCE, like the transcriber); overridden in tests.
+    """The default-engine synth (``VIMARSHA_TTS`` → ``vimarsha.tts.synth_class``); cached and
+    dependency-injected so tests can override it with a fake."""
+    return _cached_synth(os.environ.get("VIMARSHA_TTS"))
 
-    Returning a fresh ``ChatterboxSynth()`` per call reloaded the whole model on every
-    ``/import`` and ``/speak`` — ballooning memory and disk (Chatterbox re-materializes its
-    weights each ``from_pretrained``). One process-wide instance fixes that.
-    """
-    global _synth
-    if _synth is None:
-        _synth = ChatterboxSynth()
-    return _synth
+
+def synth_for(engine: str | None, default: Synthesizer) -> Synthesizer:
+    """Per-request engine override (the client picks via ``?engine=``). ``None``/blank keeps the
+    injected ``default`` (so the env default and test overrides win); a name selects a cached
+    instance of that engine. Raises ``ValueError`` on an unknown name."""
+    if not (engine and engine.strip()):
+        return default
+    return _cached_synth(engine)
+
+
+def _resolve_synth(engine: str | None, default: Synthesizer) -> Synthesizer:
+    try:
+        return synth_for(engine, default)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
 
 
 _transcriber: Transcriber | None = None
@@ -127,9 +146,11 @@ async def toc(file: UploadFile = File(...)):
 @app.post("/import")
 async def import_chapter(
     chapter_index: int = 0,
+    engine: str | None = None,
     file: UploadFile = File(...),
     synth: Synthesizer = Depends(get_synth),
 ):
+    synth = _resolve_synth(engine, synth)
     data = await file.read()
     with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as tmp:
         tmp.write(data)
@@ -175,7 +196,12 @@ def get_audio(name: str):
 
 
 @app.post("/speak")
-async def speak(req: SpeakRequest, synth: Synthesizer = Depends(get_synth)):
+async def speak(
+    req: SpeakRequest,
+    engine: str | None = None,
+    synth: Synthesizer = Depends(get_synth),
+):
+    synth = _resolve_synth(engine, synth)
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="empty text")
 
