@@ -11,10 +11,12 @@ def ingest_chapter(chapter: Chapter) -> ChapterBundle:
     """Run the full no-ML pipeline on one chapter."""
     blocks = parse_blocks(chapter.html)
     figures = detect_spans(blocks, build_registry(blocks))
-    # Use the first heading block's text as the chapter title; fall back to the
-    # chapter name (which is typically the xhtml filename from the epub manifest).
+    # Title priority: the EPUB's table-of-contents label (authoritative, what the reader
+    # expects to see) → the first in-page heading → a humanized filename. This keeps the
+    # chapter list from showing raw `text00000.html` names for pages the rules miss.
     first_heading = next((b for b in blocks if b.kind == "heading"), None)
-    title = first_heading.text if first_heading and first_heading.text else chapter.title
+    heading = first_heading.text.strip() if first_heading and first_heading.text else None
+    title = chapter.toc_title or heading or chapter.title
     return ChapterBundle(
         chapter_id=chapter.chapter_id,
         title=title,
