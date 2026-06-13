@@ -176,7 +176,8 @@ final class LibraryStore {
         let task = Task { [weak self] in
             do {
                 let cached = try await downloader.download(
-                    epubRelativePath: epubPath, bookId: bookId, chapterIndex: index
+                    epubRelativePath: epubPath, bookId: bookId, chapterIndex: index,
+                    engine: nil, voice: nil
                 )
                 guard let self, !Task.isCancelled else { return }
                 chapter.bundlePath = cached.bundleRelativePath

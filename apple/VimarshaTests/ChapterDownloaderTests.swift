@@ -28,7 +28,7 @@ struct ChapterDownloaderTests {
 
         let cached = try await downloader.download(
             epubRelativePath: "Library/Books/\(bookId.uuidString)/book.epub",
-            bookId: bookId, chapterIndex: 0
+            bookId: bookId, chapterIndex: 0, engine: nil, voice: nil
         )
 
         let prefix = "Library/Books/\(bookId.uuidString)/chapters/0"
@@ -55,7 +55,7 @@ struct ChapterDownloaderTests {
         )
 
         _ = try await downloader.download(
-            epubRelativePath: "x.epub", bookId: bookId, chapterIndex: 0
+            epubRelativePath: "x.epub", bookId: bookId, chapterIndex: 0, engine: nil, voice: nil
         )
 
         let image = chapterDir(root).appending(path: "images/fig1.png")
@@ -71,7 +71,7 @@ struct ChapterDownloaderTests {
         )
 
         let cached = try await downloader.download(
-            epubRelativePath: "x.epub", bookId: bookId, chapterIndex: 0
+            epubRelativePath: "x.epub", bookId: bookId, chapterIndex: 0, engine: nil, voice: nil
         )
 
         #expect(FileManager.default.fileExists(
@@ -94,7 +94,7 @@ struct ChapterDownloaderTests {
 
         await #expect(throws: ChapterDownloadError.noAudio) {
             _ = try await downloader.download(
-                epubRelativePath: "x.epub", bookId: bookId, chapterIndex: 0
+                epubRelativePath: "x.epub", bookId: bookId, chapterIndex: 0, engine: nil, voice: nil
             )
         }
         #expect(!FileManager.default.fileExists(atPath: chapterDir(root).path))
@@ -109,7 +109,7 @@ struct ChapterDownloaderTests {
 
         await #expect(throws: ChapterDownloadError.emptyAudio) {
             _ = try await downloader.download(
-                epubRelativePath: "x.epub", bookId: bookId, chapterIndex: 0
+                epubRelativePath: "x.epub", bookId: bookId, chapterIndex: 0, engine: nil, voice: nil
             )
         }
         #expect(!FileManager.default.fileExists(atPath: chapterDir(root).path))
@@ -124,7 +124,7 @@ struct ChapterDownloaderTests {
 
         await #expect(throws: (any Error).self) {
             _ = try await downloader.download(
-                epubRelativePath: "x.epub", bookId: bookId, chapterIndex: 0
+                epubRelativePath: "x.epub", bookId: bookId, chapterIndex: 0, engine: nil, voice: nil
             )
         }
         // No half-state: no chapter dir, no stray bundle.json.

@@ -99,16 +99,13 @@ struct BackendClientTests {
         #expect(url.absoluteString == "http://localhost:8000/import?chapter_index=3")
     }
 
-    @Test func importURLCarriesTheEngineWhenSet() {
+    @Test func importURLCarriesEngineAndVoiceWhenSet() {
         let url = URLSessionBackendClient.importURL(
-            baseURL: URL(string: "http://localhost:8000")!, chapterIndex: 3, engine: "kokoro"
+            baseURL: URL(string: "http://localhost:8000")!,
+            chapterIndex: 3, engine: "kokoro", voice: "bf_emma"
         )
-        #expect(url.absoluteString == "http://localhost:8000/import?chapter_index=3&engine=kokoro")
-    }
-
-    @Test func defaultClientNarratesWithKokoro() {
-        // The frontend drives the engine; Kokoro is the wired default until a settings UI lands.
-        #expect(URLSessionBackendClient().engine == "kokoro")
+        #expect(url.absoluteString
+            == "http://localhost:8000/import?chapter_index=3&engine=kokoro&voice=bf_emma")
     }
 
     @Test func defaultSessionOutlivesRealNarrationTimes() {

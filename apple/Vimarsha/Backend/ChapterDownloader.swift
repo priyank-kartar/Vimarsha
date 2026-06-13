@@ -31,7 +31,7 @@ nonisolated struct ChapterDownloader: Sendable {
     }
 
     func download(
-        epubRelativePath: String, bookId: UUID, chapterIndex: Int
+        epubRelativePath: String, bookId: UUID, chapterIndex: Int, engine: String?, voice: String?
     ) async throws -> CachedChapter {
         let chapterRelativePath = "Library/Books/\(bookId.uuidString)/chapters/\(chapterIndex)"
         let chapterDir = containerRoot.appending(path: chapterRelativePath)
@@ -39,7 +39,9 @@ nonisolated struct ChapterDownloader: Sendable {
         do {
             let bundle = try await backend.importChapter(
                 epubAt: containerRoot.appending(path: epubRelativePath),
-                chapterIndex: chapterIndex
+                chapterIndex: chapterIndex,
+                engine: engine,
+                voice: voice
             )
             guard let audioName = bundle.audio else { throw ChapterDownloadError.noAudio }
             let audioData = try await backend.downloadAudio(named: audioName)

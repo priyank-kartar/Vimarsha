@@ -3,47 +3,40 @@ import Foundation
 
 /// The network seam's test double — one of exactly two sanctioned doubles in the repo
 /// (the other is the audio/mic engine). Permanent test-only code, closure-configured.
-nonisolated struct FakeBackendClient: BackendClient {
+nonisolated final class FakeBackendClient: BackendClient, @unchecked Sendable {
     var onFetchToc: @Sendable (URL) async throws -> TocResponse
-    // Endpoints a test didn't configure fail loudly (default-value closures would be
-    // MainActor-inferred under the project's default isolation, so these are static funcs).
+    // Endpoints a test didn't configure fail loudly.
     var onImportChapter: @Sendable (URL, Int) async throws -> ChapterBundleDTO
-        = Self.unconfiguredImport
-    var onDownloadAudio: @Sendable (String) async throws -> Data = Self.unconfiguredDownload
-    var onDownloadImage: @Sendable (String) async throws -> Data = Self.unconfiguredDownload
-    var onTranscribe: @Sendable (URL) async throws -> String = Self.unconfiguredTranscribe
+    var onDownloadAudio: @Sendable (String) async throws -> Data
+    var onDownloadImage: @Sendable (String) async throws -> Data
+    var onTranscribe: @Sendable (URL) async throws -> String
     var onChat: @Sendable ([ChatMessageDTO], ChatContextDTO) async throws -> String
-        = Self.unconfiguredChat
-    var onSpeak: @Sendable (String) async throws -> Data = Self.unconfiguredSpeak
+    var onSpeak: @Sendable (String) async throws -> Data
 
-    private static func unconfiguredImport(_: URL, _: Int) async throws -> ChapterBundleDTO {
-        throw URLError(.unsupportedURL)
-    }
+    /// Captured from the last `importChapter` call — inspectable in voice-threading tests.
+    var lastImportVoice: String?
+    var lastImportEngine: String?
 
-    private static func unconfiguredChat(
-        _: [ChatMessageDTO], _: ChatContextDTO
-    ) async throws -> String {
-        throw URLError(.unsupportedURL)
-    }
-
-    private static func unconfiguredSpeak(_: String) async throws -> Data {
-        throw URLError(.unsupportedURL)
-    }
-
-    private static func unconfiguredDownload(_: String) async throws -> Data {
-        throw URLError(.unsupportedURL)
-    }
-
-    private static func unconfiguredTranscribe(_: URL) async throws -> String {
-        throw URLError(.unsupportedURL)
+    init(onFetchToc: @escaping @Sendable (URL) async throws -> TocResponse) {
+        self.onFetchToc = onFetchToc
+        self.onImportChapter = { _, _ in throw URLError(.unsupportedURL) }
+        self.onDownloadAudio = { _ in throw URLError(.unsupportedURL) }
+        self.onDownloadImage = { _ in throw URLError(.unsupportedURL) }
+        self.onTranscribe = { _ in throw URLError(.unsupportedURL) }
+        self.onChat = { _, _ in throw URLError(.unsupportedURL) }
+        self.onSpeak = { _ in throw URLError(.unsupportedURL) }
     }
 
     func fetchToc(epubAt url: URL) async throws -> TocResponse {
         try await onFetchToc(url)
     }
 
-    func importChapter(epubAt url: URL, chapterIndex: Int) async throws -> ChapterBundleDTO {
-        try await onImportChapter(url, chapterIndex)
+    func importChapter(
+        epubAt url: URL, chapterIndex: Int, engine: String?, voice: String?
+    ) async throws -> ChapterBundleDTO {
+        lastImportEngine = engine
+        lastImportVoice = voice
+        return try await onImportChapter(url, chapterIndex)
     }
 
     func downloadAudio(named name: String) async throws -> Data {
@@ -62,7 +55,7 @@ nonisolated struct FakeBackendClient: BackendClient {
         try await onChat(messages, context)
     }
 
-    func speak(text: String) async throws -> Data {
+    func speak(text: String, engine: String?, voice: String?) async throws -> Data {
         try await onSpeak(text)
     }
 }

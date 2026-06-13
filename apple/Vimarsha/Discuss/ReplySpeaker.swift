@@ -48,7 +48,7 @@ final class ReplySpeaker {
         failedIndex = nil
         fetchingIndex = index
         do {
-            let data = try await backend.speak(text: text)
+            let data = try await backend.speak(text: text, engine: nil, voice: nil)
             guard fetchingIndex == index else { return } // stopped/superseded meanwhile
             let url = FileManager.default.temporaryDirectory
                 .appending(path: "spoken-reply-\(UUID().uuidString).mp3")
