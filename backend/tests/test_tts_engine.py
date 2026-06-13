@@ -5,7 +5,7 @@ multi-hundred-MB model, so that stays an opt-in integration concern (like real C
 """
 import pytest
 
-from vimarsha.tts import ChatterboxSynth, KokoroSynth, synth_class
+from vimarsha.tts import ChatterboxSynth, KokoroSynth, kokoro_lang, synth_class
 
 
 def test_synth_class_selects_by_name():
@@ -38,7 +38,7 @@ class _Fake:
         return np.zeros(1, dtype=np.float32)
 
 
-def test_get_synth_honors_env(monkeypatch):
+def test_get_synth_honors_vimarsha_tts_env_var(monkeypatch):
     """get_synth() picks the engine named by VIMARSHA_TTS, via synth_class."""
     import vimarsha.server as server
 
@@ -59,21 +59,31 @@ def test_get_synth_honors_env(monkeypatch):
         server._synth_cache.clear()
 
 
-def test_synth_for_override_caches_per_engine(monkeypatch):
-    """A per-request engine builds a cached instance; blank keeps the injected default."""
+def test_synth_for_passes_voice_and_caches_per_engine_and_voice(monkeypatch):
+    """A per-request (engine, voice) builds a cached instance carrying that voice; blank
+    engine+voice keeps the injected default."""
     import vimarsha.server as server
 
-    default = _Fake()
+    class _RecordingFake:
+        sample_rate = 16000
+
+        def __init__(self, voice=None):
+            self.voice = voice
+
+        def synthesize(self, text):  # noqa: ARG002
+            import numpy as np
+            return np.zeros(1, dtype=np.float32)
+
+    default = _RecordingFake(voice="default")
     server._synth_cache.clear()
-    monkeypatch.setattr(server, "synth_class", lambda name: _Fake)
+    monkeypatch.setattr(server, "synth_class", lambda name: _RecordingFake)
     try:
-        # blank/None → the injected default object is returned unchanged
-        assert server.synth_for(None, default) is default
-        assert server.synth_for("  ", default) is default
-        # a named engine → a *different* cached instance, stable across calls
-        a = server.synth_for("kokoro", default)
-        b = server.synth_for("kokoro", default)
-        assert a is b and a is not default
+        assert server.synth_for(None, None, default) is default
+        a = server.synth_for("kokoro", "af_bella", default)
+        assert a.voice == "af_bella"
+        assert server.synth_for("kokoro", "af_bella", default) is a
+        b = server.synth_for("kokoro", "bm_george", default)
+        assert b is not a and b.voice == "bm_george"
     finally:
         server._synth_cache.clear()
 
@@ -91,3 +101,41 @@ def test_speak_rejects_unknown_engine():
         assert resp.status_code == 400
     finally:
         app.dependency_overrides.clear()
+
+
+def test_kokoro_lang_from_voice_prefix():
+    assert kokoro_lang("af_heart") == "a"   # American
+    assert kokoro_lang("am_michael") == "a"
+    assert kokoro_lang("bf_emma") == "b"     # British
+    assert kokoro_lang("bm_george") == "b"
+    assert kokoro_lang("") == "a"            # empty → default American
+    assert kokoro_lang("B_weird") == "b"     # case-insensitive prefix
+
+
+def test_speak_threads_voice_to_synth(monkeypatch):
+    """POST /speak?engine=kokoro&voice=af_bella builds a synth carrying that voice."""
+    from fastapi.testclient import TestClient
+    import vimarsha.server as server
+
+    class _RecordingFake:
+        sample_rate = 16000
+
+        def __init__(self, voice=None):
+            self.voice = voice
+            _RecordingFake.last_voice = voice
+
+        def synthesize(self, text):  # noqa: ARG002
+            import numpy as np
+            return np.ones(8000, dtype=np.float32) * 0.01
+
+    server._synth_cache.clear()
+    monkeypatch.setattr(server, "synth_class", lambda name: _RecordingFake)
+    server.app.dependency_overrides[server.get_synth] = lambda: _RecordingFake(voice="default")
+    try:
+        client = TestClient(server.app)
+        resp = client.post("/speak?engine=kokoro&voice=af_bella", json={"text": "hello there"})
+        assert resp.status_code == 200
+        assert _RecordingFake.last_voice == "af_bella"
+    finally:
+        server.app.dependency_overrides.clear()
+        server._synth_cache.clear()

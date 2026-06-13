@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import threading
 from typing import Protocol
 
 import numpy as np
@@ -49,7 +50,12 @@ class ChatterboxSynth:
     Lazily imports torch/chatterbox so the rest of the package runs without them.
     """
 
-    def __init__(self, device: str | None = None, audio_prompt_path: str | None = None):
+    def __init__(
+        self,
+        voice: str | None = None,  # accepted for a uniform factory; Chatterbox has one voice
+        device: str | None = None,
+        audio_prompt_path: str | None = None,
+    ):
         import torch
         from chatterbox.tts import ChatterboxTTS
 
@@ -98,6 +104,12 @@ def _pick_device(device: str | None) -> str:
     return "cpu"
 
 
+def kokoro_lang(voice: str) -> str:
+    """Kokoro encodes language in the voice prefix: 'b*' = British English, everything
+    else = American English. (See Kokoro voice naming: <lang><gender>_<name>.)"""
+    return "b" if voice[:1].lower() == "b" else "a"
+
+
 class KokoroSynth:
     """Kokoro-82M TTS adapter (StyleTTS2-based) — far faster than autoregressive Chatterbox.
 
@@ -107,12 +119,15 @@ class KokoroSynth:
     """
 
     sample_rate = 24000
+    # Shared KPipeline per (device, lang) — the model loads once per language, not per voice,
+    # so the server can cache a cheap KokoroSynth per (engine, voice).
+    _pipelines: dict[tuple[str, str], object] = {}
+    _pipelines_lock = threading.Lock()
 
     def __init__(
         self,
-        device: str | None = None,
         voice: str = "af_heart",
-        lang_code: str = "a",
+        device: str | None = None,
         speed: float = 1.0,
     ):
         from kokoro import KPipeline
@@ -126,8 +141,14 @@ class KokoroSynth:
         self._device = resolved
         self._voice = voice
         self._speed = speed
-        # lang_code 'a' = American English (Kokoro's misaki G2P; no system espeak needed for en).
-        self._pipeline = KPipeline(lang_code=lang_code, device=self._device)
+        lang_code = kokoro_lang(voice)
+        key = (resolved, lang_code)
+        with KokoroSynth._pipelines_lock:
+            pipe = KokoroSynth._pipelines.get(key)
+            if pipe is None:
+                pipe = KPipeline(lang_code=lang_code, device=resolved)
+                KokoroSynth._pipelines[key] = pipe
+        self._pipeline = pipe
 
     def synthesize(self, text: str) -> np.ndarray:
         if not text.strip():
