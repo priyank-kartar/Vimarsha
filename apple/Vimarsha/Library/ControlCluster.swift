@@ -17,7 +17,7 @@ struct ControlCluster: Equatable {
     /// chapter actually has figures. Live Discuss likewise lives only inside the reading
     /// surface; the cluster surfaces the SAVED conversations.
     enum Control: Int, CaseIterable, Identifiable, Hashable {
-        case play, memo, conversations
+        case play, narrator, memo, conversations
 
         var id: Int { rawValue }
 
@@ -25,6 +25,7 @@ struct ControlCluster: Equatable {
         var symbol: String {
             switch self {
             case .play: "play.fill"
+            case .narrator: "person.wave.2.fill"
             case .memo: "mic.fill"
             case .conversations: "bubble.left.and.bubble.right.fill"
             }
@@ -34,6 +35,7 @@ struct ControlCluster: Equatable {
         var label: String {
             switch self {
             case .play: "Play"
+            case .narrator: "Narrator"
             case .memo: "Voice notes"
             case .conversations: "Saved discussions"
             }

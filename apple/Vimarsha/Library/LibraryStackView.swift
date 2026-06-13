@@ -354,6 +354,8 @@ struct LibraryStackView: View {
                 case .play:
                     // Raises the chapter list plane (V14) → pick a chapter → reading surface.
                     withAnimation(chapterPlaneAnimation) { chapterBook = book }
+                case .narrator:
+                    break   // wired in D3
                 case .memo:
                     openBookMemos(book)
                 case .conversations:
