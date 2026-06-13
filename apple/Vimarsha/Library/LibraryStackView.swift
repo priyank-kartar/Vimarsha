@@ -93,6 +93,12 @@ struct LibraryStackView: View {
     /// when it closes (its own ephemeral engine, the MemoNotes precedent).
     @State private var bookMemoPlayer: BookMemoPlayer?
 
+    /// The book whose narrator-voice picker is open (nil = closed).
+    @State private var voiceBook: Book?
+    /// Ephemeral player for voice previews — a DEDICATED engine so previews never disturb the
+    /// chapter player's shared device owner.
+    @State private var voicePreview: VoicePreviewPlayer?
+
     /// The book whose Saved-discussions archive plane is risen (library cluster speech-bubble
     /// control) — every saved conversation across the book's chapters. Nil = closed.
     @State private var conversationsBook: Book?
@@ -219,6 +225,7 @@ struct LibraryStackView: View {
             .overlay { chapterListPlane }
             .overlay { bookMemosPlane }
             .overlay { bookConversationsPlane }
+            .overlay { voicePickerPlane }
             .overlay { readingSurface }
             .fileImporter(
                 isPresented: $showsEpubPicker,
@@ -355,7 +362,8 @@ struct LibraryStackView: View {
                     // Raises the chapter list plane (V14) → pick a chapter → reading surface.
                     withAnimation(chapterPlaneAnimation) { chapterBook = book }
                 case .narrator:
-                    break   // wired in D3
+                    voicePreview = VoicePreviewPlayer(engine: AVFoundationAudioEngine())
+                    withAnimation(chapterPlaneAnimation) { voiceBook = book }
                 case .memo:
                     openBookMemos(book)
                 case .conversations:
@@ -462,6 +470,40 @@ struct LibraryStackView: View {
                     : .move(edge: .bottom).combined(with: .opacity)
             )
         }
+    }
+
+    // MARK: Voice picker plane (D3 — narrator-voice selection, morphed list state)
+
+    @ViewBuilder
+    private var voicePickerPlane: some View {
+        if let book = voiceBook {
+            ZStack {
+                Palette.ink0.opacity(0.45).ignoresSafeArea()
+                    .onTapGesture { closeVoicePicker() }
+                    .accessibilityLabel("Dismiss voice picker").accessibilityAddTraits(.isButton)
+                VoicePickerView(
+                    currentVoiceId: book.voiceId,
+                    reduceTransparency: reduceTransparency,
+                    onPreview: { voice in
+                        player?.pause()                 // courtesy pause of chapter playback
+                        try? voicePreview?.preview(voice)
+                    },
+                    onSelect: { voice in
+                        book.voiceId = voice.id
+                        try? store?.saveContext()
+                        closeVoicePicker()
+                    },
+                    onClose: { closeVoicePicker() }
+                )
+            }
+            .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+
+    private func closeVoicePicker() {
+        voicePreview?.stop()
+        voicePreview = nil
+        withAnimation(chapterPlaneAnimation) { voiceBook = nil }
     }
 
     // MARK: Book-level archives (library cluster — morphed list states, never sheets)
