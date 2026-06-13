@@ -91,3 +91,15 @@ def test_speak_rejects_unknown_engine():
         assert resp.status_code == 400
     finally:
         app.dependency_overrides.clear()
+
+
+from vimarsha.tts import kokoro_lang
+
+
+def test_kokoro_lang_from_voice_prefix():
+    assert kokoro_lang("af_heart") == "a"   # American
+    assert kokoro_lang("am_michael") == "a"
+    assert kokoro_lang("bf_emma") == "b"     # British
+    assert kokoro_lang("bm_george") == "b"
+    assert kokoro_lang("") == "a"            # empty → default American
+    assert kokoro_lang("B_weird") == "b"     # case-insensitive prefix

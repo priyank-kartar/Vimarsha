@@ -98,6 +98,12 @@ def _pick_device(device: str | None) -> str:
     return "cpu"
 
 
+def kokoro_lang(voice: str) -> str:
+    """Kokoro encodes language in the voice prefix: 'b*' = British English, everything
+    else = American English. (See Kokoro voice naming: <lang><gender>_<name>.)"""
+    return "b" if voice[:1].lower() == "b" else "a"
+
+
 class KokoroSynth:
     """Kokoro-82M TTS adapter (StyleTTS2-based) — far faster than autoregressive Chatterbox.
 
