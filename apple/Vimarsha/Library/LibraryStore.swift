@@ -196,7 +196,7 @@ final class LibraryStore {
         let downloader = ChapterDownloader(containerRoot: importer.containerRoot, backend: backend)
         let voice = VoiceCatalog.voice(id: book.voiceId)
         let (epubPath, bookId, index, chapterId, voiceId, kokoroVoice, engine) =
-            (book.epubPath, book.id, chapter.index, chapter.id, book.voiceId, voice.kokoroVoice, voice.engine)
+            (book.epubPath, book.id, chapter.index, chapter.id, book.voiceId, voice.voiceToken, voice.engine)
         let task = Task { [weak self] in
             do {
                 let cached = try await downloader.download(
