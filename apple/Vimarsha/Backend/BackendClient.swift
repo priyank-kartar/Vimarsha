@@ -110,7 +110,12 @@ nonisolated enum BackendError: Error {
 /// URL defaults to the local dev server (repoint for LAN/RunPod — a settings surface
 /// comes later, mirroring the Flutter `AppSettings`).
 nonisolated struct URLSessionBackendClient: BackendClient {
-    var baseURL = URL(string: "http://localhost:8000")!
+    /// Public Cloudflare-tunnel hostname for the backend — decouples the client from a
+    /// localhost backend so any device (iPhone included) can reach it. The tunnel forwards to
+    /// the Kokoro backend on the dev machine's :8000. (For a purely local run, point this back
+    /// at `http://localhost:8000`.) NOTE: Cloudflare's free edge caps a single HTTP response at
+    /// ~100s, so very long `/import` narrations can 524 over the tunnel — see HANDOFF.
+    var baseURL = URL(string: "https://vimarsha-dev.kartar.ai")!
     var session = URLSessionBackendClient.narrationSession
 
     /// `URLSession.shared`'s 60s idle timeout kills any real `/import` — Chatterbox
