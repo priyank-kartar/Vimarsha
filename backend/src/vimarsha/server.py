@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import tempfile
 import threading
+import uuid
 from pathlib import Path
 
 import numpy as np
@@ -148,6 +149,50 @@ async def toc(file: UploadFile = File(...)):
     )
 
 
+# Async narration jobs (submit → poll). `/import` blocks for the whole narration (minutes),
+# which exceeds Cloudflare's ~100s edge timeout when the backend is fronted by a tunnel. So we
+# enqueue the work on a background thread and let the client poll `/import/status/{job_id}` —
+# every request stays short. This seam is also where a job could later be dispatched to a remote
+# GPU (e.g. RunPod serverless) for a premium Chatterbox tier. In-process store: the backend is a
+# single dev process today; a multi-worker deploy would need a shared store (Redis/DB).
+_jobs: dict[str, dict] = {}
+_jobs_lock = threading.Lock()
+
+
+def _do_import(data: bytes, chapter_index: int, synth: Synthesizer) -> dict:
+    """The synchronous narration pipeline for one chapter → the serialized bundle dict."""
+    with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as tmp:
+        tmp.write(data)
+        tmp.flush()
+        tmp_path_str = tmp.name
+    try:
+        chapters = read_chapters(tmp_path_str)
+        bundles = ingest_epub(tmp_path_str)
+        if not (0 <= chapter_index < len(bundles)):
+            raise ValueError("chapter_index out of range")
+        narrated = narrate_bundle(bundles[chapter_index], synth, app.state.audio_dir)
+        extract_images(
+            tmp_path_str,
+            narrated.chapter_id,
+            chapters[chapter_index].href,
+            narrated.figure_map,
+            app.state.audio_dir,
+        )
+        return narrated.model_dump(by_alias=True, exclude_none=True)
+    finally:
+        Path(tmp_path_str).unlink(missing_ok=True)
+
+
+def _run_import_job(job_id: str, data: bytes, chapter_index: int, synth: Synthesizer) -> None:
+    try:
+        bundle = _do_import(data, chapter_index, synth)
+        with _jobs_lock:
+            _jobs[job_id] = {"status": "ready", "bundle": bundle}
+    except Exception as exc:  # noqa: BLE001 — surfaced to the client as the job's error
+        with _jobs_lock:
+            _jobs[job_id] = {"status": "error", "error": str(exc)}
+
+
 @app.post("/import")
 async def import_chapter(
     chapter_index: int = 0,
@@ -156,31 +201,27 @@ async def import_chapter(
     file: UploadFile = File(...),
     synth: Synthesizer = Depends(get_synth),
 ):
-    synth = _resolve_synth(engine, voice, synth)
+    """Enqueue narration of one chapter; returns a job id to poll. Engine validation happens
+    here (fast 400); the heavy work runs on a background thread."""
+    synth = _resolve_synth(engine, voice, synth)  # validates engine → 400 synchronously
     data = await file.read()
-    with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as tmp:
-        tmp.write(data)
-        tmp.flush()
-        tmp_path_str = tmp.name
-    try:
-        chapters = await run_in_threadpool(read_chapters, tmp_path_str)
-        bundles = await run_in_threadpool(ingest_epub, tmp_path_str)
-        if not (0 <= chapter_index < len(bundles)):
-            raise HTTPException(status_code=404, detail="chapter_index out of range")
-        narrated = await run_in_threadpool(
-            narrate_bundle, bundles[chapter_index], synth, app.state.audio_dir
-        )
-        await run_in_threadpool(
-            extract_images,
-            tmp_path_str,
-            narrated.chapter_id,
-            chapters[chapter_index].href,
-            narrated.figure_map,
-            app.state.audio_dir,
-        )
-    finally:
-        Path(tmp_path_str).unlink(missing_ok=True)
-    return narrated.model_dump(by_alias=True, exclude_none=True)
+    job_id = uuid.uuid4().hex
+    with _jobs_lock:
+        _jobs[job_id] = {"status": "pending"}
+    threading.Thread(
+        target=_run_import_job, args=(job_id, data, chapter_index, synth), daemon=True
+    ).start()
+    return {"jobId": job_id, "status": "pending"}
+
+
+@app.get("/import/status/{job_id}")
+def import_status(job_id: str):
+    """Poll a narration job: ``pending`` → ``ready`` (with ``bundle``) | ``error`` (with ``error``)."""
+    with _jobs_lock:
+        job = _jobs.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="unknown job")
+    return job
 
 
 @app.get("/image/{name}")

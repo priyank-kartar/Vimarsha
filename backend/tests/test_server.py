@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from vimarsha.server import app, get_synth
+from tests.conftest import import_and_wait
 from tests.fakes import FakeSynth
 
 
@@ -10,13 +11,11 @@ def _client(tmp_path):
     return TestClient(app)
 
 
-def test_import_returns_narrated_bundle_and_audio(tmp_path, sample_epub):
+def test_import_job_narrates_bundle_and_audio(tmp_path, sample_epub):
     client = _client(tmp_path)
-    with open(sample_epub, "rb") as f:
-        resp = client.post("/import?chapter_index=0",
-                           files={"file": ("sample.epub", f, "application/epub+zip")})
-    assert resp.status_code == 200
-    data = resp.json()
+    body = import_and_wait(client, "?chapter_index=0", sample_epub)
+    assert body["status"] == "ready"
+    data = body["bundle"]
     assert data["chapterId"] == "chap1"
     assert data["audio"] == "chap1.mp3"
     assert data["figureMap"][0]["startMs"] is not None
@@ -31,10 +30,15 @@ def test_import_returns_narrated_bundle_and_audio(tmp_path, sample_epub):
     app.dependency_overrides.clear()
 
 
-def test_import_bad_chapter_index_returns_404(tmp_path, sample_epub):
+def test_import_bad_chapter_index_fails_the_job(tmp_path, sample_epub):
     client = _client(tmp_path)
-    with open(sample_epub, "rb") as f:
-        resp = client.post("/import?chapter_index=9",
-                           files={"file": ("sample.epub", f, "application/epub+zip")})
-    assert resp.status_code == 404
+    body = import_and_wait(client, "?chapter_index=9", sample_epub)
+    assert body["status"] == "error"
+    assert "range" in body["error"]
+    app.dependency_overrides.clear()
+
+
+def test_import_status_unknown_job_is_404(tmp_path):
+    client = _client(tmp_path)
+    assert client.get("/import/status/does-not-exist").status_code == 404
     app.dependency_overrides.clear()
