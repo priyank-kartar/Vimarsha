@@ -10,7 +10,9 @@ dependencies = [
     "fastapi>=0.136.3",
     "httpx>=0.28.1",
     "lxml>=6.1.1",
-    "numpy>=2.4.6",
+    # Lower bound kept broad so the serverless (vLLM) resolution can pick numpy<2.3, which
+    # vLLM 0.10 requires; default/tts/kokoro still resolve to a modern numpy.
+    "numpy>=1.24",
     "pydantic>=2.13.4",
     "python-multipart>=0.0.30",
     "soundfile>=0.13.1",
@@ -39,11 +41,24 @@ kokoro = [
 # The RunPod serverless worker image (Chatterbox narration only). Mirrors `tts` minus the
 # Whisper STT dep, plus the RunPod SDK that runs the handler. Installed in Dockerfile.serverless.
 serverless = [
-    "chatterbox-tts",
-    "setuptools<81",
+    # The worker narrates batched via VllmChatterboxSynth (chatterbox-vllm) — NOT base
+    # chatterbox-tts, which conflicts with the port's pinned deps and is never constructed here.
+    # vLLM is pulled transitively by chatterbox-vllm (it pins its own compatible vLLM — 0.10.0
+    # as of port 0.2.1); don't double-pin it here or the resolver conflicts.
     "torch",
     "torchaudio",
     "runpod>=1.6",
+    "chatterbox-vllm",
+]
+
+[tool.uv.sources]
+chatterbox-vllm = { git = "https://github.com/randombk/chatterbox-vllm" }
+
+# The serverless worker image (chatterbox-vllm / vLLM) and the local tts image (chatterbox-tts)
+# pin incompatible deps and are never installed together — tell uv to resolve them separately.
+[tool.uv]
+conflicts = [
+    [{ extra = "tts" }, { extra = "serverless" }],
 ]
 
 [project.scripts]
