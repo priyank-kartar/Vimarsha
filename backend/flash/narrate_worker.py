@@ -8,32 +8,61 @@
 # Input payload (sent by the backend's RunPodNarrator):
 #   {"epub_b64": <base64 epub>, "chapter_index": int, "engine": "chatterbox", "voice": "cb_*"}
 # Returns: {"bundle": <ChapterBundle dict>, "audio_b64": <mp3>, "images": {name: b64}}
-from runpod_flash import Endpoint, GpuGroup
+from runpod_flash import Endpoint, GpuGroup, NetworkVolume
 
-# Runtime pip deps installed on the worker (not bundled). chatterbox-vllm pulls vLLM + torch.
-_DEPS = [
-    "chatterbox-vllm",
-    "ebooklib",
-    "beautifulsoup4",
-    "lxml",
-    "soundfile",
-    "pydantic",
+# Heavy deps (chatterbox-vllm git + vLLM + torch) are multi-GB and git-only, so they can't be
+# bundled into flash's 500MB artifact nor fetched from PyPI. Instead we install them ONCE into a
+# persistent network volume and sys.path into it on every cold start. `_DEPS_DIR` is on the
+# volume RunPod mounts at /runpod-volume. The light parsing deps live there too so all versions
+# (esp. vLLM's numpy<2.3) stay consistent.
+_DEPS_DIR = "/runpod-volume/deps"
+_READY = _DEPS_DIR + "/.ready"
+_INSTALL = [
+    "chatterbox-vllm @ git+https://github.com/randombk/chatterbox-vllm",
+    "ebooklib", "beautifulsoup4", "lxml", "soundfile", "pydantic",
 ]
 
 
+def _ensure_deps() -> None:
+    """Install the heavy/runtime deps into the network volume on first cold start (persisted),
+    then put the volume on sys.path. Subsequent starts skip straight to the sys.path step."""
+    import os
+    import subprocess
+    import sys
+
+    if not os.path.exists(_READY):
+        os.makedirs(_DEPS_DIR, exist_ok=True)
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--target", _DEPS_DIR, *_INSTALL],
+            check=True,
+        )
+        open(_READY, "w").close()
+    if _DEPS_DIR not in sys.path:
+        sys.path.insert(0, _DEPS_DIR)
+
+
+# NOTE: flash statically AST-parses this decorator, so list/scalar args MUST be inline literals
+# (a variable reference is silently dropped). The network volume holds the heavy deps.
 @Endpoint(
     name="vimarsha-premium",
     gpu=GpuGroup.AMPERE_24,        # 24GB (A5000 / L4 / 3090) — headroom for batched vLLM
-    workers=(0, 2),               # scale-to-zero; up to 2 concurrent chapters
-    dependencies=_DEPS,
+    workers=(0, 1),               # scale-to-zero; one chapter at a time (worker-quota friendly)
+    volume=NetworkVolume(name="vimarsha-deps", size=40),  # persists vLLM/torch/chatterbox-vllm
     system_dependencies=["ffmpeg"],  # write_mp3 shells out to ffmpeg/libmp3lame
-    idle_timeout=10,
+    idle_timeout=30,
+    execution_timeout_ms=0,       # unlimited — the first run installs deps (~10-15 min)
     flashboot=True,
 )
-async def narrate(input_data: dict) -> dict:
+async def narrate(
+    epub_b64: str, chapter_index: int = 0, engine: str = "chatterbox", voice: str | None = None
+) -> dict:
+    # Flash spreads the job input dict as kwargs (handler does narrate(**job_input)), so these
+    # named params must match the backend's RunPodNarrator payload keys exactly.
     import base64
     import tempfile
     from pathlib import Path
+
+    _ensure_deps()  # volume deps on sys.path before importing the pipeline (numpy/ebooklib/vllm)
 
     from vimarsha.epub_reader import read_chapters
     from vimarsha.figure_images import extract_images
@@ -41,9 +70,8 @@ async def narrate(input_data: dict) -> dict:
     from vimarsha.narrate import narrate_bundle_batched
     from vimarsha.tts import VllmChatterboxSynth
 
-    data = base64.b64decode(input_data["epub_b64"])
-    chapter_index = int(input_data.get("chapter_index", 0))
-    voice = input_data.get("voice")
+    data = base64.b64decode(epub_b64)
+    chapter_index = int(chapter_index)
 
     out_dir = tempfile.mkdtemp(prefix="rp-audio-")
     with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as tmp:
@@ -76,4 +104,4 @@ async def narrate(input_data: dict) -> dict:
 if __name__ == "__main__":
     import asyncio
 
-    print(asyncio.run(narrate({"epub_b64": "", "chapter_index": 0, "voice": "cb_steady"})))
+    print(asyncio.run(narrate(epub_b64="", chapter_index=0, voice="cb_steady")))
