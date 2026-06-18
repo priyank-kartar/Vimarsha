@@ -20,6 +20,8 @@ from vimarsha.llm import LlmClient, OllamaLlmClient
 from vimarsha.metadata import read_book_meta
 from vimarsha.models import ChatContextModel, ChatRequest, ChapterSummary, SpeakRequest, TocResponse
 from vimarsha.narrate import narrate_bundle
+from vimarsha.remote_narrator import RemoteNarrator, RunPodNarrator
+from vimarsha.runpod_client import RunPodClient
 from vimarsha.stitch import assemble
 from vimarsha.transcribe import FasterWhisperTranscriber, Transcriber
 from vimarsha.tts import Synthesizer, chunk_text, synth_class
@@ -159,6 +161,48 @@ _jobs: dict[str, dict] = {}
 _jobs_lock = threading.Lock()
 
 
+# Engines that are NOT run locally — narration is dispatched to a RunPod serverless worker
+# (premium tier). `chatterbox` runs remotely even though it's also a local Synthesizer class.
+REMOTE_ENGINES = {"chatterbox"}
+
+
+def _runpod_api_key() -> str | None:
+    key = os.environ.get("RUNPOD_API_KEY")
+    if key:
+        return key
+    cfg = Path.home() / ".runpod" / "config.toml"
+    if cfg.is_file():
+        import re
+
+        m = re.search(r"apikey\s*=\s*'([^']+)'", cfg.read_text())
+        if m:
+            return m.group(1)
+    return None
+
+
+def _resolve_remote_narrator(engine: str) -> RemoteNarrator:
+    """Build the RunPod narrator from config, or 503 if the premium endpoint isn't set up."""
+    endpoint = os.environ.get("VIMARSHA_CHATTERBOX_ENDPOINT")
+    key = _runpod_api_key()
+    if not endpoint or not key:
+        raise HTTPException(status_code=503, detail="premium narration not configured")
+    return RunPodNarrator(RunPodClient(endpoint_id=endpoint, api_key=key))
+
+
+def _do_import_remote(
+    data: bytes, chapter_index: int, engine: str, voice: str | None, narrator: RemoteNarrator
+) -> dict:
+    """Narrate remotely and land the returned mp3 + figure images in the local audio dir."""
+    result = narrator.narrate(data, chapter_index, engine, voice)
+    out_dir = Path(app.state.audio_dir)
+    (out_dir / result.bundle["audio"]).write_bytes(result.audio)
+    for name, blob in result.images.items():
+        safe = Path(name).name  # never a path
+        if safe:
+            (out_dir / safe).write_bytes(blob)
+    return result.bundle
+
+
 def _do_import(data: bytes, chapter_index: int, synth: Synthesizer) -> dict:
     """The synchronous narration pipeline for one chapter → the serialized bundle dict."""
     with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as tmp:
@@ -183,9 +227,20 @@ def _do_import(data: bytes, chapter_index: int, synth: Synthesizer) -> dict:
         Path(tmp_path_str).unlink(missing_ok=True)
 
 
-def _run_import_job(job_id: str, data: bytes, chapter_index: int, synth: Synthesizer) -> None:
+def _run_import_job(
+    job_id: str,
+    data: bytes,
+    chapter_index: int,
+    engine: str | None,
+    voice: str | None,
+    synth: Synthesizer | None,
+    narrator: RemoteNarrator | None,
+) -> None:
     try:
-        bundle = _do_import(data, chapter_index, synth)
+        if narrator is not None:
+            bundle = _do_import_remote(data, chapter_index, engine or "", voice, narrator)
+        else:
+            bundle = _do_import(data, chapter_index, synth)
         with _jobs_lock:
             _jobs[job_id] = {"status": "ready", "bundle": bundle}
     except Exception as exc:  # noqa: BLE001 — surfaced to the client as the job's error
@@ -201,15 +256,24 @@ async def import_chapter(
     file: UploadFile = File(...),
     synth: Synthesizer = Depends(get_synth),
 ):
-    """Enqueue narration of one chapter; returns a job id to poll. Engine validation happens
-    here (fast 400); the heavy work runs on a background thread."""
-    synth = _resolve_synth(engine, voice, synth)  # validates engine → 400 synchronously
+    """Enqueue narration of one chapter; returns a job id to poll. Premium engines route to a
+    RunPod serverless worker; free engines narrate locally. Validation (engine / premium config)
+    happens here synchronously (fast 400/503); the heavy work runs on a background thread."""
+    is_remote = (engine or "").strip().lower() in REMOTE_ENGINES
+    if is_remote:
+        narrator: RemoteNarrator | None = _resolve_remote_narrator(engine or "")  # 503 if unset
+        synth_for_job: Synthesizer | None = None
+    else:
+        narrator = None
+        synth_for_job = _resolve_synth(engine, voice, synth)  # validates engine → 400
     data = await file.read()
     job_id = uuid.uuid4().hex
     with _jobs_lock:
         _jobs[job_id] = {"status": "pending"}
     threading.Thread(
-        target=_run_import_job, args=(job_id, data, chapter_index, synth), daemon=True
+        target=_run_import_job,
+        args=(job_id, data, chapter_index, engine, voice, synth_for_job, narrator),
+        daemon=True,
     ).start()
     return {"jobId": job_id, "status": "pending"}
 
