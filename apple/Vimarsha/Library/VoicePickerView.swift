@@ -77,12 +77,22 @@ struct VoicePickerView: View {
             Text(voice.id)
                 .font(.system(size: 15, weight: .regular, design: .serif))
                 .foregroundStyle(Palette.textPrimary)
-            Spacer(minLength: 12)
-            Button { onPreview(voice) } label: {
-                Image(systemName: "play.circle").font(.system(size: 19)).foregroundStyle(Palette.sky)
+            if voice.isPremium {
+                Text("PREMIUM")
+                    .font(.system(size: 9, weight: .semibold))
+                    .tracking(1)
+                    .foregroundStyle(Palette.butter)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Capsule().fill(Palette.butter.opacity(0.16)))
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Preview \(voice.id)")
+            Spacer(minLength: 12)
+            if !voice.isPremium {
+                Button { onPreview(voice) } label: {
+                    Image(systemName: "play.circle").font(.system(size: 19)).foregroundStyle(Palette.sky)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Preview \(voice.id)")
+            }
         }
         .padding(.vertical, 13)
         .contentShape(Rectangle())
