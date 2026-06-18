@@ -1,7 +1,26 @@
+import time
 import zipfile
 from pathlib import Path
 
 import pytest
+
+
+def import_and_wait(client, query: str, epub_path, timeout: float = 30.0) -> dict:
+    """Submit an async /import job and poll until it finishes; returns the status body
+    (``{"status": "ready", "bundle": {...}}`` or ``{"status": "error", "error": ...}``)."""
+    with open(epub_path, "rb") as f:
+        resp = client.post(
+            f"/import{query}", files={"file": ("s.epub", f, "application/epub+zip")}
+        )
+    assert resp.status_code == 200, resp.text
+    job_id = resp.json()["jobId"]
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        body = client.get(f"/import/status/{job_id}").json()
+        if body["status"] in ("ready", "error"):
+            return body
+        time.sleep(0.02)
+    raise AssertionError("import job did not finish in time")
 
 # Minimal valid 1x1 PNG, used as fixture figure images.
 PNG_1PX = bytes.fromhex(

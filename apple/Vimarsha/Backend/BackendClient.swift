@@ -100,10 +100,29 @@ nonisolated struct SpeakRequestBody: Codable, Equatable, Sendable {
     let text: String
 }
 
+// MARK: - Async import jobs (submit → poll; mirrors backend /import + /import/status)
+
+/// The submit response from `POST /import` — a job id to poll.
+nonisolated struct ImportJobDTO: Codable, Equatable, Sendable {
+    let jobId: String
+    let status: String
+}
+
+/// One poll of `GET /import/status/{id}`: `pending` | `ready` (carries `bundle`) | `error`.
+nonisolated struct ImportStatusDTO: Codable, Equatable, Sendable {
+    let status: String
+    var bundle: ChapterBundleDTO?
+    var error: String?
+}
+
 // MARK: - Real implementation
 
 nonisolated enum BackendError: Error {
     case badStatus(Int)
+    /// A narration job finished in the `error` state (backend reason attached).
+    case importFailed(String)
+    /// Polling exceeded the deadline without the job finishing.
+    case importTimedOut
 }
 
 /// URLSession implementation of the seam. Stateless like the backend itself; the base
@@ -138,17 +157,42 @@ nonisolated struct URLSessionBackendClient: BackendClient {
         )
     }
 
+    /// Narration is async (submit → poll) so each request stays short — a single long-blocking
+    /// `/import` would exceed Cloudflare's ~100s edge timeout over the tunnel. Submit returns a
+    /// job id; we poll `/import/status/{id}` until it's `ready` (bundle) or `error`. The protocol
+    /// stays one call — the polling is internal.
     func importChapter(
         epubAt url: URL, chapterIndex: Int, engine: String?, voice: String?
     ) async throws -> ChapterBundleDTO {
-        try JSONDecoder().decode(
-            ChapterBundleDTO.self,
-            from: try await uploadEpub(
-                at: url,
-                to: Self.importURL(baseURL: baseURL, chapterIndex: chapterIndex,
-                                   engine: engine, voice: voice)
-            )
+        // 1. Submit the job (engine validation surfaces here as a non-2xx).
+        let submitData = try await uploadEpub(
+            at: url,
+            to: Self.importURL(baseURL: baseURL, chapterIndex: chapterIndex,
+                               engine: engine, voice: voice)
         )
+        let job = try JSONDecoder().decode(ImportJobDTO.self, from: submitData)
+
+        // 2. Poll until ready/error. Each poll is a short request; the deadline mirrors the old
+        //    whole-narration ceiling (large chapters take many minutes).
+        let statusURL = baseURL.appending(path: "import")
+            .appending(path: "status").appending(path: job.jobId)
+        let deadline = Date().addingTimeInterval(3 * 60 * 60)
+        while Date() < deadline {
+            try await Task.sleep(for: .seconds(2))   // throws on cancellation
+            let (data, response) = try await session.data(from: statusURL)
+            try Self.validate(response)
+            let status = try JSONDecoder().decode(ImportStatusDTO.self, from: data)
+            switch status.status {
+            case "ready":
+                if let bundle = status.bundle { return bundle }
+                throw BackendError.importFailed("ready job returned no bundle")
+            case "error":
+                throw BackendError.importFailed(status.error ?? "narration failed")
+            default:
+                continue   // pending
+            }
+        }
+        throw BackendError.importTimedOut
     }
 
     func downloadAudio(named name: String) async throws -> Data {

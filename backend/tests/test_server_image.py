@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from vimarsha.server import app, get_synth
+from tests.conftest import import_and_wait
 from tests.fakes import FakeSynth
 
 
@@ -12,11 +13,9 @@ def _client(tmp_path):
 
 def test_import_fills_figure_image_and_serves_it(tmp_path, sample_epub):
     client = _client(tmp_path)
-    with open(sample_epub, "rb") as f:
-        resp = client.post("/import?chapter_index=0",
-                           files={"file": ("s.epub", f, "application/epub+zip")})
-    assert resp.status_code == 200
-    figures = resp.json()["figureMap"]
+    body = import_and_wait(client, "?chapter_index=0", sample_epub)
+    assert body["status"] == "ready"
+    figures = body["bundle"]["figureMap"]
     img = next(fig for fig in figures if fig["figureId"] == "b2")
     assert img["image"]  # filename present
 
