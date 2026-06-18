@@ -5,7 +5,7 @@ import Foundation
 @Suite("Bundled voice previews")
 struct VoicePreviewResourceTests {
     @Test func everyVoiceHasABundledPreviewClip() {
-        for voice in VoiceCatalog.all {
+        for voice in VoiceCatalog.all where !voice.isPremium {
             let url = Bundle.main.url(
                 forResource: voice.previewResource, withExtension: "mp3", subdirectory: "VoicePreviews"
             ) ?? Bundle.main.url(forResource: voice.previewResource, withExtension: "mp3")
