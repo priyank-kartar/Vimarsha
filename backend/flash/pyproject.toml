@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vimarsha-flash-worker"
+version = "0.1.0"
+description = "Runpod Flash serverless worker — batched Chatterbox narration"
+readme = "README.md"
+# Flash workers run on Python 3.11/3.12 (the platform does not ship 3.13). The bundled
+# vimarsha source is import-compatible with 3.11+.
+requires-python = ">=3.11,<3.13"
+dependencies = ["runpod-flash"]
