@@ -44,6 +44,21 @@ class Synthesizer(Protocol):
         ...
 
 
+class BatchSynthesizer(Protocol):
+    """Anything that turns a list of texts into one mono float32 waveform each, in order.
+
+    The batched analogue of ``Synthesizer`` — independent utterances synthesized together so a
+    GPU can decode them in parallel. Each text is its own utterance (we never merge them), so
+    downstream stitching/timings are identical to the single-stream path.
+    """
+
+    sample_rate: int
+
+    def synthesize_batch(self, texts: list[str]) -> list[np.ndarray]:
+        """Return one 1-D float32 array per input text, in the same order."""
+        ...
+
+
 # Premium voices are expressiveness presets of Chatterbox's one base voice — different
 # `generate` settings, no audio assets. Tune by ear once the worker is live.
 _CHATTERBOX_PRESETS: dict[str, dict] = {
