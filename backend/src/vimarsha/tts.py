@@ -44,6 +44,20 @@ class Synthesizer(Protocol):
         ...
 
 
+# Premium voices are expressiveness presets of Chatterbox's one base voice — different
+# `generate` settings, no audio assets. Tune by ear once the worker is live.
+_CHATTERBOX_PRESETS: dict[str, dict] = {
+    "cb_storyteller": {"exaggeration": 0.7, "cfg_weight": 0.3},   # dramatic
+    "cb_steady": {"exaggeration": 0.35, "cfg_weight": 0.5},        # calm / neutral
+    "cb_intimate": {"exaggeration": 0.5, "cfg_weight": 0.4},       # warm / measured
+}
+
+
+def chatterbox_preset(voice: str | None) -> dict:
+    """Map a premium voice token to Chatterbox ``generate`` kwargs; unknown/blank → defaults."""
+    return dict(_CHATTERBOX_PRESETS.get((voice or "").strip(), {}))
+
+
 class ChatterboxSynth:
     """Real Chatterbox TTS adapter. Requires the `[tts]` extra and a GPU/MPS.
 
@@ -69,11 +83,12 @@ class ChatterboxSynth:
         self._device = device
         self.sample_rate = self._model.sr
         self._audio_prompt_path = audio_prompt_path
+        self._gen_kwargs = chatterbox_preset(voice)
 
     def synthesize(self, text: str) -> np.ndarray:
         import torch
 
-        kwargs = {}
+        kwargs = dict(self._gen_kwargs)
         if self._audio_prompt_path:
             kwargs["audio_prompt_path"] = self._audio_prompt_path
         wav = self._model.generate(text, **kwargs)  # torch tensor [1, N]
