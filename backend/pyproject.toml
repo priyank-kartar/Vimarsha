@@ -36,6 +36,15 @@ kokoro = [
     "torchaudio",
     "soundfile",
 ]
+# The RunPod serverless worker image (Chatterbox narration only). Mirrors `tts` minus the
+# Whisper STT dep, plus the RunPod SDK that runs the handler. Installed in Dockerfile.serverless.
+serverless = [
+    "chatterbox-tts",
+    "setuptools<81",
+    "torch",
+    "torchaudio",
+    "runpod>=1.6",
+]
 
 [project.scripts]
 vimarsha = "vimarsha:main"
