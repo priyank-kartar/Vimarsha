@@ -1,0 +1,18 @@
+# Vimarsha premium narration worker — Chatterbox on RunPod serverless.
+FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ffmpeg git curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:${PATH}"
+
+WORKDIR /app
+COPY pyproject.toml uv.lock .python-version ./
+COPY src ./src
+COPY serverless ./serverless
+RUN uv python install 3.13 && uv sync --extra serverless --frozen
+
+# RunPod invokes the handler; uv run gives it the project venv (with the vimarsha package).
+CMD ["uv", "run", "python", "serverless/rp_handler.py"]
