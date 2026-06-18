@@ -121,6 +121,50 @@ class ChatterboxSynth:
         return out
 
 
+# Premium narration runs batched on the RunPod CUDA worker via the chatterbox-vllm port
+# (cfg is process-global there, so we fix it and vary only exaggeration per voice — see
+# docs/superpowers/specs/2026-06-18-chatterbox-batched-narration-design.md).
+_VLLM_CFG_SCALE = "0.5"
+
+
+class VllmChatterboxSynth:
+    """Batched Chatterbox via the vLLM port. CUDA-only; constructed only on the worker.
+
+    Implements ``BatchSynthesizer``. Lazily imports ``chatterbox_vllm`` so the rest of the
+    package runs without vLLM. cfg is fixed (``_VLLM_CFG_SCALE``); ``exaggeration`` comes from
+    the voice preset.
+    """
+
+    def __init__(self, voice: str | None = None, audio_prompt_path: str | None = None,
+                 gpu_memory_utilization: float = 0.4, max_model_len: int = 1000):
+        import os
+
+        os.environ["CHATTERBOX_CFG_SCALE"] = _VLLM_CFG_SCALE
+        from chatterbox_vllm.tts import ChatterboxTTS
+
+        self._model = ChatterboxTTS.from_pretrained(
+            gpu_memory_utilization=gpu_memory_utilization,
+            max_model_len=max_model_len,
+            enforce_eager=True,
+        )
+        self.sample_rate = self._model.sr
+        self._audio_prompt_path = audio_prompt_path
+        self._exaggeration = chatterbox_preset(voice).get("exaggeration", 0.5)
+
+    def synthesize_batch(self, texts: list[str]) -> list[np.ndarray]:
+        if not texts:
+            return []
+        kwargs: dict = {"exaggeration": self._exaggeration}
+        if self._audio_prompt_path:
+            kwargs["audio_prompt_path"] = self._audio_prompt_path
+        audios = self._model.generate(prompts=list(texts), **kwargs)
+        out: list[np.ndarray] = []
+        for wav in audios:
+            arr = wav.squeeze(0) if hasattr(wav, "squeeze") else wav
+            out.append(arr.detach().cpu().numpy().astype("float32"))
+        return out
+
+
 def _pick_device(device: str | None) -> str:
     """Resolve cuda > mps > cpu unless an explicit device is given."""
     if device is not None:
