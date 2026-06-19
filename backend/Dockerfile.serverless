@@ -9,7 +9,7 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"
 
 WORKDIR /app
-COPY pyproject.toml uv.lock .python-version ./
+COPY pyproject.toml uv.lock .python-version README.md ./
 COPY src ./src
 COPY serverless ./serverless
 RUN uv python install 3.13 && uv sync --extra serverless --frozen
