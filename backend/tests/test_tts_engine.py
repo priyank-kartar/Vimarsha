@@ -53,8 +53,11 @@ def test_get_synth_honors_vimarsha_tts_env_var(monkeypatch):
     monkeypatch.setattr(server, "synth_class", _fake_class)
     try:
         s = server.get_synth()
+        # get_synth wraps the model lazily; the engine is resolved via synth_class on first use.
+        assert isinstance(s, server._LazySynth)
+        assert s.sample_rate == 16000          # forces construction
         assert seen["name"] == "kokoro"
-        assert isinstance(s, _Fake)
+        assert isinstance(s._resolve(), _Fake)
     finally:
         server._synth_cache.clear()
 

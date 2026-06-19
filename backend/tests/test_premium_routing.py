@@ -1,5 +1,3 @@
-import base64
-
 from fastapi.testclient import TestClient
 
 import vimarsha.server as server
@@ -45,6 +43,29 @@ def test_free_import_still_uses_local_synth(tmp_path, sample_epub, monkeypatch):
     assert body["bundle"]["chapterId"] == "chap1"
     server.app.dependency_overrides.clear()
     server._synth_cache.clear()
+
+
+def test_premium_import_does_not_construct_local_synth(tmp_path, sample_epub, monkeypatch):
+    # A premium (remote) import must never load a local TTS model — a premium-only backend has
+    # none installed. The injected default synth is a _LazySynth whose factory explodes if used.
+    fake = FakeRemoteNarrator(
+        RemoteResult(
+            bundle={"chapterId": "c1", "title": "T", "blocks": [], "figureMap": [],
+                    "audio": "c1.mp3", "paraTimings": {}},
+            audio=b"ID3", images={},
+        )
+    )
+    monkeypatch.setattr(server, "_resolve_remote_narrator", lambda engine: fake)
+
+    def _boom():
+        raise RuntimeError("local TTS must not load for a premium import")
+
+    server.app.dependency_overrides[server.get_synth] = lambda: server._LazySynth(_boom)
+    server.app.state.audio_dir = str(tmp_path)
+    client = TestClient(server.app)
+    body = import_and_wait(client, "?chapter_index=0&engine=chatterbox&voice=cb_steady", sample_epub)
+    assert body["status"] == "ready"  # never raised → the local synth factory was never called
+    server.app.dependency_overrides.clear()
 
 
 def test_premium_without_endpoint_configured_errors(tmp_path, sample_epub, monkeypatch):

@@ -47,3 +47,14 @@ def test_runpod_narrator_raises_on_failed():
         raise AssertionError("expected failure")
     except RuntimeError as exc:
         assert "boom" in str(exc)
+
+
+def test_runpod_narrator_surfaces_completed_error_without_bundle():
+    # The worker reports a bad chapter / no-narratable-text as COMPLETED with an `error` field
+    # (no bundle). The narrator must surface that message, not crash on KeyError('bundle').
+    narrator = RunPodNarrator(_StubClient({"error": "chapter_index out of range"}), poll_interval=0.0)
+    try:
+        narrator.narrate(b"x", 0, "chatterbox", "cb_steady")
+        raise AssertionError("expected failure")
+    except RuntimeError as exc:
+        assert "out of range" in str(exc)

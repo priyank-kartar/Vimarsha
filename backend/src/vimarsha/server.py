@@ -76,10 +76,33 @@ def _cached_synth(engine: str | None, voice: str | None) -> Synthesizer:
         return _synth_cache[key]
 
 
+class _LazySynth:
+    """Defers model construction until first use. The default-engine synth is injected into every
+    ``/import`` and ``/speak`` request, but a premium (remote) import never narrates locally — so a
+    premium-only backend (no local TTS deps installed) must not load a model just to satisfy the
+    injection. Construction happens on the first ``sample_rate``/``synthesize`` access."""
+
+    def __init__(self, factory):
+        self._factory = factory
+        self._impl: Synthesizer | None = None
+
+    def _resolve(self) -> Synthesizer:
+        if self._impl is None:
+            self._impl = self._factory()
+        return self._impl
+
+    @property
+    def sample_rate(self) -> int:
+        return self._resolve().sample_rate
+
+    def synthesize(self, text: str):
+        return self._resolve().synthesize(text)
+
+
 def get_synth() -> Synthesizer:
-    """The default-engine synth (``VIMARSHA_TTS`` → ``vimarsha.tts.synth_class``); cached and
-    dependency-injected so tests can override it with a fake."""
-    return _cached_synth(os.environ.get("VIMARSHA_TTS"), None)
+    """The default-engine synth (``VIMARSHA_TTS`` → ``vimarsha.tts.synth_class``), wrapped so the
+    model loads lazily on first use; dependency-injected so tests can override it with a fake."""
+    return _LazySynth(lambda: _cached_synth(os.environ.get("VIMARSHA_TTS"), None))
 
 
 def synth_for(engine: str | None, voice: str | None, default: Synthesizer) -> Synthesizer:
