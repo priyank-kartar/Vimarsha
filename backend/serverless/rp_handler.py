@@ -36,7 +36,12 @@ def handler(event: dict) -> dict:
         if not (0 <= chapter_index < len(bundles)):
             return {"error": "chapter_index out of range"}
         synth = synth_class(engine)(voice=voice)
-        narrated = narrate_bundle(bundles[chapter_index], synth, out_dir)
+        try:
+            narrated = narrate_bundle(bundles[chapter_index], synth, out_dir)
+        except ValueError as exc:
+            # e.g. a part-divider/front-matter chapter with no narratable text — report it as a
+            # clean error (the client marks the chapter failed) rather than crashing the worker.
+            return {"error": str(exc)}
         extract_images(
             epub_path, narrated.chapter_id, chapters[chapter_index].href,
             narrated.figure_map, out_dir,

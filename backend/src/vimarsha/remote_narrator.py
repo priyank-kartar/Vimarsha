@@ -51,6 +51,11 @@ class RunPodNarrator:
             status = body.get("status")
             if status == self._TERMINAL_OK:
                 out = body.get("output") or {}
+                # The worker reports recoverable problems (bad chapter index, no narratable text)
+                # as a COMPLETED job with an ``error`` field instead of a bundle. Surface that
+                # message instead of crashing on a cryptic ``KeyError('bundle')``.
+                if "bundle" not in out:
+                    raise RuntimeError(out.get("error") or "remote narration returned no bundle")
                 return RemoteResult(
                     bundle=out["bundle"],
                     audio=base64.b64decode(out["audio_b64"]),
