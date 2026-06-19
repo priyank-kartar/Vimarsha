@@ -15,7 +15,7 @@ COPY pyproject.toml uv.lock .python-version README.md ./
 COPY src ./src
 COPY serverless ./serverless
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv python install 3.13 && uv sync --extra tts --frozen --no-dev
+    uv python install 3.13 && uv sync --extra serverless --frozen --no-dev
 
 # RunPod invokes the handler; uv run gives it the project venv (with the vimarsha package).
 CMD ["uv", "run", "python", "serverless/rp_handler.py"]
