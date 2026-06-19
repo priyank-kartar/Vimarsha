@@ -1,0 +1,5 @@
+# Throwaway staging dir built by deploy.sh (worker + a fresh vimarsha copy) and flash output.
+_stage/
+.flash/
+*.tar.gz
+__pycache__/
