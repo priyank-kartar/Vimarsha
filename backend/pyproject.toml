@@ -10,9 +10,10 @@ dependencies = [
     "fastapi>=0.136.3",
     "httpx>=0.28.1",
     "lxml>=6.1.1",
-    # Lower bound kept broad so the serverless (vLLM) resolution can pick numpy<2.3, which
-    # vLLM 0.10 requires; default/tts/kokoro still resolve to a modern numpy.
-    "numpy>=1.24",
+    # Capped <2.3 so every resolution (incl. the serverless/vLLM extra and its numba, which
+    # needs numpy<=2.2) lands on 2.2.x. Our code + Kokoro don't need >=2.3; without the cap the
+    # unconstrained base numpy (2.4) shadows the serverless-pinned 2.2 at install time.
+    "numpy>=1.24,<2.3",
     "pydantic>=2.13.4",
     "python-multipart>=0.0.30",
     "soundfile>=0.13.1",
