@@ -15,7 +15,8 @@ WORKDIR /app
 COPY pyproject.toml uv.lock .python-version README.md ./
 COPY src ./src
 COPY serverless ./serverless
-RUN uv python install 3.13 && uv sync --extra serverless --frozen --no-dev
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv python install 3.13 && uv sync --extra serverless --frozen --no-dev
 
 # chatterbox-vllm loads the T3 transformer as a vLLM model from ./t3-model (relative to CWD=/app)
 # and symlinks the weights into it at runtime; the dir + config.json must pre-exist. Kept AFTER

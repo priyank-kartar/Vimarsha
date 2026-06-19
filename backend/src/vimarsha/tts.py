@@ -136,14 +136,16 @@ class VllmChatterboxSynth:
     """
 
     def __init__(self, voice: str | None = None, audio_prompt_path: str | None = None,
-                 gpu_memory_utilization: float = 0.4, max_model_len: int = 1000):
+                 max_model_len: int = 1000):
         import os
 
         os.environ["CHATTERBOX_CFG_SCALE"] = _VLLM_CFG_SCALE
         from chatterbox_vllm.tts import ChatterboxTTS
 
+        # Do NOT pass gpu_memory_utilization: the port auto-sizes vLLM's share of the GPU AFTER
+        # the Chatterbox models (s3gen/voice-encoder) are loaded. Passing it overrides that smart
+        # value (the port merges our kwargs over its own) and vLLM then demands more than is free.
         self._model = ChatterboxTTS.from_pretrained(
-            gpu_memory_utilization=gpu_memory_utilization,
             max_model_len=max_model_len,
             enforce_eager=True,
         )
