@@ -1,7 +1,9 @@
 """RunPod serverless handler — narrates one chapter with Chatterbox and returns the bundle.
 
 Reuses the `vimarsha` package (installed in the image), so the worker IS the import pipeline
-with Chatterbox. `runpod` is imported only under __main__ so this module is unit-testable.
+with Chatterbox. SEQUENTIAL synthesis (real chatterbox-tts via `ChatterboxSynth`) — the vLLM
+batched port mangled the audio, so the worker runs the same per-block path as local narration.
+`runpod` is imported only under __main__ so this module is unit-testable.
 """
 from __future__ import annotations
 
@@ -12,14 +14,8 @@ from pathlib import Path
 from vimarsha.epub_reader import read_chapters
 from vimarsha.figure_images import extract_images
 from vimarsha.ingest import ingest_epub
-from vimarsha.narrate import narrate_bundle_batched
-from vimarsha.tts import VllmChatterboxSynth
-
-
-def build_batch_synth(engine: str, voice: str | None):
-    """The worker's batched synthesizer (overridable in tests). Premium narration is Chatterbox
-    via vLLM regardless of ``engine``; ``engine`` is accepted for symmetry with the API."""
-    return VllmChatterboxSynth(voice=voice)
+from vimarsha.narrate import narrate_bundle
+from vimarsha.tts import synth_class
 
 
 def handler(event: dict) -> dict:
@@ -39,8 +35,8 @@ def handler(event: dict) -> dict:
         bundles = ingest_epub(epub_path)
         if not (0 <= chapter_index < len(bundles)):
             return {"error": "chapter_index out of range"}
-        synth = build_batch_synth(engine, voice)
-        narrated = narrate_bundle_batched(bundles[chapter_index], synth, out_dir)
+        synth = synth_class(engine)(voice=voice)
+        narrated = narrate_bundle(bundles[chapter_index], synth, out_dir)
         extract_images(
             epub_path, narrated.chapter_id, chapters[chapter_index].href,
             narrated.figure_map, out_dir,

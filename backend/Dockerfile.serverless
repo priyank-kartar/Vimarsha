@@ -1,6 +1,6 @@
-# Vimarsha premium narration worker — Chatterbox (vLLM) on RunPod serverless.
-# Uses the CUDA *devel* image: vLLM's Triton JIT-compiles kernels at runtime and needs a C
-# compiler + CUDA headers (the -runtime image lacks them → "Failed to find C compiler").
+# Vimarsha premium narration worker — real (sequential) Chatterbox on RunPod serverless.
+# Uses the `tts` extra (chatterbox-tts + torch), NOT the vLLM batched port — the port mangled
+# the audio, so the worker narrates the same per-block path as local Chatterbox.
 FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -9,24 +9,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"
-ENV CC=gcc
 
 WORKDIR /app
 COPY pyproject.toml uv.lock .python-version README.md ./
 COPY src ./src
 COPY serverless ./serverless
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv python install 3.13 && uv sync --extra serverless --frozen --no-dev
-
-# chatterbox-vllm loads the T3 transformer as a vLLM model from ./t3-model (relative to CWD=/app)
-# and symlinks the weights into it at runtime; the dir + config.json must pre-exist. Kept AFTER
-# the uv sync so editing it never busts that expensive layer.
-COPY serverless/t3-model ./t3-model
-
-# Run vLLM's engine core IN-PROCESS (not a spawned subprocess). The custom ChatterboxT3 model
-# the port registers at import isn't visible to a spawned EngineCore, and in-process lets the
-# port's post-Chatterbox GPU memory auto-sizing match what vLLM sees. Required for this worker.
-ENV VLLM_ENABLE_V1_MULTIPROCESSING=0
+    uv python install 3.13 && uv sync --extra tts --frozen --no-dev
 
 # RunPod invokes the handler; uv run gives it the project venv (with the vimarsha package).
 CMD ["uv", "run", "python", "serverless/rp_handler.py"]
