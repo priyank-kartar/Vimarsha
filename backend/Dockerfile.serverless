@@ -23,5 +23,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # the uv sync so editing it never busts that expensive layer.
 COPY serverless/t3-model ./t3-model
 
+# Run vLLM's engine core IN-PROCESS (not a spawned subprocess). The custom ChatterboxT3 model
+# the port registers at import isn't visible to a spawned EngineCore, and in-process lets the
+# port's post-Chatterbox GPU memory auto-sizing match what vLLM sees. Required for this worker.
+ENV VLLM_ENABLE_V1_MULTIPROCESSING=0
+
 # RunPod invokes the handler; uv run gives it the project venv (with the vimarsha package).
 CMD ["uv", "run", "python", "serverless/rp_handler.py"]
