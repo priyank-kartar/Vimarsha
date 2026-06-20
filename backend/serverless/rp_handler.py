@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import tempfile
+import urllib.request
 from pathlib import Path
 
 from vimarsha.epub_reader import read_chapters
@@ -32,12 +33,27 @@ def build_synth(engine: str, voice: str | None):
     return _synth_cache[key]
 
 
+def _upload(url: str, secret: str, name: str, data: bytes) -> None:
+    """PUT one artifact (mp3/image) to the backend's /upload sink — used in callback mode to
+    bypass RunPod's 10MB job-result cap. ``url`` is the base (…/upload); ``name`` is the basename."""
+    req = urllib.request.Request(
+        f"{url.rstrip('/')}/{name}",
+        data=data,
+        method="PUT",
+        headers={"X-Ingest-Secret": secret, "Content-Type": "application/octet-stream"},
+    )
+    with urllib.request.urlopen(req, timeout=120) as resp:  # noqa: S310 (our own backend)
+        resp.read()
+
+
 def handler(event: dict) -> dict:
     inp = event.get("input") or {}
     data = base64.b64decode(inp["epub_b64"])
     chapter_index = int(inp.get("chapter_index", 0))
     engine = inp.get("engine") or "chatterbox"
     voice = inp.get("voice")
+    result_url = inp.get("result_url")
+    ingest_secret = inp.get("ingest_secret")
 
     out_dir = tempfile.mkdtemp(prefix="rp-audio-")
     with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as tmp:
@@ -61,12 +77,27 @@ def handler(event: dict) -> dict:
             narrated.figure_map, out_dir,
         )
         bundle = narrated.model_dump(by_alias=True, exclude_none=True)
-        audio_b64 = base64.b64encode((Path(out_dir) / bundle["audio"]).read_bytes()).decode()
-        images: dict[str, str] = {}
-        for fig in bundle.get("figureMap", []):
-            name = fig.get("image")
-            if name and (Path(out_dir) / name).is_file():
-                images[name] = base64.b64encode((Path(out_dir) / name).read_bytes()).decode()
+        audio_name = bundle["audio"]
+        image_names = [
+            fig["image"]
+            for fig in bundle.get("figureMap", [])
+            if fig.get("image") and (Path(out_dir) / fig["image"]).is_file()
+        ]
+
+        # Callback mode: upload audio + images out-of-band so the (possibly >10MB) bytes never
+        # ride in the job result. Return only the small bundle. Falls back to inline base64 when
+        # no callback is configured (small chapters / local tests).
+        if result_url and ingest_secret:
+            _upload(result_url, ingest_secret, audio_name, (Path(out_dir) / audio_name).read_bytes())
+            for name in image_names:
+                _upload(result_url, ingest_secret, name, (Path(out_dir) / name).read_bytes())
+            return {"bundle": bundle}
+
+        audio_b64 = base64.b64encode((Path(out_dir) / audio_name).read_bytes()).decode()
+        images = {
+            name: base64.b64encode((Path(out_dir) / name).read_bytes()).decode()
+            for name in image_names
+        }
         return {"bundle": bundle, "audio_b64": audio_b64, "images": images}
     finally:
         Path(epub_path).unlink(missing_ok=True)

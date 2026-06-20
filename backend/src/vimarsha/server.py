@@ -7,7 +7,7 @@ import uuid
 from pathlib import Path
 
 import numpy as np
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
@@ -204,12 +204,23 @@ def _runpod_api_key() -> str | None:
 
 
 def _resolve_remote_narrator(engine: str) -> RemoteNarrator:
-    """Build the RunPod narrator from config, or 503 if the premium endpoint isn't set up."""
+    """Build the RunPod narrator from config, or 503 if the premium endpoint isn't set up.
+
+    If a public callback URL + ingest secret are configured, the worker uploads audio/images
+    back here out-of-band (dodging RunPod's 10MB job-result cap) instead of inlining them.
+    """
     endpoint = os.environ.get("VIMARSHA_CHATTERBOX_ENDPOINT")
     key = _runpod_api_key()
     if not endpoint or not key:
         raise HTTPException(status_code=503, detail="premium narration not configured")
-    return RunPodNarrator(RunPodClient(endpoint_id=endpoint, api_key=key))
+    public_url = os.environ.get("VIMARSHA_PUBLIC_URL")
+    secret = os.environ.get("VIMARSHA_INGEST_SECRET")
+    result_url = f"{public_url.rstrip('/')}/upload" if (public_url and secret) else None
+    return RunPodNarrator(
+        RunPodClient(endpoint_id=endpoint, api_key=key),
+        result_url=result_url,
+        ingest_secret=secret if result_url else None,
+    )
 
 
 def _do_import_remote(
@@ -218,7 +229,10 @@ def _do_import_remote(
     """Narrate remotely and land the returned mp3 + figure images in the local audio dir."""
     result = narrator.narrate(data, chapter_index, engine, voice)
     out_dir = Path(app.state.audio_dir)
-    (out_dir / result.bundle["audio"]).write_bytes(result.audio)
+    # In callback mode the worker has already uploaded audio/images via /upload, so these are
+    # empty and the files are already on disk; only write when carried inline.
+    if result.audio:
+        (out_dir / result.bundle["audio"]).write_bytes(result.audio)
     for name, blob in result.images.items():
         safe = Path(name).name  # never a path
         if safe:
@@ -309,6 +323,23 @@ def import_status(job_id: str):
     if job is None:
         raise HTTPException(status_code=404, detail="unknown job")
     return job
+
+
+@app.put("/upload/{name:path}")
+async def upload_artifact(name: str, request: Request, x_ingest_secret: str = Header(default="")):
+    """Out-of-band sink for the remote worker's chapter mp3 + figure images. RunPod caps a job
+    result at 10MB, so long chapters can't inline their audio — the worker PUTs the bytes here
+    instead. Secret-gated; basename-sanitized so it can only land inside ``audio_dir``."""
+    secret = os.environ.get("VIMARSHA_INGEST_SECRET")
+    if not secret:
+        raise HTTPException(status_code=503, detail="upload not configured")
+    if x_ingest_secret != secret:
+        raise HTTPException(status_code=403, detail="bad ingest secret")
+    safe = Path(name).name
+    if not safe:
+        raise HTTPException(status_code=400, detail="bad name")
+    (Path(app.state.audio_dir) / safe).write_bytes(await request.body())
+    return {"ok": True, "name": safe}
 
 
 @app.get("/image/{name}")

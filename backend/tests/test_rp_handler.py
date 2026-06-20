@@ -51,6 +51,36 @@ def test_handler_narrates_and_returns_bundle_audio(sample_epub, monkeypatch):
     assert any(name.endswith(".png") for name in out["images"])
 
 
+def test_handler_uploads_out_of_band_when_callback_configured(sample_epub, monkeypatch):
+    from tests.fakes import FakeSynth
+
+    monkeypatch.setattr(rp_handler, "synth_class", lambda engine: (lambda voice=None: FakeSynth()))
+    uploads = []
+    monkeypatch.setattr(
+        rp_handler, "_upload", lambda url, secret, name, data: uploads.append((url, secret, name, len(data)))
+    )
+    epub_b64 = base64.b64encode(Path(sample_epub).read_bytes()).decode()
+    out = rp_handler.handler(
+        {
+            "input": {
+                "epub_b64": epub_b64,
+                "chapter_index": 0,
+                "engine": "chatterbox",
+                "voice": "cb_steady",
+                "result_url": "https://host/upload",
+                "ingest_secret": "sek",
+            }
+        }
+    )
+    # audio is NOT inlined (would hit the 10MB cap); it was uploaded out-of-band.
+    assert "audio_b64" not in out
+    assert out["bundle"]["audio"] == "chap1.mp3"
+    names = {name for _, _, name, _ in uploads}
+    assert "chap1.mp3" in names                              # audio uploaded
+    assert any(n.endswith(".png") for n in names)            # figure image uploaded
+    assert all(s == "sek" and u == "https://host/upload" for u, s, _, _ in uploads)
+
+
 def test_handler_reports_bad_chapter_index(sample_epub):
     epub_b64 = base64.b64encode(Path(sample_epub).read_bytes()).decode()
     out = rp_handler.handler({"input": {"epub_b64": epub_b64, "chapter_index": 9, "voice": "cb_steady"}})
