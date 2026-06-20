@@ -17,6 +17,20 @@ from vimarsha.ingest import ingest_epub
 from vimarsha.narrate import narrate_bundle
 from vimarsha.tts import synth_class
 
+# Warm worker: a RunPod worker process stays alive across requests (within the idle window), so
+# cache the synth — and thus the loaded model — instead of rebuilding it every job. Keyed by
+# (engine, voice); the common case is many chapters of one book → one voice → load once.
+_synth_cache: dict[tuple[str, str], object] = {}
+
+
+def build_synth(engine: str, voice: str | None):
+    """Cached synth factory (overridable in tests). Loads the model ONCE per (engine, voice)
+    per worker process, eliminating the ~30-60s per-request model reload."""
+    key = (engine or "chatterbox", voice or "")
+    if key not in _synth_cache:
+        _synth_cache[key] = synth_class(engine)(voice=voice)
+    return _synth_cache[key]
+
 
 def handler(event: dict) -> dict:
     inp = event.get("input") or {}
@@ -35,7 +49,7 @@ def handler(event: dict) -> dict:
         bundles = ingest_epub(epub_path)
         if not (0 <= chapter_index < len(bundles)):
             return {"error": "chapter_index out of range"}
-        synth = synth_class(engine)(voice=voice)
+        synth = build_synth(engine, voice)
         try:
             narrated = narrate_bundle(bundles[chapter_index], synth, out_dir)
         except ValueError as exc:

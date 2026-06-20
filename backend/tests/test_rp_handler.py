@@ -5,7 +5,34 @@ from pathlib import Path
 # Make backend/serverless importable as a top-level module.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "serverless"))
 
+import pytest  # noqa: E402
+
 import rp_handler  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _clear_synth_cache():
+    rp_handler._synth_cache.clear()
+    yield
+    rp_handler._synth_cache.clear()
+
+
+def test_warm_worker_loads_synth_once_per_voice(monkeypatch):
+    from tests.fakes import FakeSynth
+
+    builds = {"n": 0}
+
+    def _factory(engine):
+        def make(voice=None):
+            builds["n"] += 1
+            return FakeSynth()
+        return make
+
+    monkeypatch.setattr(rp_handler, "synth_class", _factory)
+    a = rp_handler.build_synth("chatterbox", "cb_steady")
+    b = rp_handler.build_synth("chatterbox", "cb_steady")
+    assert a is b               # same cached instance — model not reloaded
+    assert builds["n"] == 1     # built exactly once for that voice
 
 
 def test_handler_narrates_and_returns_bundle_audio(sample_epub, monkeypatch):
