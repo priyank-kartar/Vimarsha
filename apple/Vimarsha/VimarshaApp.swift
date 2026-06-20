@@ -31,6 +31,9 @@ struct VimarshaApp: App {
     var body: some Scene {
         WindowGroup {
             LibraryStackView(store: store, audioEngine: audioEngine, recorder: recorder)
+                // No keyboard-focus ring lingering on the round glass buttons after a click
+                // (every icon button) — this is a tap/scroll surface, not a focus-driven one.
+                .focusEffectDisabled()
         }
         #if os(macOS)
         .defaultSize(width: 480, height: 920)

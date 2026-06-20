@@ -283,6 +283,9 @@ struct LibraryStackView: View {
                         .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
+                // The whole 44×44 circle is tappable, not just the glyph (SwiftUI hit-tests the
+                // label's opaque pixels otherwise).
+                .contentShape(Circle())
                 .background {
                     if reduceTransparency {
                         Circle().fill(Palette.surface)
@@ -573,6 +576,7 @@ struct LibraryStackView: View {
                             .frame(width: 34, height: 34)
                     }
                     .buttonStyle(.plain)
+                    .contentShape(Circle())
                     .background(Circle().fill(Palette.textPrimary.opacity(0.06)))
                     .padding(.trailing, 14)
                     .accessibilityLabel("Close")
@@ -696,6 +700,7 @@ struct LibraryStackView: View {
             )
         }
         let shelfBook = ShelfBook(book: book, cover: store?.covers[book.id])
+        store?.markOpened(book)   // bubbles this book to the top of the shelf (most-recent first)
         withAnimation(coverMorphAnimation) {
             chapterBook = nil
             reading = ReadingContext(book: book, chapter: chapter, shelfBook: shelfBook)

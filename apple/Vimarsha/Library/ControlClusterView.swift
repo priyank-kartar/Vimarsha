@@ -74,6 +74,8 @@ struct ControlClusterView: View {
     private func controlButton(_ control: ControlCluster.Control) -> some View {
         Button { onActivate(control) } label: { icon(control) }
             .buttonStyle(.plain)
+            // The whole glass circle is tappable, not just the glyph.
+            .contentShape(Circle())
             .accessibilityLabel(control.label)
     }
 

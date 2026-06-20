@@ -48,10 +48,22 @@ final class LibraryStore {
     }
 
     func load() {
-        let descriptor = FetchDescriptor<Book>(sortBy: [SortDescriptor(\.addedAt)])
-        books = (try? context.fetch(descriptor)) ?? []
+        books = sortedByRecency((try? context.fetch(FetchDescriptor<Book>())) ?? [])
         healChapterStates()
         loadMissingCovers()
+    }
+
+    /// Most-recent activity first: the last-listened book leads, falling back to add time for
+    /// books never opened (so a freshly imported book still surfaces near the top).
+    private func sortedByRecency(_ books: [Book]) -> [Book] {
+        books.sorted { ($0.lastOpenedAt ?? $0.addedAt) > ($1.lastOpenedAt ?? $1.addedAt) }
+    }
+
+    /// Record that a book was just opened and re-order the shelf so it rises to the top.
+    func markOpened(_ book: Book) {
+        book.lastOpenedAt = .now
+        try? context.save()
+        books = sortedByRecency(books)
     }
 
     /// Self-heal stale chapter rows (data-model.md §Rules): `ready` with missing cache
