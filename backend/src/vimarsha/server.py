@@ -317,7 +317,8 @@ def get_image(name: str):
     path = (base / name).resolve()
     if not path.is_file() or not path.is_relative_to(base):
         raise HTTPException(status_code=404, detail="image not found")
-    return FileResponse(str(path))
+    # Transient cache: the client keeps its own copy, so free the host disk after serving.
+    return FileResponse(str(path), background=BackgroundTask(os.remove, str(path)))
 
 
 @app.get("/audio/{name}")
@@ -326,7 +327,11 @@ def get_audio(name: str):
     path = (base / name).resolve()
     if not path.is_file() or not path.is_relative_to(base):
         raise HTTPException(status_code=404, detail="audio not found")
-    return FileResponse(str(path), media_type="audio/mpeg")
+    # Transient cache: the app downloads each chapter once and caches it locally (stateless
+    # backend), so delete the file after serving to keep the host disk from filling up.
+    return FileResponse(
+        str(path), media_type="audio/mpeg", background=BackgroundTask(os.remove, str(path))
+    )
 
 
 @app.post("/speak")
