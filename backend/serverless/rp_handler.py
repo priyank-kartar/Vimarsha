@@ -35,12 +35,19 @@ def build_synth(engine: str, voice: str | None):
 
 def _upload(url: str, secret: str, name: str, data: bytes) -> None:
     """PUT one artifact (mp3/image) to the backend's /upload sink — used in callback mode to
-    bypass RunPod's 10MB job-result cap. ``url`` is the base (…/upload); ``name`` is the basename."""
+    bypass RunPod's 10MB job-result cap. ``url`` is the base (…/upload); ``name`` is the basename.
+
+    The backend sits behind Cloudflare, which 403s urllib's default ``Python-urllib`` User-Agent
+    (bot protection) — so a real User-Agent MUST be set or every upload fails at the edge."""
     req = urllib.request.Request(
         f"{url.rstrip('/')}/{name}",
         data=data,
         method="PUT",
-        headers={"X-Ingest-Secret": secret, "Content-Type": "application/octet-stream"},
+        headers={
+            "X-Ingest-Secret": secret,
+            "Content-Type": "application/octet-stream",
+            "User-Agent": "vimarsha-worker/1.0",
+        },
     )
     with urllib.request.urlopen(req, timeout=120) as resp:  # noqa: S310 (our own backend)
         resp.read()

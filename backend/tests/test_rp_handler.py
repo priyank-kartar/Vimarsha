@@ -81,6 +81,28 @@ def test_handler_uploads_out_of_band_when_callback_configured(sample_epub, monke
     assert all(s == "sek" and u == "https://host/upload" for u, s, _, _ in uploads)
 
 
+def test_upload_sets_user_agent(monkeypatch):
+    # Cloudflare 403s urllib's default User-Agent, so _upload MUST send a real one.
+    captured = {}
+
+    class _Resp:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return b""
+
+    def _fake_urlopen(req, timeout=None):
+        captured["ua"] = req.get_header("User-agent")
+        captured["url"] = req.full_url
+        captured["secret"] = req.get_header("X-ingest-secret")
+        return _Resp()
+
+    monkeypatch.setattr(rp_handler.urllib.request, "urlopen", _fake_urlopen)
+    rp_handler._upload("https://host/upload", "sek", "chap1.mp3", b"DATA")
+    assert captured["ua"] and "urllib" not in captured["ua"].lower()
+    assert captured["url"] == "https://host/upload/chap1.mp3"
+    assert captured["secret"] == "sek"
+
+
 def test_handler_reports_bad_chapter_index(sample_epub):
     epub_b64 = base64.b64encode(Path(sample_epub).read_bytes()).decode()
     out = rp_handler.handler({"input": {"epub_b64": epub_b64, "chapter_index": 9, "voice": "cb_steady"}})
