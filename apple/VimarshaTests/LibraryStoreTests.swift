@@ -206,6 +206,21 @@ struct LibraryStoreTests {
         #expect(FileManager.default.fileExists(atPath: root.appending(path: audioPath).path))
     }
 
+    @Test func downloadBookNarratesEveryChapter() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let (store, book) = try await makeStoreWithBook(root: root, backend: .narrating())
+        #expect(book.chapters.allSatisfy { $0.status == .none })
+
+        let task = try #require(store.downloadBook(book))
+        #expect(store.isDownloadingBook(book))           // in-flight, synchronously
+        #expect(store.downloadBook(book) == nil)         // second call is a no-op while running
+        await task.value
+
+        #expect(book.chapters.allSatisfy { $0.status == .ready })
+        #expect(!store.isDownloadingBook(book))
+    }
+
     @Test func downloadFailureMarksErrorWithReason() async throws {
         let root = try makeRoot()
         defer { try? FileManager.default.removeItem(at: root) }
