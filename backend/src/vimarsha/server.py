@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import tempfile
 import threading
+import time
 import uuid
 from pathlib import Path
 
@@ -304,6 +305,7 @@ async def import_chapter(
         narrator = None
         synth_for_job = _resolve_synth(engine, voice, synth)  # validates engine → 400
     data = await file.read()
+    _sweep_cache()  # reap stale served files (bounded storage without deleting on serve)
     job_id = uuid.uuid4().hex
     with _jobs_lock:
         _jobs[job_id] = {"status": "pending"}
@@ -342,14 +344,34 @@ async def upload_artifact(name: str, request: Request, x_ingest_secret: str = He
     return {"ok": True, "name": safe}
 
 
+def _sweep_cache(ttl_seconds: float | None = None) -> None:
+    """Delete cached audio/images older than the TTL. The cache is transient (the client keeps
+    its own copy), but we must NOT delete on serve: a backgrounded or retrying client would then
+    miss the file and report "narration failed" even though narration succeeded. Instead, retain
+    each file and sweep stale ones opportunistically (on import) so host storage stays bounded.
+    TTL is generous so a client that lost focus mid-download can still re-fetch."""
+    ttl = ttl_seconds if ttl_seconds is not None else float(os.environ.get("VIMARSHA_CACHE_TTL_S", 3600))
+    base = Path(app.state.audio_dir)
+    if not base.is_dir():
+        return
+    cutoff = time.time() - ttl
+    for f in base.iterdir():
+        try:
+            if f.is_file() and f.stat().st_mtime < cutoff:
+                f.unlink()
+        except OSError:
+            pass
+
+
 @app.get("/image/{name}")
 def get_image(name: str):
     base = Path(app.state.audio_dir).resolve()
     path = (base / name).resolve()
     if not path.is_file() or not path.is_relative_to(base):
         raise HTTPException(status_code=404, detail="image not found")
-    # Transient cache: the client keeps its own copy, so free the host disk after serving.
-    return FileResponse(str(path), background=BackgroundTask(os.remove, str(path)))
+    # Retained, not deleted-on-serve: a backgrounded/retrying client must be able to re-fetch.
+    # Stale files are reaped by `_sweep_cache` on the next import.
+    return FileResponse(str(path))
 
 
 @app.get("/audio/{name}")
@@ -358,11 +380,9 @@ def get_audio(name: str):
     path = (base / name).resolve()
     if not path.is_file() or not path.is_relative_to(base):
         raise HTTPException(status_code=404, detail="audio not found")
-    # Transient cache: the app downloads each chapter once and caches it locally (stateless
-    # backend), so delete the file after serving to keep the host disk from filling up.
-    return FileResponse(
-        str(path), media_type="audio/mpeg", background=BackgroundTask(os.remove, str(path))
-    )
+    # Retained, not deleted-on-serve (see `_sweep_cache`): deleting right after serving made a
+    # client that lost focus mid-download miss the file → spurious "narration failed".
+    return FileResponse(str(path), media_type="audio/mpeg")
 
 
 @app.post("/speak")
