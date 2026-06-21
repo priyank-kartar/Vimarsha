@@ -12,6 +12,8 @@ import SwiftUI
 @Observable
 final class PlayerController {
     private let engine: any AudioEngine
+    /// Lock-screen / Control-Center Now Playing + remote commands for the active chapter.
+    private let nowPlaying = NowPlayingCenter()
     private let context: ModelContext
     private let containerRoot: URL
 
@@ -89,12 +91,15 @@ final class PlayerController {
         chapter.durationMs = durationMs
         try? context.save()
         engine.onFinish = { [weak self] in self?.handleFinish() }
+        bindRemoteCommands()
+        updateNowPlaying()
     }
 
     func play() {
         engine.play()
         isPlaying = engine.isPlaying
         if isPlaying { startTicker() }
+        updateNowPlaying()
     }
 
     /// Pause and persist — leaving the surface or backgrounding goes through here; the
@@ -104,6 +109,7 @@ final class PlayerController {
         isPlaying = false
         stopTicker()
         persist()
+        updateNowPlaying()
     }
 
     func togglePlayPause() {
@@ -115,6 +121,7 @@ final class PlayerController {
         let clamped = min(max(ms, 0), durationMs)
         engine.seek(toMs: clamped)
         positionMs = clamped
+        updateNowPlaying()
     }
 
     /// Seek forward/back by a delta, clamped.
@@ -132,6 +139,35 @@ final class PlayerController {
     func setRate(_ newRate: Double) {
         engine.setRate(newRate)
         rate = newRate
+        updateNowPlaying()
+    }
+
+    /// Wire the lock-screen / Control-Center transport to this controller (so commands keep
+    /// app state in sync). Re-binding on each load points the controls at the live chapter.
+    private func bindRemoteCommands() {
+        nowPlaying.bind(
+            play: { [weak self] in self?.play() },
+            pause: { [weak self] in self?.pause() },
+            toggle: { [weak self] in self?.togglePlayPause() },
+            skip: { [weak self] secs in self?.skip(byMs: Int(secs * 1000)) },
+            seek: { [weak self] secs in self?.seek(toMs: Int(secs * 1000)) }
+        )
+    }
+
+    /// Refresh the lock-screen Now Playing metadata + transport state (title/book/author,
+    /// duration, elapsed, rate). iOS extrapolates the moving scrubber from rate+elapsed, so
+    /// this only needs calling on transport changes, not every tick.
+    private func updateNowPlaying() {
+        guard let chapter else { return }
+        nowPlaying.update(
+            title: chapter.title,
+            album: chapter.book?.title ?? "",
+            artist: chapter.book?.author ?? "",
+            durationMs: durationMs,
+            positionMs: positionMs,
+            rate: rate,
+            isPlaying: isPlaying
+        )
     }
 
     /// Pull the playhead from the engine and persist when it has moved a save interval.
@@ -184,6 +220,7 @@ final class PlayerController {
         isPlaying = false
         positionMs = durationMs
         persist()
+        updateNowPlaying()
     }
 
     private func persist() {
