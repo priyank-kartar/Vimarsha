@@ -53,6 +53,36 @@ def test_runpod_narrator_passes_callback_config_and_handles_out_of_band_audio():
     assert result.images == {}
 
 
+def test_runpod_narrator_tolerates_transient_poll_errors():
+    # A connection reset mid-poll must not kill a long narration; the loop retries a bounded
+    # number of consecutive failures and succeeds when polling recovers.
+    output = {"bundle": {"chapterId": "c1", "audio": "c1.mp3"}, "audio_b64": base64.b64encode(b"X").decode()}
+
+    class _Flaky(_StubClient):
+        def status(self, job_id):
+            self._polls += 1
+            if self._polls <= 3:
+                raise ConnectionResetError("[Errno 54] Connection reset by peer")
+            return {"status": "COMPLETED", "output": output}
+
+    narrator = RunPodNarrator(_Flaky(output), poll_interval=0.0)
+    result = narrator.narrate(b"x", 0, "chatterbox", "cb_steady")
+    assert result.bundle["chapterId"] == "c1"
+
+
+def test_runpod_narrator_gives_up_after_persistent_poll_errors():
+    class _Dead(_StubClient):
+        def status(self, job_id):
+            raise ConnectionResetError("reset")
+
+    narrator = RunPodNarrator(_Dead(None), poll_interval=0.0)
+    try:
+        narrator.narrate(b"x", 0, "chatterbox", "cb_steady")
+        raise AssertionError("expected failure")
+    except RuntimeError as exc:
+        assert "poll" in str(exc).lower()
+
+
 def test_runpod_narrator_raises_on_failed():
     class _Failing(_StubClient):
         def status(self, job_id):
