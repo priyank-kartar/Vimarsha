@@ -65,7 +65,14 @@ extension Color {
     }
 
     /// A dynamic color that resolves per the active appearance.
-    init(light: Color, dark: Color) {
+    ///
+    /// MUST be `nonisolated`: UIKit/AppKit invoke the trait-resolution closure on whatever
+    /// thread is resolving the color, and SwiftUI resolves colors OFF the main actor during
+    /// some view updates (e.g. the Discuss panel's keyboard/TextEditor layout). Under the
+    /// project's default main-actor isolation, an isolated provider closure traps there with
+    /// EXC_BREAKPOINT (swift_task_checkIsolatedSwift → dispatch_assert_queue). `nonisolated`
+    /// makes the closure safe to call from any thread (it only reads Sendable Colors).
+    nonisolated init(light: Color, dark: Color) {
         #if os(macOS)
         self.init(nsColor: NSColor(name: nil) { appearance in
             let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
