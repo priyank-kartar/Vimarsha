@@ -36,6 +36,12 @@ kokoro = [
     "torchaudio",
     "soundfile",
 ]
+# Whisper STT only (memo transcription). Lightweight: faster-whisper rides CTranslate2, NOT
+# torch, so the premium backend (Chatterbox narration runs remotely on RunPod) can serve
+# /transcribe without the heavy `tts`/`kokoro` stacks. Run the dev backend with `--extra stt`.
+stt = [
+    "faster-whisper",
+]
 # The RunPod serverless worker image (Chatterbox narration only). Mirrors `tts` minus the
 # Whisper STT dep, plus the RunPod SDK that runs the handler. Installed in Dockerfile.serverless.
 # Real sequential chatterbox-tts (the vLLM batched port mangled the audio — removed).
