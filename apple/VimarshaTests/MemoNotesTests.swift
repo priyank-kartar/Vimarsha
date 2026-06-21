@@ -93,6 +93,38 @@ struct MemoNotesTests {
         #expect(f.chapterEngine.loadedURL?.lastPathComponent == "chapter.mp3")
     }
 
+    @Test("narration resumes when a memo finishes if it was playing before")
+    func resumesNarrationAfterMemoFinishes() throws {
+        let f = try makeFixture()
+        let memo = try makeMemo(in: f)
+        f.player.play()
+        f.notes.play(memo)
+        #expect(!f.player.isPlaying)        // paused for the memo
+        f.memoEngine.finish()               // memo plays to its natural end
+        #expect(f.player.isPlaying)         // book resumes
+        #expect(f.notes.playingMemoId == nil)
+    }
+
+    @Test("a memo finishing does NOT resume narration that was already paused")
+    func doesNotResumeIfNarrationWasPaused() throws {
+        let f = try makeFixture()
+        let memo = try makeMemo(in: f)
+        // book not playing when the memo starts
+        f.notes.play(memo)
+        f.memoEngine.finish()
+        #expect(!f.player.isPlaying)        // stays paused
+    }
+
+    @Test("manually stopping a memo never auto-resumes narration")
+    func manualStopDoesNotResume() throws {
+        let f = try makeFixture()
+        let memo = try makeMemo(in: f)
+        f.player.play()
+        f.notes.play(memo)                  // pauses the book
+        f.notes.play(memo)                  // tap again = manual stop
+        #expect(!f.player.isPlaying)        // not resumed (manual)
+    }
+
     @Test("tapping the playing memo stops it; another memo switches over")
     func toggleAndSwitch() throws {
         let f = try makeFixture()
