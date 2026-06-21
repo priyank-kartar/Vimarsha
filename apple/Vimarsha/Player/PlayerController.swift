@@ -1,4 +1,5 @@
 import Foundation
+import MediaPlayer
 import SwiftData
 import SwiftUI
 
@@ -14,6 +15,8 @@ final class PlayerController {
     private let engine: any AudioEngine
     /// Lock-screen / Control-Center Now Playing + remote commands for the active chapter.
     private let nowPlaying = NowPlayingCenter()
+    /// Book cover as lock-screen artwork, decoded off-main once per chapter load.
+    private var artwork: MPMediaItemArtwork?
     private let context: ModelContext
     private let containerRoot: URL
 
@@ -92,6 +95,8 @@ final class PlayerController {
         try? context.save()
         engine.onFinish = { [weak self] in self?.handleFinish() }
         bindRemoteCommands()
+        artwork = nil
+        loadArtwork(for: chapter)
         updateNowPlaying()
     }
 
@@ -155,8 +160,8 @@ final class PlayerController {
     }
 
     /// Refresh the lock-screen Now Playing metadata + transport state (title/book/author,
-    /// duration, elapsed, rate). iOS extrapolates the moving scrubber from rate+elapsed, so
-    /// this only needs calling on transport changes, not every tick.
+    /// duration, elapsed, rate, cover art). iOS extrapolates the moving scrubber from
+    /// rate+elapsed, so this only needs calling on transport changes, not every tick.
     private func updateNowPlaying() {
         guard let chapter else { return }
         nowPlaying.update(
@@ -166,8 +171,24 @@ final class PlayerController {
             durationMs: durationMs,
             positionMs: positionMs,
             rate: rate,
-            isPlaying: isPlaying
+            isPlaying: isPlaying,
+            artwork: artwork
         )
+    }
+
+    /// Decode the book cover off the main actor (like figure images) and, once ready, fold it
+    /// into the lock-screen Now Playing info. Best-effort — no cover just leaves it text-only.
+    private func loadArtwork(for chapter: Chapter) {
+        guard let coverPath = chapter.book?.coverPath else { return }
+        let url = containerRoot.appending(path: coverPath)
+        Task { [weak self] in
+            guard let cg = await Task.detached(operation: {
+                CoverArt.downsampled(at: url, maxPixelSize: 600)
+            }).value else { return }
+            guard let self, self.chapter?.id == chapter.id else { return }
+            self.artwork = NowPlayingCenter.artwork(from: cg)
+            self.updateNowPlaying()
+        }
     }
 
     /// Pull the playhead from the engine and persist when it has moved a save interval.
