@@ -127,10 +127,9 @@ struct ReadingSurfaceView: View {
                     : .spring(response: 0.4, dampingFraction: 0.9),
                 value: showNotes
             )
-            // Leaving the Notes state (any route) stops a playing memo clip.
-            .onChange(of: showNotes) { _, showing in
-                if !showing { memoNotes?.stopPlayback() }
-            }
+            // Minimizing Notes leaves a playing memo running on purpose: it plays to the end,
+            // then resumes the book if it was playing (MemoNotes). Closing the book entirely
+            // still stops the clip (closeReadingSurface → stopPlayback).
             // The compact glass transport (V19) floats over the paper body — never a
             // chrome bar — and the figure carrier (V20) auto-pops above it at each
             // figure's startMs, recedes at endMs. Only when a chapter is actually loaded.
@@ -398,7 +397,15 @@ struct ReadingSurfaceView: View {
     /// glass; matte fallback under Reduce Transparency.
     private func closeBar(player: PlayerController?) -> some View {
         HStack {
-            glassControl(symbol: "chevron.down", label: "Close book", action: onClose)
+            // The down arrow steps DOWN one level: minimize an open sub-state (Notes / Figures)
+            // back to the reading surface first; only close the whole book when already reading.
+            // Minimizing Notes deliberately leaves a playing memo running (it resumes the book
+            // when it finishes — MemoNotes).
+            glassControl(symbol: "chevron.down", label: showNotes || showGallery ? "Back to reading" : "Close book") {
+                if showNotes { showNotes = false }
+                else if showGallery { showGallery = false }
+                else { onClose() }
+            }
             Spacer()
             if memoNotes != nil, player?.bundle != nil {
                 glassControl(

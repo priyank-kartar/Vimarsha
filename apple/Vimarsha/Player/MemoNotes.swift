@@ -8,7 +8,8 @@ import SwiftData
 /// Memo playback rides its OWN ephemeral engine (the Flutter spec's sanctioned
 /// "separate handler instance"): the chapter's shared engine keeps its loaded MP3 and
 /// resume position untouched. Playing a memo pauses narration (audio-conflict rule,
-/// sound-design.md) and does not auto-resume it — the reader is reviewing notes.
+/// sound-design.md); when the memo finishes naturally, narration RESUMES iff it was playing
+/// when the memo started (manual stop / open-at-pin / delete do not resume).
 @Observable
 @MainActor
 final class MemoNotes {
@@ -19,6 +20,10 @@ final class MemoNotes {
 
     /// The memo currently playing through the memo engine (nil = none).
     private(set) var playingMemoId: UUID?
+    /// Whether to resume chapter narration when the current memo finishes — set from the
+    /// player's play state at memo start, cleared on a manual stop so only a natural finish
+    /// resumes the book.
+    private var resumeBookAfterMemo = false
 
     init(
         player: PlayerController,
@@ -30,7 +35,15 @@ final class MemoNotes {
         self.memoEngine = memoEngine
         self.store = store
         self.containerRoot = containerRoot
-        memoEngine.onFinish = { [weak self] in self?.playingMemoId = nil }
+        // Natural finish: clear the playing row and resume the book if it was playing.
+        memoEngine.onFinish = { [weak self] in
+            guard let self else { return }
+            self.playingMemoId = nil
+            if self.resumeBookAfterMemo {
+                self.resumeBookAfterMemo = false
+                self.player.play()
+            }
+        }
     }
 
     /// The open chapter's memos, newest first (the Flutter `watchMemos` ordering).
@@ -43,12 +56,16 @@ final class MemoNotes {
     /// is a no-op (the row still shows its transcript — Flutter parity).
     func play(_ memo: Memo) {
         if playingMemoId == memo.id {
+            // Manual stop — don't auto-resume the book.
             memoEngine.pause()
             playingMemoId = nil
+            resumeBookAfterMemo = false
             return
         }
         let url = containerRoot.appending(path: memo.audioPath)
         guard (try? memoEngine.load(url: url)) != nil else { return }
+        // Remember the book's play state only on the FIRST memo (switching memos keeps it).
+        if playingMemoId == nil { resumeBookAfterMemo = player.isPlaying }
         if player.isPlaying { player.pause() }
         memoEngine.play()
         playingMemoId = memo.id
@@ -77,6 +94,7 @@ final class MemoNotes {
         if playingMemoId != nil {
             memoEngine.pause()
             playingMemoId = nil
+            resumeBookAfterMemo = false   // manual/terminal stop never auto-resumes
         }
     }
 }
