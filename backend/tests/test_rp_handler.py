@@ -18,17 +18,15 @@ def _clear_synth_cache():
 
 
 def test_warm_worker_loads_synth_once_per_voice(monkeypatch):
-    from tests.fakes import FakeSynth
+    from tests.fakes import FakeBatchSynth
 
     builds = {"n": 0}
 
-    def _factory(engine):
-        def make(voice=None):
-            builds["n"] += 1
-            return FakeSynth()
-        return make
+    def _make(engine, voice=None):
+        builds["n"] += 1
+        return FakeBatchSynth()
 
-    monkeypatch.setattr(rp_handler, "synth_class", _factory)
+    monkeypatch.setattr(rp_handler, "make_batch_synth", _make)
     a = rp_handler.build_synth("chatterbox", "cb_steady")
     b = rp_handler.build_synth("chatterbox", "cb_steady")
     assert a is b               # same cached instance — model not reloaded
@@ -36,10 +34,9 @@ def test_warm_worker_loads_synth_once_per_voice(monkeypatch):
 
 
 def test_handler_narrates_and_returns_bundle_audio(sample_epub, monkeypatch):
-    from tests.fakes import FakeSynth
+    from tests.fakes import FakeBatchSynth
 
-    # Sequential synth: synth_class(engine) -> a class whose () returns a FakeSynth.
-    monkeypatch.setattr(rp_handler, "synth_class", lambda engine: (lambda voice=None: FakeSynth()))
+    monkeypatch.setattr(rp_handler, "make_batch_synth", lambda engine, voice=None: FakeBatchSynth())
     epub_b64 = base64.b64encode(Path(sample_epub).read_bytes()).decode()
     out = rp_handler.handler(
         {"input": {"epub_b64": epub_b64, "chapter_index": 0, "engine": "chatterbox", "voice": "cb_steady"}}
@@ -52,9 +49,9 @@ def test_handler_narrates_and_returns_bundle_audio(sample_epub, monkeypatch):
 
 
 def test_handler_uploads_out_of_band_when_callback_configured(sample_epub, monkeypatch):
-    from tests.fakes import FakeSynth
+    from tests.fakes import FakeBatchSynth
 
-    monkeypatch.setattr(rp_handler, "synth_class", lambda engine: (lambda voice=None: FakeSynth()))
+    monkeypatch.setattr(rp_handler, "make_batch_synth", lambda engine, voice=None: FakeBatchSynth())
     uploads = []
     monkeypatch.setattr(
         rp_handler, "_upload", lambda url, secret, name, data: uploads.append((url, secret, name, len(data)))

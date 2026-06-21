@@ -33,6 +33,9 @@ class RunPodNarrator:
 
     _TERMINAL_OK = "COMPLETED"
     _TERMINAL_FAIL = {"FAILED", "CANCELLED", "TIMED_OUT"}
+    # Narration polls for minutes; a single transient network blip (connection reset, 5xx)
+    # must not kill the job. Give up only after this many CONSECUTIVE poll failures.
+    _MAX_POLL_ERRORS = 8
 
     def __init__(
         self,
@@ -64,8 +67,17 @@ class RunPodNarrator:
             payload["ingest_secret"] = self._ingest_secret
         job_id = self._client.submit(payload)
         deadline = time.monotonic() + self._timeout_s
+        poll_errors = 0
         while time.monotonic() < deadline:
-            body = self._client.status(job_id)
+            try:
+                body = self._client.status(job_id)
+            except Exception as exc:  # noqa: BLE001 — transient network/5xx; retry a bounded number
+                poll_errors += 1
+                if poll_errors > self._MAX_POLL_ERRORS:
+                    raise RuntimeError(f"remote narration polling failed repeatedly: {exc}") from exc
+                time.sleep(self._poll_interval)
+                continue
+            poll_errors = 0
             status = body.get("status")
             if status == self._TERMINAL_OK:
                 out = body.get("output") or {}

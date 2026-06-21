@@ -1,22 +1,27 @@
 """RunPod serverless handler — narrates one chapter with Chatterbox and returns the bundle.
 
 Reuses the `vimarsha` package (installed in the image), so the worker IS the import pipeline
-with Chatterbox. SEQUENTIAL synthesis (real chatterbox-tts via `ChatterboxSynth`) — the vLLM
-batched port mangled the audio, so the worker runs the same per-block path as local narration.
-`runpod` is imported only under __main__ so this module is unit-testable.
+with Chatterbox. BATCHED synthesis via the patched petermg fork (`ChatterboxBatchSynth` +
+`narrate_bundle_batched`) — ~3.4x faster than sequential on a full chapter, same audio. The
+fork is overlaid over pip's chatterbox in the image (see Dockerfile.serverless). `runpod` is
+imported only under __main__ so this module is unit-testable.
 """
 from __future__ import annotations
 
 import base64
+import os
 import tempfile
 import urllib.request
 from pathlib import Path
 
+from vimarsha.chatterbox_batch import ChatterboxBatchSynth
 from vimarsha.epub_reader import read_chapters
 from vimarsha.figure_images import extract_images
 from vimarsha.ingest import ingest_epub
-from vimarsha.narrate import narrate_bundle
-from vimarsha.tts import synth_class
+from vimarsha.narrate import narrate_bundle_batched
+
+# GPU-memory-bound batch width; tune per GPU (A40 48GB comfortably handles 16+).
+MAX_BATCH = int(os.environ.get("VIMARSHA_MAX_BATCH", "16"))
 
 # Warm worker: a RunPod worker process stays alive across requests (within the idle window), so
 # cache the synth — and thus the loaded model — instead of rebuilding it every job. Keyed by
@@ -24,12 +29,17 @@ from vimarsha.tts import synth_class
 _synth_cache: dict[tuple[str, str], object] = {}
 
 
+def make_batch_synth(engine: str, voice: str | None):
+    """Construct the batched synth (overridable in tests)."""
+    return ChatterboxBatchSynth(voice=voice)
+
+
 def build_synth(engine: str, voice: str | None):
-    """Cached synth factory (overridable in tests). Loads the model ONCE per (engine, voice)
-    per worker process, eliminating the ~30-60s per-request model reload."""
+    """Cached batched-synth factory. Loads the model ONCE per (engine, voice) per worker
+    process, eliminating the ~30-60s per-request model reload."""
     key = (engine or "chatterbox", voice or "")
     if key not in _synth_cache:
-        _synth_cache[key] = synth_class(engine)(voice=voice)
+        _synth_cache[key] = make_batch_synth(engine, voice)
     return _synth_cache[key]
 
 
@@ -74,7 +84,7 @@ def handler(event: dict) -> dict:
             return {"error": "chapter_index out of range"}
         synth = build_synth(engine, voice)
         try:
-            narrated = narrate_bundle(bundles[chapter_index], synth, out_dir)
+            narrated = narrate_bundle_batched(bundles[chapter_index], synth, out_dir, max_batch=MAX_BATCH)
         except ValueError as exc:
             # e.g. a part-divider/front-matter chapter with no narratable text — report it as a
             # clean error (the client marks the chapter failed) rather than crashing the worker.

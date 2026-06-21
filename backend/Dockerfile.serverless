@@ -1,6 +1,7 @@
-# Vimarsha premium narration worker — real (sequential) Chatterbox on RunPod serverless.
-# Uses the `tts` extra (chatterbox-tts + torch), NOT the vLLM batched port — the port mangled
-# the audio, so the worker narrates the same per-block path as local Chatterbox.
+# Vimarsha premium narration worker — BATCHED Chatterbox on RunPod serverless.
+# Installs official chatterbox-tts (deps) via the `serverless` extra, then overlays the petermg
+# Chatterbox-TTS-Extended fork (pinned) for `generate_batch`. The fork's batched path is buggy;
+# `vimarsha.chatterbox_batch.apply_batch_patches` fixes it at load (~3.4x over sequential).
 FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -16,6 +17,14 @@ COPY src ./src
 COPY serverless ./serverless
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv python install 3.13 && uv sync --extra serverless --frozen --no-dev
+
+# Overlay the pinned fork's `chatterbox` package over the pip-installed one (adds generate_batch).
+ARG FORK_SHA=7b43fc08faa42160208a7e3d0c521a453e59125d
+RUN git clone https://github.com/petermg/Chatterbox-TTS-Extended.git /tmp/fork \
+    && git -C /tmp/fork checkout "$FORK_SHA" \
+    && site=$(/app/.venv/bin/python -c "import chatterbox, os; print(os.path.dirname(chatterbox.__file__))") \
+    && rm -rf "$site" && cp -r /tmp/fork/chatterbox/src/chatterbox "$site" && rm -rf /tmp/fork \
+    && /app/.venv/bin/python -c "from chatterbox.tts import ChatterboxTTS; assert hasattr(ChatterboxTTS,'generate_batch'); print('fork generate_batch OK')"
 
 # RunPod invokes the handler; uv run gives it the project venv (with the vimarsha package).
 CMD ["uv", "run", "python", "serverless/rp_handler.py"]
