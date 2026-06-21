@@ -1,5 +1,10 @@
 import Foundation
 import MediaPlayer
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 /// Lock-screen / Control-Center "Now Playing" + remote transport for the active chapter.
 /// On iOS this is the lock-screen art + play/pause/scrub; on macOS the same surfaces via
@@ -45,9 +50,10 @@ final class NowPlayingCenter {
 
     func update(
         title: String, album: String, artist: String,
-        durationMs: Int, positionMs: Int, rate: Double, isPlaying: Bool
+        durationMs: Int, positionMs: Int, rate: Double, isPlaying: Bool,
+        artwork: MPMediaItemArtwork? = nil
     ) {
-        let info: [String: Any] = [
+        var info: [String: Any] = [
             MPMediaItemPropertyTitle: title,
             MPMediaItemPropertyAlbumTitle: album,
             MPMediaItemPropertyArtist: artist,
@@ -56,10 +62,23 @@ final class NowPlayingCenter {
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? rate : 0.0,
             MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
         ]
+        if let artwork { info[MPMediaItemPropertyArtwork] = artwork }
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
 
     func clear() {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+    }
+
+    /// Wrap a decoded cover image as lock-screen artwork (the cover is matte paper, but the
+    /// lock screen wants a bitmap). Platform-shimmed: UIImage on iOS, NSImage on macOS.
+    static func artwork(from cgImage: CGImage) -> MPMediaItemArtwork {
+        #if canImport(UIKit)
+        let image = UIImage(cgImage: cgImage)
+        return MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+        #else
+        let image = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+        return MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+        #endif
     }
 }
