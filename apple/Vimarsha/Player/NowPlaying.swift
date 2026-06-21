@@ -72,13 +72,19 @@ final class NowPlayingCenter {
 
     /// Wrap a decoded cover image as lock-screen artwork (the cover is matte paper, but the
     /// lock screen wants a bitmap). Platform-shimmed: UIImage on iOS, NSImage on macOS.
-    static func artwork(from cgImage: CGImage) -> MPMediaItemArtwork {
-        #if canImport(UIKit)
-        let image = UIImage(cgImage: cgImage)
-        return MPMediaItemArtwork(boundsSize: image.size) { _ in image }
-        #else
-        let image = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
-        return MPMediaItemArtwork(boundsSize: image.size) { _ in image }
-        #endif
+    ///
+    /// MUST be `nonisolated`: MediaPlayer invokes the request handler on its OWN background
+    /// queue, so the closure can't capture main-actor state (under default-main-actor isolation
+    /// that traps with a dispatch-queue assertion — EXC_BREAKPOINT). We capture only the
+    /// `Sendable` CGImage and build the platform image inside the handler.
+    nonisolated static func artwork(from cgImage: CGImage) -> MPMediaItemArtwork {
+        let size = CGSize(width: cgImage.width, height: cgImage.height)
+        return MPMediaItemArtwork(boundsSize: size) { _ in
+            #if canImport(UIKit)
+            UIImage(cgImage: cgImage)
+            #else
+            NSImage(cgImage: cgImage, size: size)
+            #endif
+        }
     }
 }
