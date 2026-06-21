@@ -84,6 +84,7 @@ struct TransportClusterView: View {
                 .foregroundStyle(Palette.ink0)
                 .frame(width: 50, height: 38)
                 .background(Capsule().fill(Palette.aqua.opacity(0.92)))
+                .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(isPlaying ? "Pause" : "Play")

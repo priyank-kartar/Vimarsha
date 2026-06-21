@@ -301,7 +301,7 @@ struct LibraryStoreTests {
         #expect(chapter.bundlePath != nil)
     }
 
-    @Test func booksAreSortedByAddedAt() async throws {
+    @Test func booksAreSortedByRecencyMostRecentFirst() async throws {
         let root = try makeRoot()
         defer { try? FileManager.default.removeItem(at: root) }
         let context = try makeContext()
@@ -315,6 +315,29 @@ struct LibraryStoreTests {
 
         let store = LibraryStore(context: context, importer: EpubImporter(containerRoot: root))
         store.load()
+        // No opens yet → falls back to addedAt, most-recent first.
+        #expect(store.books.map(\.title) == ["Newer", "Older"])
+    }
+
+    @Test func markOpenedBubblesBookToTop() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let context = try makeContext()
+        let a = Book(title: "Older", author: "", epubPath: "a")
+        a.addedAt = Date(timeIntervalSince1970: 100)
+        let b = Book(title: "Newer", author: "", epubPath: "b")
+        b.addedAt = Date(timeIntervalSince1970: 200)
+        context.insert(a)
+        context.insert(b)
+        try context.save()
+
+        let store = LibraryStore(context: context, importer: EpubImporter(containerRoot: root))
+        store.load()
+        #expect(store.books.map(\.title) == ["Newer", "Older"])
+
+        // Opening the older book bubbles it to the top (latest-listened leads).
+        let older = try #require(store.books.first { $0.title == "Older" })
+        store.markOpened(older)
         #expect(store.books.map(\.title) == ["Older", "Newer"])
     }
 }

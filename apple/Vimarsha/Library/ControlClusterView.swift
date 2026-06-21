@@ -17,8 +17,8 @@ struct ControlClusterView: View {
 
     @Namespace private var glassNS
 
-    @ScaledMetric(relativeTo: .title2) private var rawDiameter: CGFloat = 56
-    @ScaledMetric(relativeTo: .body) private var rawIconSize: CGFloat = 20
+    @ScaledMetric(relativeTo: .title2) private var rawDiameter: CGFloat = 64
+    @ScaledMetric(relativeTo: .body) private var rawIconSize: CGFloat = 23
 
     private let controls = ControlCluster.Control.allCases
 
@@ -26,8 +26,8 @@ struct ControlClusterView: View {
     /// (~100pt) outgrew the fixed fan spacing, so the four controls could never split — they
     /// rendered as ONE permanently melded pill (the ui-audit "untinted grey pill"). 68pt keeps
     /// a generous touch target at every type size while the fan still reads as four controls.
-    private var diameter: CGFloat { min(rawDiameter, 68) }
-    private var iconSize: CGFloat { min(rawIconSize, 24) }
+    private var diameter: CGFloat { min(rawDiameter, 78) }
+    private var iconSize: CGFloat { min(rawIconSize, 27) }
 
     /// Centre-to-centre spacing at full emerge, derived from the (type-scaled) diameter so the
     /// controls always split: a 14pt gap — clear of the `GlassEffectContainer` meld radius by
@@ -46,7 +46,10 @@ struct ControlClusterView: View {
         // pill mid-cover (ui-audit round 1). `opacity` is 0 exactly at the floor, so the
         // insertion itself is invisible and the gate stays scrubbable.
         if cluster.isVisible {
-            GlassEffectContainer(spacing: 18) {
+            // Meld radius 10 (< the 14pt fanned gap) so the four controls read as separate
+            // bubbles at full emerge — no melded "box" clipping the per-bubble press animation —
+            // while still merging into one blob as they overlap on absorb (the merge moment).
+            GlassEffectContainer(spacing: 10) {
                 ZStack {
                     ForEach(controls) { control in
                         controlButton(control)
@@ -74,6 +77,8 @@ struct ControlClusterView: View {
     private func controlButton(_ control: ControlCluster.Control) -> some View {
         Button { onActivate(control) } label: { icon(control) }
             .buttonStyle(.plain)
+            // The whole glass circle is tappable, not just the glyph.
+            .contentShape(Circle())
             .accessibilityLabel(control.label)
     }
 

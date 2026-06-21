@@ -78,6 +78,7 @@ struct ChapterListView: View {
                     .frame(width: 34, height: 34)
             }
             .buttonStyle(.plain)
+            .contentShape(Circle())
             .background(Circle().fill(Palette.textPrimary.opacity(0.06)))
             .padding(.trailing, 14)
             .accessibilityLabel("Close chapters")

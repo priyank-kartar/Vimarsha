@@ -55,6 +55,7 @@ struct VoicePickerView: View {
                     .foregroundStyle(Palette.textPrimary.opacity(0.7)).frame(width: 34, height: 34)
             }
             .buttonStyle(.plain)
+            .contentShape(Circle())
             .background(Circle().fill(Palette.textPrimary.opacity(0.06)))
             .padding(.trailing, 14)
             .accessibilityLabel("Close voice picker")
@@ -89,8 +90,10 @@ struct VoicePickerView: View {
             if !voice.isPremium {
                 Button { onPreview(voice) } label: {
                     Image(systemName: "play.circle").font(.system(size: 19)).foregroundStyle(Palette.sky)
+                        .frame(width: 34, height: 34)
                 }
                 .buttonStyle(.plain)
+                .contentShape(Circle())
                 .accessibilityLabel("Preview \(voice.id)")
             }
         }
