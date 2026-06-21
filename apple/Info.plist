@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Keep audio playing when the app is backgrounded or the device is locked. Not
+	     expressible via INFOPLIST_KEY_* build settings, so this partial plist supplies it;
+	     GENERATE_INFOPLIST_FILE=YES still merges the generated keys on top. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
+</dict>
+</plist>
