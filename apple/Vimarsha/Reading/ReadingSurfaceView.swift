@@ -49,6 +49,10 @@ struct ReadingSurfaceView: View {
     @State private var lastScrolledTo: String?
     @State private var lastUserScroll: Date = .distantPast
     private static let userScrollCooldown: TimeInterval = 4
+    /// Pull-down-from-the-top to close the book (iPhone swipe-to-dismiss parity): set once
+    /// the overscroll crosses the threshold, reset when scrolling settles.
+    @State private var didPullClose = false
+    private static let pullToCloseThreshold: CGFloat = 120
 
     /// The figure carrier's paging memory (V20). The rendered selection is *derived*
     /// (`FigureOverlaySelection.reconciled`) every frame — this only remembers which
@@ -268,6 +272,19 @@ struct ReadingSurfaceView: View {
             .onScrollPhaseChange { _, newPhase in
                 // A finger on the scroll = the user is reading ahead; back off.
                 if newPhase == .interacting { lastUserScroll = .now }
+                if newPhase == .idle { didPullClose = false }
+            }
+            .onScrollGeometryChange(for: CGFloat.self) { geo in
+                // How far the content is pulled below its resting top (overscroll).
+                -(geo.contentOffset.y + geo.contentInsets.top)
+            } action: { _, pull in
+                // Pull down from the top → close the book (back to the shelf), like a
+                // sheet's swipe-to-dismiss. Generous threshold so it isn't accidental, and
+                // programmatic scroll-to (resume / auto-scroll) only ever scrolls down.
+                if !didPullClose, pull > Self.pullToCloseThreshold {
+                    didPullClose = true
+                    onClose()
+                }
             }
             .onChange(of: player.currentBlockId) { _, id in
                 autoScroll(to: id, proxy: proxy)
@@ -412,6 +429,9 @@ struct ReadingSurfaceView: View {
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(Palette.textPrimary)
                 .frame(width: 40, height: 40)
+                // The whole circle is tappable, not just the rendered glyph (an Image's
+                // empty frame isn't hit-tested without an explicit content shape).
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .background {
