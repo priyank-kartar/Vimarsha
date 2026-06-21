@@ -27,6 +27,10 @@ final class LibraryStore {
     /// In-flight memo transcriptions, keyed by memo id (V29) — store-owned for the same
     /// reason: closing the reading surface must not kill the transcript fetch.
     private var transcriptionTasks: [UUID: Task<Void, Never>] = [:]
+    /// Whole-book downloads in flight, keyed by book id — serial per book (one warm worker).
+    private var bookDownloadTasks: [UUID: Task<Void, Never>] = [:]
+    /// Books currently downloading all chapters — drives the cluster control's progress state.
+    private(set) var downloadingBooks: Set<UUID> = []
 
     init(
         context: ModelContext,
@@ -183,6 +187,55 @@ final class LibraryStore {
         chapter.errorReason = nil
         try? context.save()
         return narrate(chapter, book: book)
+    }
+
+    /// Download every not-yet-ready chapter of `book`, in document order, ONE AT A TIME.
+    /// The premium worker narrates a single chapter at a time anyway (one warm GPU); firing
+    /// concurrent jobs would just queue on the backend and multiply cost, so this awaits each
+    /// chapter before starting the next. Cancellable; calling again while running is a no-op.
+    /// While chapter audio is playing the app stays alive (audio background mode), so this
+    /// keeps draining the queue even when backgrounded/locked.
+    @discardableResult
+    func downloadBook(_ book: Book) -> Task<Void, Never>? {
+        guard bookDownloadTasks[book.id] == nil else { return nil }
+        let bookId = book.id
+        downloadingBooks.insert(bookId)
+        let task = Task { [weak self] in
+            guard let self else { return }
+            for chapter in book.chapters.sorted(by: { $0.index < $1.index }) {
+                if Task.isCancelled { break }
+                guard chapter.status == .none || chapter.status == .error else { continue }
+                chapter.status = .pending
+                chapter.errorReason = nil
+                try? self.context.save()
+                await self.narrate(chapter, book: book).value
+            }
+            self.downloadingBooks.remove(bookId)
+            self.bookDownloadTasks[bookId] = nil
+        }
+        bookDownloadTasks[bookId] = task
+        return task
+    }
+
+    /// Stop an in-flight whole-book download (the current chapter finishes; the rest are left
+    /// for a later request). Per-chapter jobs already cached stay cached.
+    func cancelBookDownload(_ book: Book) {
+        bookDownloadTasks[book.id]?.cancel()
+        bookDownloadTasks[book.id] = nil
+        downloadingBooks.remove(book.id)
+    }
+
+    func isDownloadingBook(_ book: Book) -> Bool { downloadingBooks.contains(book.id) }
+
+    /// Prefetch the next `count` not-yet-narrated chapters after `chapter` so they're cached
+    /// by the time the reader reaches them. Small look-ahead — the backend serializes anyway.
+    func prefetch(after chapter: Chapter, count: Int = 1) {
+        guard let book = chapter.book else { return }
+        let upcoming = book.chapters
+            .filter { $0.index > chapter.index && $0.status == .none }
+            .sorted { $0.index < $1.index }
+            .prefix(count)
+        for next in upcoming { _ = downloadChapter(next) }
     }
 
     /// Persist pending model edits (e.g. a voice change made in the UI).
