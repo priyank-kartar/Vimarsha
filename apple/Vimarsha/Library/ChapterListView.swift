@@ -16,6 +16,11 @@ struct ChapterListView: View {
     var onOpen: (Chapter) -> Void = { _ in }
     var onRerender: (Chapter) -> Void = { _ in }
     var onClose: () -> Void = {}
+    /// Whole-book download (V-bg): start / cancel the serial download of every chapter, and
+    /// the live in-flight flag (the store's `downloadingBooks`).
+    var onDownloadBook: () -> Void = {}
+    var onCancelBookDownload: () -> Void = {}
+    var isDownloadingBook: Bool = false
 
     @ScaledMetric(relativeTo: .title3) private var titleSize: CGFloat = 20
     @ScaledMetric(relativeTo: .caption) private var labelSize: CGFloat = 10
@@ -29,6 +34,9 @@ struct ChapterListView: View {
             header
                 .padding(.top, 22)
                 .padding(.bottom, 14)
+            downloadBar
+                .padding(.horizontal, 20)
+                .padding(.bottom, 12)
             ScrollView {
                 ChapterRowsView(
                     chapters: chapters,
@@ -53,6 +61,49 @@ struct ChapterListView: View {
             }
         }
         .padding(.horizontal, 24)
+    }
+
+    /// Count of chapters already narrated/cached — the download bar's progress numerator.
+    private var readyCount: Int { chapters.filter { $0.status == .ready }.count }
+
+    /// Whole-book download affordance: start it, watch "Downloading n/total" with a cancel,
+    /// or show "Downloaded" once every chapter is cached. Glass pill (a control), matte text.
+    @ViewBuilder private var downloadBar: some View {
+        let total = chapters.count
+        let ready = readyCount
+        let allReady = total > 0 && ready == total
+        Button {
+            isDownloadingBook ? onCancelBookDownload() : onDownloadBook()
+        } label: {
+            HStack(spacing: 8) {
+                if isDownloadingBook {
+                    ProgressView().controlSize(.small)
+                    Text("Downloading \(ready)/\(total) · tap to stop")
+                } else if allReady {
+                    Image(systemName: "checkmark.circle.fill")
+                    Text("Downloaded")
+                } else {
+                    Image(systemName: "arrow.down.circle")
+                    Text(ready > 0 ? "Download book · \(ready)/\(total)" : "Download book")
+                }
+            }
+            .font(.system(size: labelSize + 3, weight: .semibold))
+            .foregroundStyle(Palette.textPrimary.opacity(allReady && !isDownloadingBook ? 0.55 : 0.9))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+        }
+        .buttonStyle(.plain)
+        .contentShape(Capsule())
+        .background {
+            let shape = Capsule()
+            if reduceTransparency {
+                shape.fill(Palette.surface)
+            } else {
+                Color.clear.glassEffect(.regular.tint(Palette.sky.opacity(0.22)).interactive(), in: shape)
+            }
+        }
+        .disabled(allReady && !isDownloadingBook)
+        .accessibilityLabel(isDownloadingBook ? "Stop downloading the book" : "Download the whole book")
     }
 
     private var header: some View {

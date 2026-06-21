@@ -492,7 +492,10 @@ struct LibraryStackView: View {
                     onDownload: { chapter in store?.downloadChapter(chapter) },
                     onOpen: { chapter in openReadingSurface(book: book, chapter: chapter) },
                     onRerender: { chapter in store?.rerenderChapter(chapter) },
-                    onClose: { withAnimation(chapterPlaneAnimation) { chapterBook = nil } }
+                    onClose: { withAnimation(chapterPlaneAnimation) { chapterBook = nil } },
+                    onDownloadBook: { store?.downloadBook(book) },
+                    onCancelBookDownload: { store?.cancelBookDownload(book) },
+                    isDownloadingBook: store?.isDownloadingBook(book) ?? false
                 )
             }
             .transition(
@@ -685,6 +688,9 @@ struct LibraryStackView: View {
             let candidate = store.makePlayer(engine: audioEngine)
             guard (try? candidate.load(chapter)) != nil else { return }
             player = candidate
+            // Look-ahead: quietly narrate the next chapter so it's cached by the time the
+            // reader reaches it (no-op if already ready / downloading).
+            store.prefetch(after: chapter, count: 1)
             if let recorder {
                 memoCapture = store.makeMemoCapture(recorder: recorder, player: candidate)
             }
