@@ -155,6 +155,24 @@ final class LibraryStore {
         }
     }
 
+    /// Ship one book: import the bundled Stolen Focus EPUB once, on first launch. Skipped if
+    /// the user already has books (don't seed over them). Only marks "seeded" once the import
+    /// actually lands — the import needs the backend (`POST /toc`), so a first launch with the
+    /// backend down retries next time instead of permanently missing the book.
+    func seedBundledBookIfNeeded() async {
+        let seededKey = "didSeedBundledBook"
+        guard !UserDefaults.standard.bool(forKey: seededKey) else { return }
+        guard books.isEmpty else {
+            UserDefaults.standard.set(true, forKey: seededKey)   // user has their own — never seed
+            return
+        }
+        guard let url = Bundle.main.url(forResource: "StolenFocus", withExtension: "epub") else { return }
+        await addBook(from: url)
+        if importError == nil, !books.isEmpty {
+            UserDefaults.standard.set(true, forKey: seededKey)
+        }
+    }
+
     /// Honest error posture (the store's stated design): name the cause so the user can
     /// act on it. The dominant real-world failure is the backend being unreachable — the
     /// import flow needs `POST /toc` — which a generic "Couldn't import book" hid.

@@ -34,6 +34,13 @@ struct VimarshaApp: App {
                 // No keyboard-focus ring lingering on the round glass buttons after a click
                 // (every icon button) — this is a tap/scroll surface, not a focus-driven one.
                 .focusEffectDisabled()
+                // Share-to-Vimarsha: an EPUB opened from Files / the share sheet ("Copy to
+                // Vimarsha") arrives here → import it onto the shelf.
+                .onOpenURL { url in
+                    Task { await store?.addBook(from: url) }
+                }
+                // Ship one book: import the bundled Stolen Focus once, on first launch.
+                .task { await store?.seedBundledBookIfNeeded() }
         }
         #if os(macOS)
         .defaultSize(width: 480, height: 920)

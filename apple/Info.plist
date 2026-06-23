@@ -9,5 +9,24 @@
 	<array>
 		<string>audio</string>
 	</array>
+	<!-- Share-to-Vimarsha: register as an EPUB handler so "Copy to Vimarsha" / "Open in
+	     Vimarsha" appears in the share sheet and Files. The inbound file is handled in
+	     VimarshaApp.onOpenURL → LibraryStore.addBook. `org.idpf.epub-container` is the
+	     system-declared UTI for .epub. -->
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>EPUB Book</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Default</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>org.idpf.epub-container</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
