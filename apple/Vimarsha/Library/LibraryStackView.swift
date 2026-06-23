@@ -50,6 +50,9 @@ struct LibraryStackView: View {
     /// emerge the cluster. A tap pins full focus here; the next scroll interaction clears it
     /// and hands control back to the scroll-driven settle.
     @State private var tappedIndex: Int?
+    /// Gallery layout toggle (top-left): the signature depth-stack tower vs. a flat grid of
+    /// covers for browsing many books at once. The tower stays the default.
+    @State private var galleryMode = false
 
     /// Each card's viewport LAYOUT top edge, keyed by shelf index — drives the top scrim's
     /// contextual visibility (V27, tuned against layout tops).
@@ -162,23 +165,27 @@ struct LibraryStackView: View {
                     // group, anchored on the front slot. One scale on the tower as a whole —
                     // the per-card depth-stack parallax rides inside it. Reduce Motion exempt
                     // (the static fallback has no hero zoom).
-                    BookTower(
-                        shelf: shelf, size: geo.size, reduceMotion: reduceMotion, focus: focus,
-                        metadataRevealShown: metadataRevealShown,
-                        debossDodge: debossDodge(in: geo.size),
-                        morphNamespace: coverMorph, openedBookId: reading?.shelfBook.id,
-                        onTapBook: { focusBook(at: $0) },
-                        onRequestDelete: { index in
-                            // Seed/empty covers have no persisted row — guard by bounds.
-                            if let store, index >= 0, index < store.books.count {
-                                pendingDeleteBook = store.books[index]
+                    if galleryMode {
+                        galleryGrid
+                    } else {
+                        BookTower(
+                            shelf: shelf, size: geo.size, reduceMotion: reduceMotion, focus: focus,
+                            metadataRevealShown: metadataRevealShown,
+                            debossDodge: debossDodge(in: geo.size),
+                            morphNamespace: coverMorph, openedBookId: reading?.shelfBook.id,
+                            onTapBook: { focusBook(at: $0) },
+                            onRequestDelete: { index in
+                                // Seed/empty covers have no persisted row — guard by bounds.
+                                if let store, index >= 0, index < store.books.count {
+                                    pendingDeleteBook = store.books[index]
+                                }
                             }
-                        }
-                    )
-                        .scaleEffect(
-                            heroSettle(in: geo.size).scale,
-                            anchor: heroAnchor(in: geo.size)
                         )
+                            .scaleEffect(
+                                heroSettle(in: geo.size).scale,
+                                anchor: heroAnchor(in: geo.size)
+                            )
+                    }
                 }
                 .padding(.bottom, geo.size.height * 0.22)
                 .frame(width: geo.size.width)
@@ -220,7 +227,7 @@ struct LibraryStackView: View {
             // The puck floats in viewport space (it follows the finger, not the content),
             // so the gesture + overlay live on the ScrollView, outside the scrolling tower.
             .simultaneousGesture(lensingDrag(in: geo.size))
-            .overlay { LensingPuckView(puck: puck, reduceTransparency: reduceTransparency) }
+            .overlay { if !galleryMode { LensingPuckView(puck: puck, reduceTransparency: reduceTransparency) } }
             .overlay(alignment: .top) { topScrim(in: geo.size) }
             .overlay(alignment: .bottom) { focusAffordances(in: geo.size) }
             // Which `ViewThatFits` branch rendered (V42): only the metadata branch emits
@@ -230,6 +237,7 @@ struct LibraryStackView: View {
             .onPreferenceChange(FocusMetadataVisibleKey.self) { metadataRevealShown = $0 }
             .onPreferenceChange(ClusterFrameKey.self) { clusterGlobalFrame = $0 }
             .overlay(alignment: .topTrailing) { addBookButton }
+            .overlay(alignment: .topLeading) { layoutToggle }
             .overlay { chapterListPlane }
             .overlay { bookMemosPlane }
             .overlay { bookConversationsPlane }
@@ -264,6 +272,53 @@ struct LibraryStackView: View {
     }
 
     // MARK: EPUB import (V10)
+
+    /// Top-left layout toggle: the depth-stack tower ⇄ a flat gallery grid. Matches the add
+    /// button's glass circle. Switching to the gallery drops any tower focus.
+    private var layoutToggle: some View {
+        Button {
+            withAnimation(reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.86)) {
+                galleryMode.toggle()
+                if galleryMode { focus = .none; tappedIndex = nil }
+            }
+        } label: {
+            Image(systemName: galleryMode ? "rectangle.stack" : "square.grid.2x2")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(Palette.textPrimary)
+                .frame(width: 44, height: 44)
+        }
+        .buttonStyle(.plain)
+        .contentShape(Circle())
+        .background {
+            if reduceTransparency {
+                Circle().fill(Palette.surface)
+                    .overlay(Circle().strokeBorder(Palette.sky.opacity(0.5), lineWidth: 1))
+            } else {
+                Color.clear.glassEffect(.regular.tint(Palette.sky.opacity(0.26)).interactive(), in: .circle)
+            }
+        }
+        .padding(.leading, 20)
+        .padding(.top, 8)
+        .accessibilityLabel(galleryMode ? "Stack view" : "Gallery view")
+    }
+
+    /// The gallery layout: a flat grid of covers for browsing many books. Tapping a cover
+    /// opens its chapters (the same `chapterBook` plane the focused tower uses).
+    private var galleryGrid: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 148), spacing: 18)], spacing: 18) {
+            ForEach(Array(shelf.enumerated()), id: \.element.id) { index, shelfBook in
+                HardbackCoverView(book: shelfBook)
+                    .aspectRatio(1.0 / 1.5, contentMode: .fit)
+                    .onTapGesture {
+                        guard let store, index >= 0, index < store.books.count else { return }
+                        withAnimation(chapterPlaneAnimation) { chapterBook = store.books[index] }
+                    }
+                    .accessibilityLabel("Open \(shelfBook.title)")
+                    .accessibilityAddTraits(.isButton)
+            }
+        }
+        .padding(.horizontal, 20)
+    }
 
     /// A small glass "+" floating at the top-trailing corner — interactive → sky tint
     /// (apple/CLAUDE.md §Liquid Glass rules); Reduce Transparency gets the matte fallback.
@@ -784,7 +839,7 @@ struct LibraryStackView: View {
     private func lensingDrag(in size: CGSize) -> some Gesture {
         DragGesture(minimumDistance: 0, coordinateSpace: .local)
             .onChanged { value in
-                guard !reduceMotion else { return }
+                guard !reduceMotion, !galleryMode else { return }   // no lensing over the grid
                 let speed = hypot(value.velocity.width, value.velocity.height)
                 puck = LensingPuck.at(location: value.location, dragSpeed: speed, in: size)
             }
