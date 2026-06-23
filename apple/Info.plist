@@ -28,5 +28,10 @@
 			</array>
 		</dict>
 	</array>
+	<!-- Required by Apple (ITMS-90737) once CFBundleDocumentTypes is declared. We read the
+	     inbound EPUB in place (security-scoped) and copy it into our container, so YES is
+	     correct and Apple-recommended; we don't use a UIDocumentBrowserViewController. -->
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 </dict>
 </plist>
