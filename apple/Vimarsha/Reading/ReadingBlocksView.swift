@@ -14,6 +14,8 @@ struct ReadingBlocksView: View {
     var images: [String: Image] = [:]
     /// Tap-a-paragraph-to-seek (V19); nil renders an inert body (snapshots/previews).
     var onTapBlock: ((String) -> Void)?
+    /// Tap an inline figure to open it full-bleed (zoomable). Nil = inline figures aren't openable.
+    var onOpenFigure: ((BlockDTO) -> Void)?
 
     @ScaledMetric(relativeTo: .body) private var bodySize: CGFloat = 17
     @ScaledMetric(relativeTo: .title2) private var headingSize: CGFloat = 23
@@ -113,8 +115,14 @@ struct ReadingBlocksView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
+            .contentShape(Rectangle())
+            // Tap the inline figure to open it full-bleed (zoom in to read it). Only when there's
+            // an image to open — a caption-only figure has nothing to enlarge.
+            .onTapGesture { onOpenFigure?(block) }
             .accessibilityElement(children: .combine)
             .accessibilityLabel(caption ?? "Figure")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction(named: "Open figure") { onOpenFigure?(block) }
         } else if let caption {
             captionText(caption)
                 .frame(maxWidth: .infinity)
