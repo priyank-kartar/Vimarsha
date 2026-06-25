@@ -3069,6 +3069,12 @@ wheels = [
 ]
 
 [[package]]
+name = "pylatexenc"
+version = "2.10"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5d/ab/34ec41718af73c00119d0351b7a2531d2ebddb51833a36448fc7b862be60/pylatexenc-2.10.tar.gz", hash = "sha256:3dd8fd84eb46dc30bee1e23eaab8d8fb5a7f507347b23e5f38ad9675c84f40d3", size = 162597 }
+
+[[package]]
 name = "pyloudnorm"
 version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -4461,6 +4467,9 @@ kokoro = [
     { name = "torch" },
     { name = "torchaudio" },
 ]
+papers = [
+    { name = "pylatexenc" },
+]
 serverless = [
     { name = "chatterbox-tts", version = "0.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.14'" },
     { name = "chatterbox-tts", version = "0.1.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.14'" },
@@ -4504,6 +4513,7 @@ requires-dist = [
     { name = "misaki", extras = ["en"], marker = "extra == 'kokoro'", specifier = ">=0.9" },
     { name = "numpy", specifier = ">=1.24" },
     { name = "pydantic", specifier = ">=2.13.4" },
+    { name = "pylatexenc", marker = "extra == 'papers'", specifier = ">=2.10" },
     { name = "python-multipart", specifier = ">=0.0.30" },
     { name = "runpod", marker = "extra == 'serverless'", specifier = ">=1.6" },
     { name = "setuptools", marker = "extra == 'serverless'", specifier = "<81" },

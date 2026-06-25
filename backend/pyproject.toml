@@ -42,6 +42,11 @@ kokoro = [
 stt = [
     "faster-whisper",
 ]
+# Scientific Literature ingestion: parse arXiv LaTeX source into narratable text + equation
+# blocks (pylatexenc — pure Python, no system TeX). PDF papers use Z.AI GLM OCR (no extra dep).
+papers = [
+    "pylatexenc>=2.10",
+]
 # The RunPod serverless worker image (Chatterbox narration only). Mirrors `tts` minus the
 # Whisper STT dep, plus the RunPod SDK that runs the handler. Installed in Dockerfile.serverless.
 # Real sequential chatterbox-tts (the vLLM batched port mangled the audio — removed).

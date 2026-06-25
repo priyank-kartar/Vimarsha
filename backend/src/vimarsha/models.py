@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 BlockKind = Literal[
     "heading", "paragraph", "image", "figure",
     "blockquote", "pullquote", "table", "list",
+    "equation",  # scientific papers: display math; `latex` is the source, `text` the spoken form
 ]
 FigureKind = Literal["figure", "diagram", "table", "pullquote"]
 
@@ -24,6 +25,7 @@ class Block(BaseModel):
     alt: Optional[str] = None
     caption: Optional[str] = None
     html: Optional[str] = None           # raw html for table/list
+    latex: Optional[str] = None          # equation: the LaTeX source (client renders via KaTeX)
 
 
 class Figure(BaseModel):
