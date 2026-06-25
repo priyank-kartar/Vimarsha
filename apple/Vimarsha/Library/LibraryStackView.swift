@@ -27,10 +27,6 @@ struct LibraryStackView: View {
     /// extracted into `BookTower` to keep this scroll tick off the heavy ForEach.
     @State private var distanceToRest: CGFloat = 0
 
-    /// Lensing drag puck (glass moment #2 / motion grammar #6): appears on finger-down,
-    /// tracks the drag, refracts the cover beneath; fades out on release.
-    @State private var puck: LensingPuck = .hidden
-
     /// Whether the scroll is settled (V46): launch starts at rest; any scroll phase other
     /// than `.idle` is motion. At rest the control cluster renders its rest-resolved
     /// terminal form (fully split or absorbed) — the `GlassEffectContainer` mid-meld shape
@@ -224,10 +220,9 @@ struct LibraryStackView: View {
             .onPreferenceChange(CardTopYKey.self) { cardTops = $0 }
             .onPreferenceChange(CardVisualTopKey.self) { cardVisualTops = $0 }
             .background(Palette.canvas.ignoresSafeArea())
-            // The puck floats in viewport space (it follows the finger, not the content),
-            // so the gesture + overlay live on the ScrollView, outside the scrolling tower.
-            .simultaneousGesture(lensingDrag(in: geo.size))
-            .overlay { if !galleryMode { LensingPuckView(puck: puck, reduceTransparency: reduceTransparency) } }
+            // (Lensing drag puck removed: its minimumDistance:0 drag claimed horizontal drags,
+            // blocking the swipe to the Scientific Literature section, and it surfaced an
+            // unwanted glass circle on press-and-hold.)
             .overlay(alignment: .top) { topScrim(in: geo.size) }
             .overlay(alignment: .bottom) { focusAffordances(in: geo.size) }
             // Which `ViewThatFits` branch rendered (V42): only the metadata branch emits
@@ -833,21 +828,6 @@ struct LibraryStackView: View {
         )
     }
 
-    /// A zero-distance drag that rides alongside the scroll (`simultaneousGesture`) so the
-    /// puck can appear on finger-down and track the fling without blocking the scroll.
-    /// Reduce Motion suppresses it (a continuous decorative effect, not an affordance).
-    private func lensingDrag(in size: CGSize) -> some Gesture {
-        DragGesture(minimumDistance: 0, coordinateSpace: .local)
-            .onChanged { value in
-                guard !reduceMotion, !galleryMode else { return }   // no lensing over the grid
-                let speed = hypot(value.velocity.width, value.velocity.height)
-                puck = LensingPuck.at(location: value.location, dragSpeed: speed, in: size)
-            }
-            .onEnded { _ in
-                // Fade out in place — keep the last center/diameter so it doesn't jump.
-                puck = LensingPuck(center: puck.center, diameter: puck.diameter, opacity: 0)
-            }
-    }
 
     /// Coupled scroll+zoom hero settle (motion grammar #5): the rigid-group tower zoom as a
     /// pure function of distance-to-rest. Reduce Motion pins it to rest (no hero zoom).
