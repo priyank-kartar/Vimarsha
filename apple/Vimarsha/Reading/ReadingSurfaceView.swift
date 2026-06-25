@@ -73,6 +73,10 @@ struct ReadingSurfaceView: View {
     /// transport while up (the reading body keeps playing behind it).
     @State private var showDiscuss = false
 
+    /// A tapped inline figure, opened full-bleed (zoomable) over the reading surface. A state
+    /// of the surface (an overlay that fades/scales in), never a sheet.
+    @State private var openedFigure: BlockDTO?
+
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
@@ -165,8 +169,28 @@ struct ReadingSurfaceView: View {
                     : .spring(response: 0.4, dampingFraction: 0.88),
                 value: showDiscuss
             )
+            // The opened-figure viewer rides above everything (transport included).
+            .overlay { figureViewer }
         }
         .background(Palette.canvas.ignoresSafeArea())
+    }
+
+    /// Full-bleed zoomable viewer for a tapped inline figure (V-figure-open). Shown only when a
+    /// figure with a cached image is opened; closing fades/scales it back out.
+    @ViewBuilder
+    private var figureViewer: some View {
+        if let block = openedFigure, let image = player?.blockImages[block.id] {
+            FigureViewerView(
+                image: image,
+                caption: block.caption ?? block.alt,
+                reduceTransparency: reduceTransparency
+            ) {
+                withAnimation(reduceMotion ? .easeInOut(duration: 0.15)
+                    : .spring(response: 0.4, dampingFraction: 0.9)) {
+                    openedFigure = nil
+                }
+            }
+        }
     }
 
     /// The resting bottom overlay: figure carrier + status chips + transport/mic
@@ -259,7 +283,13 @@ struct ReadingSurfaceView: View {
                         blocks: bundle.blocks,
                         activeBlockId: player.currentBlockId,
                         images: player.blockImages,
-                        onTapBlock: { id in player.seekToBlock(id) }
+                        onTapBlock: { id in player.seekToBlock(id) },
+                        onOpenFigure: { block in
+                            withAnimation(reduceMotion ? .easeInOut(duration: 0.15)
+                                : .spring(response: 0.4, dampingFraction: 0.9)) {
+                                openedFigure = block
+                            }
+                        }
                     )
                     .padding(.horizontal, 22)
                     // Keep the last lines clear of the transport cluster.
