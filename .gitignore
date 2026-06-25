@@ -16,3 +16,7 @@ backend/dist/
 # Flutter build output (repo root)
 build/
 .agent-loop/
+
+# Secrets — never commit
+.env
+**/.env
