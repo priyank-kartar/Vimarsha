@@ -150,17 +150,29 @@ struct LibraryStackView: View {
         store?.shelf ?? ShelfBook.seeds
     }
 
+    /// Where the pinned VIMARSHA header sits from the top: clear the status bar / notch
+    /// (the page is full-bleed, so `topSafeInset` is threaded from the app root) plus a nudge
+    /// that drops it a little below the safe area. The in-content placeholder uses the same
+    /// value so the reserved footprint matches the pinned header exactly.
+    private var headerTopInset: CGFloat { topSafeInset + 28 }
+
     var body: some View {
         GeometryReader { geo in
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: reduceMotion ? 24 : -geo.size.height * 0.052) {
+                    // The header is rendered PINNED as a fixed overlay (below) so it stays put
+                    // while the tower scrolls under it. Here it rides as a `.hidden()` placeholder
+                    // of the identical footprint — that keeps the first-book settle headroom and
+                    // every downstream card-geometry measurement (midY, front slot) byte-for-byte
+                    // what it was when the header scrolled, so only the RENDERING changed.
                     LibraryHeader(contrast: contrast(in: geo.size))
-                        .padding(.top, 64)
+                        .padding(.top, headerTopInset)
+                        .hidden()
                         // Top scroll headroom (mirrors the bottom `0.22·H` at line below): without
                         // it the FIRST book can never settle down onto the front slot (0.72·H) — it
                         // sits jammed under the header in the receded zone, which got obvious once
                         // covers became tall upright boards (ADR-011 aspect 1.5). This gap lets the
-                        // first cover scroll into full focus while the header stays pinned at the top.
+                        // first cover scroll into full focus under the pinned header.
                         .padding(.bottom, geo.size.height * 0.18)
                     // Coupled scroll+zoom hero settle (motion grammar #5): as the header above
                     // translates off, the whole tower scales toward the viewer as one rigid
@@ -230,6 +242,15 @@ struct LibraryStackView: View {
             // blocking the swipe to the Scientific Literature section, and it surfaced an
             // unwanted glass circle on press-and-hold.)
             .overlay(alignment: .top) { topScrim(in: geo.size) }
+            // Pinned editorial header (glass moment #3 — the tower scrolls UNDER it). Fixed at
+            // the top so VIMARSHA stays put while only the books below scroll; the in-content
+            // `.hidden()` placeholder above reserves its exact footprint. Contrast still tracks
+            // the live scroll (settle shift #7) and the ghost dims as covers pass beneath.
+            .overlay(alignment: .top) {
+                LibraryHeader(contrast: contrast(in: geo.size))
+                    .padding(.top, headerTopInset)
+                    .allowsHitTesting(false)
+            }
             .overlay(alignment: .bottom) { focusAffordances(in: geo.size) }
             // Which `ViewThatFits` branch rendered (V42): only the metadata branch emits
             // true, so a yielded band (cluster-only, XXXL) reads false — and the focused
