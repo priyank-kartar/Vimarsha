@@ -153,7 +153,7 @@ struct LibraryStackView: View {
     /// (the page is full-bleed, so `topSafeInset` is threaded from the app root) plus a nudge
     /// that drops it a little below the safe area. The in-content placeholder uses the same
     /// value so the reserved footprint matches the pinned header exactly.
-    private var headerTopInset: CGFloat { topSafeInset + 28 }
+    private var headerTopInset: CGFloat { topSafeInset + 48 }
 
     var body: some View {
         GeometryReader { geo in
