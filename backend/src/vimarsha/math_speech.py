@@ -23,6 +23,18 @@ STYLE = "clearspeak"  # the one tunable; "mathspeak" (strict) is a future switch
 
 # --- rule tables (extended by later tasks) -------------------------------------------
 
+BIGOPS = {"sum": "the sum", "prod": "the product", "int": "the integral",
+          "oint": "the contour integral", "lim": "the limit", "bigcup": "the union",
+          "bigcap": "the intersection"}
+FUNCTIONS = {"sin": "sine", "cos": "cosine", "tan": "tangent", "log": "log",
+             "ln": "natural log", "exp": "the exponential of", "max": "the maximum of",
+             "min": "the minimum of", "det": "the determinant of", "deg": "degree"}
+SETS = {"R": "the real numbers", "N": "the natural numbers", "Z": "the integers",
+        "Q": "the rationals", "C": "the complex numbers"}
+ACCENTS = {"vec": ("vector ", ""), "mathbf": ("vector ", ""), "boldsymbol": ("vector ", ""),
+           "hat": ("", " hat"), "bar": ("", " bar"), "overline": ("", " bar"),
+           "tilde": ("", " tilde"), "dot": ("", " dot")}
+
 GREEK = {
     "alpha": "alpha", "beta": "beta", "gamma": "gamma", "delta": "delta",
     "epsilon": "epsilon", "varepsilon": "epsilon", "zeta": "zeta", "eta": "eta",
@@ -165,6 +177,17 @@ def _macro_atom(name: str, args: list) -> MathNode:
         children = [radicand] + ([degree] if degree is not None else [])
         return MathNode("sqrt", value=("nth" if degree is not None else "square"),
                         children=children)
+    if name in BIGOPS:
+        return MathNode("bigop", value=BIGOPS[name])
+    if name in FUNCTIONS:
+        return MathNode("func", value=FUNCTIONS[name])
+    if name in ("mathbb", "mathcal") and args:
+        inner = _arg_tree(args[0])
+        key = inner.children[0].value if inner.children else ""
+        return MathNode("set", value=SETS.get(key, key))
+    if name in ACCENTS and args:
+        pre, post = ACCENTS[name]
+        return MathNode("accent", value=f"{pre}|{post}", children=[_arg_tree(args[0])])
     # unknown macro: speak its name as words, keep any args as children (Task 5 refines)
     return MathNode("unknown", value=name, children=[_arg_tree(a) for a in args])
 
@@ -176,8 +199,65 @@ def _speak(node: MathNode) -> str:
     return fn(node)
 
 
+def _bigop_base(node: MathNode) -> MathNode | None:
+    cur = node
+    while cur.kind in ("sup", "sub"):
+        cur = cur.children[0]
+    return cur if cur.kind == "bigop" else None
+
+
+def _speak_bigop_group(node: MathNode, operand_txt: str) -> str:
+    # node is a bigop optionally wrapped: sup(sub(bigop, lower), upper) etc.
+    lower = upper = None
+    cur = node
+    while cur.kind in ("sup", "sub"):
+        if cur.kind == "sub":
+            lower = _speak(cur.children[1])
+        else:
+            upper = _speak(cur.children[1])
+        cur = cur.children[0]
+    word = cur.value  # "the sum" / "the integral" / "the limit"
+    bounds = ""
+    if word == "the limit":
+        if lower is not None:
+            bounds = f" as {lower}"
+    else:
+        if lower is not None and upper is not None:
+            bounds = f" from {lower} to {upper}"
+        elif lower is not None:
+            bounds = f" from {lower}"
+    return f"{word}{bounds} of {operand_txt}".strip()
+
+
+def _speak_set(node: MathNode) -> str:
+    return node.value
+
+
+def _speak_accent(node: MathNode) -> str:
+    pre, post = node.value.split("|", 1)
+    return f"{pre}{_speak(node.children[0])}{post}"
+
+
 def _speak_row(node: MathNode) -> str:
-    return " ".join(_speak(c) for c in node.children if c is not None)
+    out: list[str] = []
+    kids = [c for c in node.children if c is not None]
+    i = 0
+    while i < len(kids):
+        if _bigop_base(kids[i]) is not None:
+            operand = _speak(kids[i + 1]) if i + 1 < len(kids) else ""
+            out.append(_speak_bigop_group(kids[i], operand))
+            i += 2
+        elif kids[i].kind == "func":
+            operand = _speak(kids[i + 1]) if i + 1 < len(kids) else ""
+            word = kids[i].value
+            needs_of = word in {"sine", "cosine", "tangent"} or word.endswith(" of")
+            joiner = "" if word.endswith(" of") else (" of" if needs_of else "")
+            out.append(f"{word}{joiner} {operand}".strip())
+            i += 2
+        else:
+            out.append(_speak(kids[i]))
+            i += 1
+    return " ".join(p for p in out if p)
 
 
 def _speak_value(node: MathNode) -> str:
@@ -250,6 +330,8 @@ _RULES = {
 
 _RULES.update({"sup": _speak_sup, "sub": _speak_sub, "primed": _speak_primed})
 _RULES.update({"frac": _speak_frac, "sqrt": _speak_sqrt})
+_RULES.update({"bigop": _speak_value, "func": _speak_value,
+               "set": _speak_set, "accent": _speak_accent})
 
 
 # --- public --------------------------------------------------------------------------

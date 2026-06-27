@@ -31,3 +31,16 @@ def test_fractions_and_roots():
     assert speak_latex(r"\sqrt{x}") == "the square root of x"
     assert speak_latex(r"\sqrt{x+1}") == "the square root of x plus 1"
     assert speak_latex(r"\sqrt[3]{x}") == "the 3-th root of x"
+
+
+def test_bigops_functions_sets_accents():
+    assert speak_latex(r"\sum_{i=1}^{n} a_i") == \
+        "the sum from i equals 1 to n of a sub i"
+    assert speak_latex(r"\int_0^1 f") == "the integral from 0 to 1 of f"
+    assert speak_latex(r"\sin x") == "sine of x"
+    assert speak_latex(r"\log n") == "log n"
+    assert speak_latex(r"\mathbb{R}") == "the real numbers"
+    assert speak_latex(r"\vec{x}") == "vector x"
+    assert speak_latex(r"\hat{y}") == "y hat"
+    assert speak_latex(r"\bar{x}") == "x bar"
+    assert speak_latex(r"\lim_{n} a_n") == "the limit as n of a sub n"
