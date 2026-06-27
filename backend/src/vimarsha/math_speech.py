@@ -437,7 +437,7 @@ def speak_latex(latex: str) -> str:
         tree = _parse(_tokenize(nodes))
         spoken = _speak(tree)
     except Exception:  # noqa: BLE001 — speech must never crash narration
-        spoken = re.sub(r"[\\${}^_]", " ", inner)
+        spoken = re.sub(r"[\\${}^_&]", " ", inner)
     return re.sub(r"\s+", " ", spoken).strip()
 
 

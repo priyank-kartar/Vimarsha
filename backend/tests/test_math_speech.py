@@ -125,3 +125,16 @@ def test_text_style_macros_read_as_words():
     # wrapper name never leaks, content not spelled out
     out = speak_latex(r"\mathrm{Attention}")
     assert "mathrm" not in out and "A t t e n t" not in out
+
+
+def test_fallback_strips_ampersand_when_parse_raises(monkeypatch):
+    """Except-branch backstop: & must not leak when _parse raises."""
+    import vimarsha.math_speech as ms
+
+    def boom(_tokens):
+        raise ValueError("forced")
+
+    monkeypatch.setattr(ms, "_parse", boom)
+    out = ms.speak_latex(r"a & b")
+    assert "&" not in out
+    assert "$" not in out and "\\" not in out
