@@ -10,10 +10,8 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from vimarsha.models import Block
+from vimarsha.models import Block
 
 from pylatexenc.latexwalker import (
     LatexCharsNode,
@@ -431,13 +429,12 @@ def _rewrite_inline(text: str) -> str:
     return re.sub(r"\s+", " ", _INLINE_MATH.sub(repl, text)).strip()
 
 
-def verbalize_blocks(blocks: "list[Block]") -> "list[Block]":
+def verbalize_blocks(blocks: list[Block]) -> list[Block]:
     """Fill equation blocks' spoken text and verbalize inline math in prose. In place.
     Never touches Block.latex (the client's KaTeX source)."""
-    from vimarsha.models import Block  # noqa: F401 — imported at runtime to avoid circular import
     for b in blocks:
         if b.kind == "equation" and b.latex:
             b.text = speak_latex(b.latex)
-        elif b.kind in ("paragraph", "heading") and b.text and "$" in b.text:
+        elif b.kind in ("paragraph", "heading") and b.text and ("$" in b.text or "\\(" in b.text):
             b.text = _rewrite_inline(b.text)
     return blocks

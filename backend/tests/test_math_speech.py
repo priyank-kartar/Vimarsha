@@ -88,3 +88,11 @@ def test_verbalize_is_idempotent_on_plain_prose():
     blocks = [Block(id="b0", index=0, kind="paragraph", text="no math here.")]
     verbalize_blocks(blocks)
     assert blocks[0].text == "no math here."
+
+
+def test_verbalize_rewrites_backslash_paren_inline_math():
+    blocks = [Block(id="b0", index=0, kind="paragraph",
+                    text=r"the value \(c\) is constant.")]
+    verbalize_blocks(blocks)
+    assert blocks[0].text == "the value c is constant."
+    assert "\\(" not in blocks[0].text and "(" not in blocks[0].text
