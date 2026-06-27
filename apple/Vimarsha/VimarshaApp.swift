@@ -28,10 +28,16 @@ struct VimarshaApp: App {
         }
     }
 
-    /// Status-bar / notch height from the key window. The full-bleed paging surface gives the
-    /// library page a zero propagated safe-area inset, so the top glass controls (gallery
-    /// toggle, add book) would otherwise sit under the clock. macOS has no such inset → 0.
-    private var topSafeAreaInset: CGFloat {
+    @Environment(\.scenePhase) private var scenePhase
+    /// Live status-bar / notch height. The full-bleed paging surface propagates a ZERO
+    /// safe-area inset into the pages, so the top glass controls (gallery toggle, add book)
+    /// would sit under the clock. We read the real inset from the key window — but ONLY after
+    /// the window exists: at first `body` evaluation on a real device there is no key window
+    /// yet, so a direct read returns 0 and the buttons render on the status bar. So it's held
+    /// in @State and refreshed on appear / when the scene becomes active.
+    @State private var topInset: CGFloat = 0
+
+    private func currentTopSafeAreaInset() -> CGFloat {
         #if os(iOS)
         UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
@@ -55,7 +61,7 @@ struct VimarshaApp: App {
                 HStack(spacing: 0) {
                     LibraryStackView(
                         store: store, audioEngine: audioEngine, recorder: recorder,
-                        topSafeInset: topSafeAreaInset
+                        topSafeInset: topInset
                     )
                     .containerRelativeFrame([.horizontal, .vertical])
                     ScientificLiteratureView()
@@ -75,6 +81,12 @@ struct VimarshaApp: App {
             }
             // Ship one book: import the bundled Stolen Focus once, on first launch.
             .task { await store?.seedBundledBookIfNeeded() }
+            // Resolve the real top inset once the window exists (see `topInset`), and refresh
+            // it whenever the scene reactivates (rotation / returning from background).
+            .onAppear { topInset = currentTopSafeAreaInset() }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { topInset = currentTopSafeAreaInset() }
+            }
         }
         #if os(macOS)
         .defaultSize(width: 480, height: 920)
