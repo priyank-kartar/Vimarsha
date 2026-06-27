@@ -29,6 +29,9 @@ final class VoiceInput {
 
     private var wasPlaying = false
     private var holdActive = false
+    /// Guards `toggle()` against re-entrancy — a fast double-tap must not run `beginHold`
+    /// twice concurrently (which churned the recorder start/stop and could crash).
+    private var transitioning = false
     private var tempURL: URL?
     private var recordingStarted: ContinuousClock.Instant?
     private var ticker: Task<Void, Never>?
@@ -45,6 +48,23 @@ final class VoiceInput {
         self.recorder = recorder
         self.backend = backend
         self.player = player
+    }
+
+    /// Tap-to-toggle voice input: a tap starts recording (the timer counts up until the next
+    /// tap), a second tap stops and transcribes. Re-entrancy-guarded so a rapid double-tap
+    /// can't start two recordings at once. Taps during transcription are ignored.
+    func toggle() async {
+        guard !transitioning else { return }
+        transitioning = true
+        defer { transitioning = false }
+        switch phase {
+        case .recording:
+            endHold()                 // stop + transcribe
+        case .transcribing:
+            break                     // busy — ignore
+        case .idle, .denied, .failed:
+            await beginHold()         // start
+        }
     }
 
     /// Finger down: permission (the system prompt is the primer) → pause narration

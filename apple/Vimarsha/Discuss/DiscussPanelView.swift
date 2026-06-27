@@ -244,16 +244,10 @@ struct DiscussPanelView: View {
             voiceCaption
             HStack(spacing: 10) {
                 if let voice {
-                    HoldToTalkButton(
+                    TalkButton(
                         isRecording: voice.phase == .recording,
                         reduceTransparency: reduceTransparency,
-                        onHoldChanged: { holding in
-                            if holding {
-                                Task { await voice.beginHold() }
-                            } else {
-                                voice.endHold()
-                            }
-                        }
+                        onTap: { Task { await voice.toggle() } }
                     )
                 }
                 inputField
@@ -376,45 +370,39 @@ struct DiscussPanelView: View {
 /// The panel's hold-to-talk mic (V34): the MemoRecordControl gesture pattern — a short
 /// long-press arms it, the open-ended press holds it until the finger lifts. Aqua while
 /// live, sky otherwise; VoiceOver gets a start/stop toggle (gesture-only rule).
-private struct HoldToTalkButton: View {
+/// Tap-to-toggle voice question: tap to start recording (the listening indicator counts up),
+/// tap again to stop and transcribe. A plain `Button` — the old hold gesture (a sequenced
+/// `LongPressGesture`) was finicky on device: a tap was too short to ever start, and rapid
+/// taps churned the recorder. The mic glows aqua while recording.
+private struct TalkButton: View {
     let isRecording: Bool
     var reduceTransparency: Bool = false
-    var onHoldChanged: (Bool) -> Void = { _ in }
-
-    @GestureState private var holding = false
+    var onTap: () -> Void = {}
 
     private var tint: Color { isRecording ? Palette.aqua : Palette.sky }
 
     var body: some View {
-        Image(systemName: "mic.fill")
-            .font(.system(size: 14, weight: .medium))
-            .foregroundStyle(Palette.textPrimary)
-            .frame(width: 38, height: 38)
-            .background {
-                if reduceTransparency {
-                    Circle().fill(Palette.surface)
-                        .overlay(Circle().strokeBorder(tint.opacity(0.6), lineWidth: 1))
-                } else {
-                    Color.clear.glassEffect(
-                        .regular.tint(tint.opacity(isRecording ? 0.5 : 0.3)).interactive(),
-                        in: .circle
-                    )
-                }
-            }
-            .contentShape(Circle())
-            .gesture(
-                LongPressGesture(minimumDuration: 0.25)
-                    .sequenced(before: LongPressGesture(minimumDuration: .infinity))
-                    .updating($holding) { value, state, _ in
-                        if case .second = value { state = true }
+        Button(action: onTap) {
+            Image(systemName: isRecording ? "stop.fill" : "mic.fill")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Palette.textPrimary)
+                .frame(width: 38, height: 38)
+                .background {
+                    if reduceTransparency {
+                        Circle().fill(Palette.surface)
+                            .overlay(Circle().strokeBorder(tint.opacity(0.6), lineWidth: 1))
+                    } else {
+                        Color.clear.glassEffect(
+                            .regular.tint(tint.opacity(isRecording ? 0.5 : 0.3)).interactive(),
+                            in: .circle
+                        )
                     }
-            )
-            .onChange(of: holding) { _, isHolding in onHoldChanged(isHolding) }
-            .accessibilityLabel("Voice question")
-            .accessibilityHint("Hold to talk")
-            .accessibilityAction(named: isRecording ? "Stop and transcribe" : "Start voice question") {
-                onHoldChanged(!isRecording)
-            }
+                }
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isRecording ? "Stop and transcribe" : "Voice question")
+        .accessibilityHint("Tap to talk")
     }
 }
 
