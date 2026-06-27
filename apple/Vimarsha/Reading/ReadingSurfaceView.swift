@@ -120,6 +120,21 @@ struct ReadingSurfaceView: View {
                 } else {
                     shell(in: geo.size)
                 }
+                // Top scrim: the reading body is full-bleed and scrolls under the screen
+                // top, so without this the narrated text collides with the status bar / notch.
+                // A short canvas gradient fades the text out before it reaches the clock and
+                // gives the close bar a clean backing.
+                VStack(spacing: 0) {
+                    LinearGradient(
+                        colors: [Palette.canvas, Palette.canvas.opacity(0)],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                    .frame(height: topSafeInset + 28)
+                    .allowsHitTesting(false)
+                    Spacer(minLength: 0)
+                }
+                .ignoresSafeArea(edges: .top)
+
                 closeBar(player: player)
                     .padding(.top, topSafeInset + 14)
                     .padding(.horizontal, 20)
@@ -278,7 +293,7 @@ struct ReadingSurfaceView: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
                     coverPlate(in: size)
-                        .padding(.top, 66)
+                        .padding(.top, topSafeInset + 52)
                     masthead
                         .padding(.top, 24)
                         .padding(.bottom, 36)
