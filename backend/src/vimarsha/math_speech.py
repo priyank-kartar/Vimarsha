@@ -420,13 +420,28 @@ def speak_latex(latex: str) -> str:
 
 # --- block-level verbalization -------------------------------------------------------
 
-_INLINE_MATH = re.compile(r"\$([^$]+)\$|\\\(([^)]*?)\\\)")
-
-
 def _rewrite_inline(text: str) -> str:
-    def repl(m: re.Match) -> str:
-        return speak_latex(m.group(1) if m.group(1) is not None else m.group(2))
-    return re.sub(r"\s+", " ", _INLINE_MATH.sub(repl, text)).strip()
+    # Stage 1: rewrite \(…\) spans first — unambiguous open/close delimiters.
+    text = re.sub(r"\\\((.*?)\\\)", lambda m: speak_latex(m.group(1)), text)
+
+    # Stage 2: handle $…$ by splitting on $ and applying parity pairing.
+    # Even-index segments are prose (kept verbatim); odd-index segments are math
+    # (passed through speak_latex). An empty math segment (from "$$") becomes "".
+    parts = text.split("$")
+    result_parts: list[str] = []
+    for idx, part in enumerate(parts):
+        if idx % 2 == 0:
+            result_parts.append(part)       # prose — keep as-is
+        else:
+            result_parts.append(speak_latex(part))   # math — verbalize (empty → "")
+
+    # If the original had an odd number of $ signs (unbalanced), the split produces
+    # an even number of segments, so the last prose segment ends the iteration cleanly.
+    # Any residual "$" cannot survive — the split consumed them all.
+    text = "".join(result_parts)
+
+    # Stage 3: collapse whitespace introduced by removed delimiters.
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def verbalize_blocks(blocks: list[Block]) -> list[Block]:

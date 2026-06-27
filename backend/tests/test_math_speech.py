@@ -96,3 +96,22 @@ def test_verbalize_rewrites_backslash_paren_inline_math():
     verbalize_blocks(blocks)
     assert blocks[0].text == "the value c is constant."
     assert "\\(" not in blocks[0].text and "(" not in blocks[0].text
+
+
+def test_inline_rewrite_handles_empty_dollar_pair_without_mangling():
+    """Regression: pylatexenc emits degenerate $$ for dropped macros; must not mis-pair."""
+    blocks = [Block(id="b0", index=0, kind="paragraph",
+                    text=r"with $$-dimensional keys and values $h$ times to $d_k$ dims.")]
+    verbalize_blocks(blocks)
+    t = blocks[0].text
+    assert "$" not in t                          # no leak
+    assert "dimensional keys and values" in t    # prose preserved, NOT char-mangled
+    assert "h times" in t
+    assert "d sub k" in t
+
+
+def test_inline_rewrite_leaves_no_stray_dollar():
+    """An odd/unbalanced $ (e.g. a literal price) must not leak into spoken output."""
+    blocks = [Block(id="b0", index=0, kind="paragraph", text=r"it costs $5 at most")]
+    verbalize_blocks(blocks)
+    assert "$" not in blocks[0].text
