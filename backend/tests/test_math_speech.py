@@ -115,3 +115,13 @@ def test_inline_rewrite_leaves_no_stray_dollar():
     blocks = [Block(id="b0", index=0, kind="paragraph", text=r"it costs $5 at most")]
     verbalize_blocks(blocks)
     assert "$" not in blocks[0].text
+
+
+def test_text_style_macros_read_as_words():
+    assert speak_latex(r"\mathrm{Attention}(Q, K, V)") == "Attention open paren Q comma K comma V close paren"
+    assert speak_latex(r"\mathrm{softmax}(x)") == "softmax open paren x close paren"
+    assert speak_latex(r"\operatorname{Concat}(a)") == "Concat open paren a close paren"
+    assert speak_latex(r"\text{where}") == "where"
+    # wrapper name never leaks, content not spelled out
+    out = speak_latex(r"\mathrm{Attention}")
+    assert "mathrm" not in out and "A t t e n t" not in out

@@ -39,6 +39,9 @@ ACCENTS = {"vec": ("vector ", ""), "mathbf": ("vector ", ""), "boldsymbol": ("ve
            "hat": ("", " hat"), "bar": ("", " bar"), "overline": ("", " bar"),
            "tilde": ("", " tilde"), "dot": ("", " dot")}
 
+_TEXT_MACROS = {"mathrm", "text", "textrm", "textbf", "textit", "mathit",
+                "mathsf", "mathtt", "operatorname"}
+
 GREEK = {
     "alpha": "alpha", "beta": "beta", "gamma": "gamma", "delta": "delta",
     "epsilon": "epsilon", "varepsilon": "epsilon", "zeta": "zeta", "eta": "eta",
@@ -116,6 +119,13 @@ def _arg_tree(argnode) -> MathNode:
     if argnode is None:
         return MathNode("row")
     return _parse(_tokenize(getattr(argnode, "nodelist", []) or []))
+
+
+def _collect_word(node: MathNode) -> str:
+    """Concatenate all leaf text in a subtree into a single word (for text-style macros)."""
+    if node.kind in ("ident", "number", "op", "word"):
+        return node.value
+    return "".join(_collect_word(c) for c in node.children)
 
 
 # --- parse ---------------------------------------------------------------------------
@@ -204,6 +214,10 @@ def _macro_atom(name: str, args: list) -> MathNode:
     if name in ACCENTS and args:
         pre, post = ACCENTS[name]
         return MathNode("accent", value=f"{pre}|{post}", children=[_arg_tree(args[0])])
+    if name in _TEXT_MACROS and args:
+        inner = _arg_tree(args[0])
+        word = _collect_word(inner)
+        return MathNode("word", value=word) if word else MathNode("row")
     # unknown macro: speak its name as words, keep any args as children (Task 5 refines)
     return MathNode("unknown", value=name, children=[_arg_tree(a) for a in args])
 
@@ -271,6 +285,14 @@ def _speak_row(node: MathNode) -> str:
             needs_of = word in {"sine", "cosine", "tangent"} or word.endswith(" of")
             joiner = "" if word.endswith(" of") else (" of" if needs_of else "")
             out.append(f"{word}{joiner} {operand}".strip())
+            i += 2
+        elif (kids[i].kind == "unknown" and kids[i].value in _TEXT_MACROS
+              and i + 1 < len(kids)):
+            # pylatexenc gives \operatorname (and similar) zero args; the {name} group
+            # becomes the next sibling — collect it as a single word.
+            word = _collect_word(kids[i + 1])
+            if word:
+                out.append(word)
             i += 2
         else:
             out.append(_speak(kids[i]))
@@ -383,6 +405,7 @@ _RULES.update({"frac": _speak_frac, "sqrt": _speak_sqrt})
 _RULES.update({"bigop": _speak_value, "func": _speak_value,
                "set": _speak_set, "accent": _speak_accent})
 _RULES.update({"matrix": _speak_matrix, "delim": _speak_value})
+_RULES.update({"word": _speak_value})
 
 
 # --- public --------------------------------------------------------------------------
