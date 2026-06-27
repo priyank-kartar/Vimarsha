@@ -226,6 +226,8 @@ def _speak_bigop_group(node: MathNode, operand_txt: str) -> str:
             bounds = f" from {lower} to {upper}"
         elif lower is not None:
             bounds = f" from {lower}"
+        elif upper is not None:
+            bounds = f" to {upper}"
     return f"{word}{bounds} of {operand_txt}".strip()
 
 

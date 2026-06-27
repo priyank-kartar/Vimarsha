@@ -44,3 +44,5 @@ def test_bigops_functions_sets_accents():
     assert speak_latex(r"\hat{y}") == "y hat"
     assert speak_latex(r"\bar{x}") == "x bar"
     assert speak_latex(r"\lim_{n} a_n") == "the limit as n of a sub n"
+    # upper-only bound: lower is None, upper is not None — must not be silently dropped
+    assert speak_latex(r"\sum^{n} x") == "the sum to n of x"
