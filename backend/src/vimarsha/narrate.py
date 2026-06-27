@@ -13,7 +13,7 @@ from vimarsha.tts import BatchSynthesizer, Synthesizer, chunk_text
 
 def narratable_text(block: Block) -> Optional[str]:
     """Return the text to read for a block, or None to skip it."""
-    if block.kind in ("heading", "paragraph", "blockquote", "pullquote", "list"):
+    if block.kind in ("heading", "paragraph", "blockquote", "pullquote", "list", "equation"):
         return block.text or None
     if block.kind in ("figure", "image", "table"):
         return block.caption or None

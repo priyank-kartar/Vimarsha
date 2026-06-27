@@ -141,10 +141,13 @@ def arxiv_metadata(arxiv_id: str) -> tuple[str, str]:
 
 def ingest_arxiv(ref: str) -> ChapterBundle:
     """A whole arXiv paper as one ``ChapterBundle`` (paragraphs + headings + equation blocks).
-    Section narration/timings + the equations' spoken form are filled by the narration step."""
+    Equation blocks have their ``text`` filled with the spoken form by math-to-speech so they
+    can be narrated; inline math in prose is also rewritten. ``latex`` is never touched."""
+    from vimarsha.math_speech import verbalize_blocks
     arxiv_id = normalize_arxiv_id(ref)
     title, _authors = arxiv_metadata(arxiv_id)
     blocks = parse_latex_to_blocks(fetch_arxiv_latex(arxiv_id))
+    verbalize_blocks(blocks)
     if not any(b.kind == "paragraph" for b in blocks):
         raise ValueError(f"arXiv:{arxiv_id} produced no readable text")
     return ChapterBundle(chapterId=f"arxiv-{arxiv_id}", title=title, blocks=blocks, figureMap=[])

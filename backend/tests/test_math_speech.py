@@ -61,3 +61,30 @@ def test_delimiters_matrices_and_fallback():
     # even malformed input never raises and never leaks delimiters
     safe = speak_latex(r"$\frac{a}{$")
     assert "$" not in safe and "\\" not in safe
+
+
+# --- verbalize_blocks tests ---
+
+from vimarsha.math_speech import speak_latex, verbalize_blocks  # noqa: E402
+from vimarsha.models import Block  # noqa: E402
+
+
+def test_verbalize_fills_equation_text_and_keeps_latex():
+    blocks = [Block(id="b0", index=0, kind="equation", latex=r"E = m c^2")]
+    verbalize_blocks(blocks)
+    assert blocks[0].text == "E equals m c squared"
+    assert blocks[0].latex == r"E = m c^2"          # latex untouched (KaTeX)
+
+
+def test_verbalize_rewrites_inline_math_in_prose():
+    blocks = [Block(id="b0", index=0, kind="paragraph",
+                    text=r"where $c$ is the speed and $\alpha$ a constant.")]
+    verbalize_blocks(blocks)
+    assert blocks[0].text == "where c is the speed and alpha a constant."
+    assert "$" not in blocks[0].text
+
+
+def test_verbalize_is_idempotent_on_plain_prose():
+    blocks = [Block(id="b0", index=0, kind="paragraph", text="no math here.")]
+    verbalize_blocks(blocks)
+    assert blocks[0].text == "no math here."

@@ -52,3 +52,37 @@ def test_equation_blocks_have_no_spoken_text_yet():
     eq = next(b for b in parse_latex_to_blocks(_SRC) if b.kind == "equation")
     assert eq.text is None
     assert eq.latex
+
+
+# --- Phase 2b: narration now reads equation blocks once verbalized ---
+
+from vimarsha.narrate import narratable_text  # noqa: E402
+from vimarsha.models import Block  # noqa: E402
+
+
+def test_equation_block_is_narratable_once_spoken():
+    eq = Block(id="b0", index=0, kind="equation", latex="E=mc^2", text="E equals m c squared")
+    assert narratable_text(eq) == "E equals m c squared"
+    # …and an unspoken equation (no text) is still skipped
+    assert narratable_text(Block(id="b1", index=1, kind="equation", latex="x")) is None
+
+
+# --- opt-in live corpus test (hits arxiv.org; skipped unless VIMARSHA_LIVE=1) ---
+
+import os  # noqa: E402
+import pytest  # noqa: E402
+
+
+@pytest.mark.skipif(os.environ.get("VIMARSHA_LIVE") != "1", reason="hits arxiv.org")
+def test_attention_paper_math_is_speakable():
+    from vimarsha.arxiv_ingest import ingest_arxiv
+    bundle = ingest_arxiv("1706.03762")
+    eqs = [b for b in bundle.blocks if b.kind == "equation"]
+    assert eqs, "expected display equations"
+    for b in eqs:
+        assert b.text, f"equation {b.id} has no spoken text"
+        assert "$" not in b.text and "\\" not in b.text, f"leak in {b.id}: {b.text!r}"
+    # inline math no longer leaves dollar signs in prose
+    for b in bundle.blocks:
+        if b.kind == "paragraph":
+            assert "$" not in (b.text or "")
