@@ -40,6 +40,9 @@ struct ReadingSurfaceView: View {
     var morphNamespace: Namespace.ID?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Status-bar / notch inset (injected at the app root). The reading surface is full-bleed,
+    /// so the close bar adds this to avoid rendering under the status bar.
+    @Environment(\.topSafeInset) private var topSafeInset
 
     @ScaledMetric(relativeTo: .caption) private var labelSize: CGFloat = 10
     @ScaledMetric(relativeTo: .title) private var titleSize: CGFloat = 30
@@ -118,7 +121,7 @@ struct ReadingSurfaceView: View {
                     shell(in: geo.size)
                 }
                 closeBar(player: player)
-                    .padding(.top, 14)
+                    .padding(.top, topSafeInset + 14)
                     .padding(.horizontal, 20)
             }
             .animation(

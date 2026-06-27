@@ -60,8 +60,7 @@ struct VimarshaApp: App {
             ScrollView(.horizontal) {
                 HStack(spacing: 0) {
                     LibraryStackView(
-                        store: store, audioEngine: audioEngine, recorder: recorder,
-                        topSafeInset: topInset
+                        store: store, audioEngine: audioEngine, recorder: recorder
                     )
                     .containerRelativeFrame([.horizontal, .vertical])
                     ScientificLiteratureView()
@@ -71,6 +70,9 @@ struct VimarshaApp: App {
             }
             .scrollTargetBehavior(.paging)
             .scrollIndicators(.hidden)
+            // One source of truth for the top inset, read by every surface's top controls
+            // (library, reading) so none of them render under the status bar.
+            .environment(\.topSafeInset, topInset)
             // No keyboard-focus ring lingering on the round glass buttons after a click
             // (every icon button) — this is a tap/scroll surface, not a focus-driven one.
             .focusEffectDisabled()

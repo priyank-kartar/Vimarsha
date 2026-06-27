@@ -18,11 +18,10 @@ struct LibraryStackView: View {
     /// `nil` (previews/snapshots) hides the mic control.
     var recorder: (any RecorderEngine)?
 
-    /// Top safe-area inset (status bar / notch height), supplied by the app-root
-    /// `GeometryReader`. The horizontal paging scroll fills each page edge-to-edge via
-    /// `containerRelativeFrame`, which zeroes the inset propagated into this view — so the
-    /// real value has to come from above, or the top glass controls tuck under the clock.
-    var topSafeInset: CGFloat = 0
+    /// Top safe-area inset (status bar / notch height), injected at the app root (see
+    /// `EnvironmentValues.topSafeInset`). The full-bleed paging surface zeroes the propagated
+    /// inset, so top controls add this to clear the status bar.
+    @Environment(\.topSafeInset) private var topSafeInset
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
