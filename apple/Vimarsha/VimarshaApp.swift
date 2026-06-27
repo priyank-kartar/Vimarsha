@@ -28,15 +28,36 @@ struct VimarshaApp: App {
         }
     }
 
+    /// Status-bar / notch height from the key window. The full-bleed paging surface gives the
+    /// library page a zero propagated safe-area inset, so the top glass controls (gallery
+    /// toggle, add book) would otherwise sit under the clock. macOS has no such inset → 0.
+    private var topSafeAreaInset: CGFloat {
+        #if os(iOS)
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first { $0.isKeyWindow }?
+            .safeAreaInsets.top ?? 0
+        #else
+        0
+        #endif
+    }
+
     var body: some Scene {
         WindowGroup {
             // Two swipeable library sections: My Books ⇄ Scientific Literature. A horizontal
             // paging scroll (each page fills the container) — the signature My Books surface is
             // untouched, the papers section sits a swipe to its right.
+            // The pages draw edge-to-edge (full-bleed canvas), so SwiftUI propagates a zero top
+            // inset into them; the real status-bar / notch height comes from the key window so
+            // the library's top glass controls can clear it.
             ScrollView(.horizontal) {
                 HStack(spacing: 0) {
-                    LibraryStackView(store: store, audioEngine: audioEngine, recorder: recorder)
-                        .containerRelativeFrame([.horizontal, .vertical])
+                    LibraryStackView(
+                        store: store, audioEngine: audioEngine, recorder: recorder,
+                        topSafeInset: topSafeAreaInset
+                    )
+                    .containerRelativeFrame([.horizontal, .vertical])
                     ScientificLiteratureView()
                         .containerRelativeFrame([.horizontal, .vertical])
                 }

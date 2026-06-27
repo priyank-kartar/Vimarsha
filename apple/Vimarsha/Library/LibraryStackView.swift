@@ -18,6 +18,12 @@ struct LibraryStackView: View {
     /// `nil` (previews/snapshots) hides the mic control.
     var recorder: (any RecorderEngine)?
 
+    /// Top safe-area inset (status bar / notch height), supplied by the app-root
+    /// `GeometryReader`. The horizontal paging scroll fills each page edge-to-edge via
+    /// `containerRelativeFrame`, which zeroes the inset propagated into this view — so the
+    /// real value has to come from above, or the top glass controls tuck under the clock.
+    var topSafeInset: CGFloat = 0
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorScheme) private var colorScheme
@@ -231,8 +237,8 @@ struct LibraryStackView: View {
             // preference actually reaches it.
             .onPreferenceChange(FocusMetadataVisibleKey.self) { metadataRevealShown = $0 }
             .onPreferenceChange(ClusterFrameKey.self) { clusterGlobalFrame = $0 }
-            .overlay(alignment: .topTrailing) { addBookButton }
-            .overlay(alignment: .topLeading) { layoutToggle }
+            .overlay(alignment: .topTrailing) { addBookButton(topInset: topSafeInset) }
+            .overlay(alignment: .topLeading) { layoutToggle(topInset: topSafeInset) }
             .overlay { chapterListPlane }
             .overlay { bookMemosPlane }
             .overlay { bookConversationsPlane }
@@ -270,7 +276,7 @@ struct LibraryStackView: View {
 
     /// Top-left layout toggle: the depth-stack tower ⇄ a flat gallery grid. Matches the add
     /// button's glass circle. Switching to the gallery drops any tower focus.
-    private var layoutToggle: some View {
+    private func layoutToggle(topInset: CGFloat) -> some View {
         Button {
             withAnimation(reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.86)) {
                 galleryMode.toggle()
@@ -293,7 +299,9 @@ struct LibraryStackView: View {
             }
         }
         .padding(.leading, 20)
-        .padding(.top, 8)
+        // Clear the status bar / notch: the paging page fills the top safe area, so a fixed
+        // top padding would tuck these glass controls under the clock. Inset by the real inset.
+        .padding(.top, topInset + 8)
         .accessibilityLabel(galleryMode ? "Stack view" : "Gallery view")
     }
 
@@ -320,7 +328,7 @@ struct LibraryStackView: View {
     /// The import-error status line rides under it (honest states, no alerts). Absent
     /// without a store (previews) — there'd be nowhere to put the book.
     @ViewBuilder
-    private var addBookButton: some View {
+    private func addBookButton(topInset: CGFloat) -> some View {
         if let store {
             VStack(alignment: .trailing, spacing: 8) {
                 Button {
@@ -358,7 +366,8 @@ struct LibraryStackView: View {
                 }
             }
             .padding(.trailing, 20)
-            .padding(.top, 8)
+            // Clear the status bar / notch (see layoutToggle): inset by the real top safe area.
+            .padding(.top, topInset + 8)
         }
     }
 
