@@ -22,3 +22,12 @@ def test_scripts():
     assert speak_latex(r"x_i") == "x sub i"
     assert speak_latex(r"x_i^2") == "x sub i squared"
     assert speak_latex(r"f'") == "f prime"
+
+
+def test_fractions_and_roots():
+    assert speak_latex(r"\frac{a}{b}") == "a over b"
+    assert speak_latex(r"\frac{1}{2}") == "one half"
+    assert speak_latex(r"\frac{a+b}{c}") == "the fraction a plus b over c end fraction"
+    assert speak_latex(r"\sqrt{x}") == "the square root of x"
+    assert speak_latex(r"\sqrt{x+1}") == "the square root of x plus 1"
+    assert speak_latex(r"\sqrt[3]{x}") == "the 3-th root of x"

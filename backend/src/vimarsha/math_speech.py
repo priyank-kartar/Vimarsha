@@ -156,6 +156,15 @@ def _macro_atom(name: str, args: list) -> MathNode:
         return MathNode("ident", value=GREEK[name])
     if name in MACRO_OPERATORS:
         return MathNode("op", value=MACRO_OPERATORS[name])
+    if name == "frac" and len(args) >= 2:
+        return MathNode("frac", children=[_arg_tree(args[0]), _arg_tree(args[1])])
+    if name == "sqrt":
+        # args = [optional-degree-or-None, radicand]; radicand is the last arg
+        degree = _arg_tree(args[0]) if len(args) >= 2 and args[0] is not None else None
+        radicand = _arg_tree(args[-1]) if args else MathNode("row")
+        children = [radicand] + ([degree] if degree is not None else [])
+        return MathNode("sqrt", value=("nth" if degree is not None else "square"),
+                        children=children)
     # unknown macro: speak its name as words, keep any args as children (Task 5 refines)
     return MathNode("unknown", value=name, children=[_arg_tree(a) for a in args])
 
@@ -202,6 +211,35 @@ def _speak_primed(node: MathNode) -> str:
     return f"{_speak(node.children[0])} prime"
 
 
+_SIMPLE_FRACTIONS = {("1", "2"): "one half", ("1", "3"): "one third",
+                     ("1", "4"): "one quarter", ("2", "3"): "two thirds"}
+
+
+def _is_simple(node: MathNode) -> bool:
+    if node.kind in ("ident", "number", "op"):
+        return True
+    if node.kind == "row":
+        return len(node.children) <= 1
+    return False
+
+
+def _speak_frac(node: MathNode) -> str:
+    num, den = node.children[0], node.children[1]
+    n_txt, d_txt = _speak(num), _speak(den)
+    if (n_txt, d_txt) in _SIMPLE_FRACTIONS:
+        return _SIMPLE_FRACTIONS[(n_txt, d_txt)]
+    if _is_simple(num) and _is_simple(den):
+        return f"{n_txt} over {d_txt}"
+    return f"the fraction {n_txt} over {d_txt} end fraction"
+
+
+def _speak_sqrt(node: MathNode) -> str:
+    radicand = _speak(node.children[0])
+    if node.value == "nth":
+        return f"the {_speak(node.children[1])}-th root of {radicand}"
+    return f"the square root of {radicand}"
+
+
 _RULES = {
     "row": _speak_row,
     "ident": _speak_value,
@@ -211,6 +249,7 @@ _RULES = {
 }
 
 _RULES.update({"sup": _speak_sup, "sub": _speak_sub, "primed": _speak_primed})
+_RULES.update({"frac": _speak_frac, "sqrt": _speak_sqrt})
 
 
 # --- public --------------------------------------------------------------------------
