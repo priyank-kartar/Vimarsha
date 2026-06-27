@@ -36,16 +36,23 @@ struct VimarshaApp: App {
     /// yet, so a direct read returns 0 and the buttons render on the status bar. So it's held
     /// in @State and refreshed on appear / when the scene becomes active.
     @State private var topInset: CGFloat = 0
+    @State private var bottomInset: CGFloat = 0
 
-    private func currentTopSafeAreaInset() -> CGFloat {
-        #if os(iOS)
+    #if os(iOS)
+    private func keyWindowInsets() -> UIEdgeInsets {
         UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .flatMap { $0.windows }
             .first { $0.isKeyWindow }?
-            .safeAreaInsets.top ?? 0
-        #else
-        0
+            .safeAreaInsets ?? .zero
+    }
+    #endif
+
+    private func refreshSafeAreaInsets() {
+        #if os(iOS)
+        let insets = keyWindowInsets()
+        topInset = insets.top
+        bottomInset = insets.bottom
         #endif
     }
 
@@ -70,9 +77,11 @@ struct VimarshaApp: App {
             }
             .scrollTargetBehavior(.paging)
             .scrollIndicators(.hidden)
-            // One source of truth for the top inset, read by every surface's top controls
-            // (library, reading) so none of them render under the status bar.
+            // One source of truth for the safe-area insets, read by every surface's edge
+            // controls (library/reading top controls, reading transport) so none of them render
+            // under the status bar or the home indicator.
             .environment(\.topSafeInset, topInset)
+            .environment(\.bottomSafeInset, bottomInset)
             // No keyboard-focus ring lingering on the round glass buttons after a click
             // (every icon button) — this is a tap/scroll surface, not a focus-driven one.
             .focusEffectDisabled()
@@ -85,9 +94,9 @@ struct VimarshaApp: App {
             .task { await store?.seedBundledBookIfNeeded() }
             // Resolve the real top inset once the window exists (see `topInset`), and refresh
             // it whenever the scene reactivates (rotation / returning from background).
-            .onAppear { topInset = currentTopSafeAreaInset() }
+            .onAppear { refreshSafeAreaInsets() }
             .onChange(of: scenePhase) { _, phase in
-                if phase == .active { topInset = currentTopSafeAreaInset() }
+                if phase == .active { refreshSafeAreaInsets() }
             }
         }
         #if os(macOS)

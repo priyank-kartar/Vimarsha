@@ -43,6 +43,8 @@ struct ReadingSurfaceView: View {
     /// Status-bar / notch inset (injected at the app root). The reading surface is full-bleed,
     /// so the close bar adds this to avoid rendering under the status bar.
     @Environment(\.topSafeInset) private var topSafeInset
+    /// Home-indicator inset — the transport adds this so it doesn't sit on the home indicator.
+    @Environment(\.bottomSafeInset) private var bottomSafeInset
 
     @ScaledMetric(relativeTo: .caption) private var labelSize: CGFloat = 10
     @ScaledMetric(relativeTo: .title) private var titleSize: CGFloat = 30
@@ -268,7 +270,7 @@ struct ReadingSurfaceView: View {
         }
         .frame(maxWidth: 380)
         .padding(.horizontal, 24)
-        .padding(.bottom, 18)
+        .padding(.bottom, bottomSafeInset + 14)
         // Pop/recede is a discrete state morph: interruptible spring keyed
         // on the active set; Reduce Motion cross-dissolves instead.
         .animation(

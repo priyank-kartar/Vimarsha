@@ -409,7 +409,12 @@ struct LibraryStackView: View {
     /// settled or under Reduce Motion (focus is `.none`).
     @ViewBuilder
     private func focusAffordances(in size: CGSize) -> some View {
-        if focus.index >= 0, focus.index < shelf.count {
+        // Suppressed while the reading surface (a full, opaque overlay) is open: the cluster is
+        // invisible behind it, but if it keeps rendering it republishes its `.global`
+        // `ClusterFrameKey` every layout pass — and the Discuss-open animation reflows those
+        // globals, tripping "preference updated multiple times per frame" → a crash on
+        // double-tap-to-Discuss. Gating it off removes the cluster from the layout entirely.
+        if reading == nil, focus.index >= 0, focus.index < shelf.count {
             // Anchor inside the focused cover's visible bottom — above the next book that
             // overlaps it (V24) — using RENDERED tops (V37): the seams the user sees are the
             // transformed ones, not the layout ones.

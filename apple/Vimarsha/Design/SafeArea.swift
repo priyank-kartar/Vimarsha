@@ -12,9 +12,21 @@ private struct TopSafeInsetKey: EnvironmentKey {
     static let defaultValue: CGFloat = 0
 }
 
+/// The device's bottom safe-area inset (home indicator). Same story as the top: the full-bleed
+/// surfaces zero the propagated inset, so bottom controls (the reading transport, the Discuss
+/// panel) add this to avoid sitting on / under the home indicator. macOS → 0.
+private struct BottomSafeInsetKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
+}
+
 extension EnvironmentValues {
     var topSafeInset: CGFloat {
         get { self[TopSafeInsetKey.self] }
         set { self[TopSafeInsetKey.self] = newValue }
+    }
+
+    var bottomSafeInset: CGFloat {
+        get { self[BottomSafeInsetKey.self] }
+        set { self[BottomSafeInsetKey.self] = newValue }
     }
 }
