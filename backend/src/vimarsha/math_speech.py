@@ -105,9 +105,27 @@ def _parse(tokens: list[tuple]) -> MathNode:
     n = len(tokens)
     while i < n:
         atom, i = _atom(tokens, i)
-        if atom is not None:
-            atoms.append(atom)
+        if atom is None:
+            continue
+        # postfix primes and scripts bind to the atom just parsed
+        while i < n and tokens[i] == ("char", "'"):
+            atom = MathNode("primed", children=[atom])
+            i += 1
+        while i < n and tokens[i][0] == "char" and tokens[i][1] in ("^", "_"):
+            kind = "sup" if tokens[i][1] == "^" else "sub"
+            operand, i = _script_operand(tokens, i + 1)
+            atom = MathNode(kind, children=[atom, operand])
+            # allow x_i^2 (sub then sup) to chain
+        atoms.append(atom)
     return MathNode("row", children=atoms)
+
+
+def _script_operand(tokens: list[tuple], i: int) -> tuple[MathNode, int]:
+    if i >= len(tokens):
+        return MathNode("row"), i
+    if tokens[i][0] == "group":
+        return MathNode("row", children=_parse(tokens[i][1]).children), i + 1
+    return _atom(tokens, i)
 
 
 def _atom(tokens: list[tuple], i: int) -> tuple[MathNode | None, int]:
@@ -165,6 +183,25 @@ def _speak_unknown(node: MathNode) -> str:
     return " ".join(p for p in parts if p)
 
 
+def _speak_sup(node: MathNode) -> str:
+    base, exp = _speak(node.children[0]), _speak(node.children[1])
+    if exp == "2":
+        return f"{base} squared"
+    if exp == "3":
+        return f"{base} cubed"
+    if re.fullmatch(r"[a-z]", exp) or exp.isdigit():
+        return f"{base} to the {exp}-th power"
+    return f"{base} to the power of {exp}"
+
+
+def _speak_sub(node: MathNode) -> str:
+    return f"{_speak(node.children[0])} sub {_speak(node.children[1])}"
+
+
+def _speak_primed(node: MathNode) -> str:
+    return f"{_speak(node.children[0])} prime"
+
+
 _RULES = {
     "row": _speak_row,
     "ident": _speak_value,
@@ -172,6 +209,8 @@ _RULES = {
     "op": _speak_value,
     "unknown": _speak_unknown,
 }
+
+_RULES.update({"sup": _speak_sup, "sub": _speak_sub, "primed": _speak_primed})
 
 
 # --- public --------------------------------------------------------------------------

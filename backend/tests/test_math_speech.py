@@ -12,3 +12,13 @@ def test_atoms_and_binary_operators():
     # no LaTeX artifacts ever leak
     out = speak_latex(r"\alpha + \beta")
     assert "\\" not in out and "$" not in out
+
+
+def test_scripts():
+    assert speak_latex(r"x^2") == "x squared"
+    assert speak_latex(r"x^3") == "x cubed"
+    assert speak_latex(r"x^n") == "x to the n-th power"
+    assert speak_latex(r"x^{n+1}") == "x to the power of n plus 1"
+    assert speak_latex(r"x_i") == "x sub i"
+    assert speak_latex(r"x_i^2") == "x sub i squared"
+    assert speak_latex(r"f'") == "f prime"
