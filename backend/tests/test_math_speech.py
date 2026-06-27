@@ -46,3 +46,18 @@ def test_bigops_functions_sets_accents():
     assert speak_latex(r"\lim_{n} a_n") == "the limit as n of a sub n"
     # upper-only bound: lower is None, upper is not None — must not be silently dropped
     assert speak_latex(r"\sum^{n} x") == "the sum to n of x"
+
+
+def test_delimiters_matrices_and_fallback():
+    # parentheses spoken for grouping
+    assert speak_latex(r"(a + b)") == "open paren a plus b close paren"
+    # an unknown macro degrades to spoken words, never leaks LaTeX
+    out = speak_latex(r"\foobar{x}")
+    assert "\\" not in out and "{" not in out and "foobar" in out
+    # a matrix reads row by row, no leakage
+    mtx = speak_latex(r"\begin{pmatrix} a & b \\ c & d \end{pmatrix}")
+    assert "\\" not in mtx and "$" not in mtx
+    assert "matrix" in mtx and "a" in mtx and "d" in mtx
+    # even malformed input never raises and never leaks delimiters
+    safe = speak_latex(r"$\frac{a}{$")
+    assert "$" not in safe and "\\" not in safe

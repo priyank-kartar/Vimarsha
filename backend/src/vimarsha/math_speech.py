@@ -13,9 +13,11 @@ from dataclasses import dataclass, field
 
 from pylatexenc.latexwalker import (
     LatexCharsNode,
+    LatexEnvironmentNode,
     LatexGroupNode,
     LatexMacroNode,
     LatexMathNode,
+    LatexSpecialsNode,
     LatexWalker,
 )
 
@@ -95,6 +97,12 @@ def _tokenize(nodelist) -> list[tuple]:
             toks.append(("macro", n.macroname, args))
         elif isinstance(n, LatexGroupNode):
             toks.append(("group", _tokenize(n.nodelist)))
+        elif isinstance(n, LatexEnvironmentNode):
+            toks.append(("env", n.environmentname, n.nodelist))
+        elif isinstance(n, LatexSpecialsNode):
+            # &  →  column separator in matrix environments; pass through as special token
+            if n.specials_chars == "&":
+                toks.append(("specials", "&"))
         elif isinstance(n, LatexMathNode):
             toks.extend(_tokenize(n.nodelist))
         # comments / unknown node types are ignored
@@ -155,11 +163,17 @@ def _atom(tokens: list[tuple], i: int) -> tuple[MathNode | None, int]:
             return MathNode("ident", value=c), i + 1
         if c in OPERATORS:
             return MathNode("op", value=OPERATORS[c]), i + 1
+        if c in "()":
+            return MathNode("delim", value="open paren" if c == "(" else "close paren"), i + 1
+        if c in "[]":
+            return MathNode("delim", value="open bracket" if c == "[" else "close bracket"), i + 1
         return MathNode("unknown", value=c), i + 1  # stray punctuation
     if tok[0] == "group":
         return MathNode("row", children=_parse(tok[1]).children), i + 1
     if tok[0] == "macro":
         return _macro_atom(tok[1], tok[2]), i + 1
+    if tok[0] == "env":
+        return _env_atom(tok[1], tok[2]), i + 1
     return None, i + 1
 
 
@@ -267,10 +281,10 @@ def _speak_value(node: MathNode) -> str:
 
 
 def _speak_unknown(node: MathNode) -> str:
-    # a stray char or unrecognized macro: read the name as words, recurse into children
-    name = re.sub(r"[\\${}^_]", " ", node.value)
-    name = re.sub(r"[a-z][A-Z]", lambda m: m.group(0)[0] + " " + m.group(0)[1], name)
-    parts = [name.strip()] + [_speak(c) for c in node.children]
+    # Hardened fallback: multi-letter macro names read as words; NOTHING leaks.
+    name = node.value.lstrip("\\")
+    name = re.sub(r"[\\${}^_&]", " ", name).strip()
+    parts = [name] + [_speak(c) for c in node.children]
     return " ".join(p for p in parts if p)
 
 
@@ -322,6 +336,38 @@ def _speak_sqrt(node: MathNode) -> str:
     return f"the square root of {radicand}"
 
 
+_MATRIX_ENVS = {"matrix", "pmatrix", "bmatrix", "vmatrix", "Vmatrix", "smallmatrix",
+                "array", "cases", "aligned", "align", "align*", "split", "gather"}
+
+
+def _env_atom(name: str, nodelist) -> MathNode:
+    toks = _tokenize(nodelist)
+    if name in _MATRIX_ENVS:
+        rows: list[list[list[tuple]]] = [[[]]]
+        for t in toks:
+            if t == ("specials", "&"):
+                rows[-1].append([])
+            elif t[0] == "macro" and t[1] in ("\\", "", "cr"):
+                rows.append([[]])
+            else:
+                rows[-1][-1].append(t)
+        cells = [[_parse(c) for c in row if c] for row in rows if any(row)]
+        return MathNode("matrix", value=name, children=[
+            MathNode("mrow", children=row) for row in cells
+        ])
+    # non-matrix environment: just parse its body inline
+    return MathNode("row", children=_parse(toks).children)
+
+
+def _speak_matrix(node: MathNode) -> str:
+    label = "cases" if node.value == "cases" else "matrix"
+    parts = [label]
+    for r, row in enumerate(node.children, start=1):
+        cells = ", ".join(_speak(c) for c in row.children)
+        parts.append(f"row {r}: {cells}")
+    return " ".join(parts)
+
+
 _RULES = {
     "row": _speak_row,
     "ident": _speak_value,
@@ -334,6 +380,7 @@ _RULES.update({"sup": _speak_sup, "sub": _speak_sub, "primed": _speak_primed})
 _RULES.update({"frac": _speak_frac, "sqrt": _speak_sqrt})
 _RULES.update({"bigop": _speak_value, "func": _speak_value,
                "set": _speak_set, "accent": _speak_accent})
+_RULES.update({"matrix": _speak_matrix, "delim": _speak_value})
 
 
 # --- public --------------------------------------------------------------------------
