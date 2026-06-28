@@ -550,17 +550,16 @@ struct ReadingSurfaceView: View {
     }
 
     /// The shared element: the same hardback, settled small at the top of the canvas.
-    @ViewBuilder
     private func coverPlate(in size: CGSize) -> some View {
         let width = min(size.width * 0.40, 200)
-        let plate = HardbackCoverView(book: book)
+        // NOTE: the cover→reading matchedGeometryEffect (coverMorph) was removed — it linked
+        // this plate to the library card, and with both views live they re-rendered each other
+        // forever (100% CPU hang; confirmed via _printChanges: BookTower ⇄ ReadingSurfaceView).
+        // The surface now cross-dissolves open/closed instead of the cover flying. Revisit only
+        // if the two views can be guaranteed non-simultaneous.
+        return HardbackCoverView(book: book)
             .frame(width: width)
             .shadow(color: .black.opacity(0.30), radius: 14, y: 9)
-        if let morphNamespace {
-            plate.matchedGeometryEffect(id: "cover-\(book.id)", in: morphNamespace)
-        } else {
-            plate
-        }
     }
 
     /// Chapter masthead in the editorial serif — content is paper, matte on the canvas.

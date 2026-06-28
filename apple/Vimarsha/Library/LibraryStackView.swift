@@ -1151,13 +1151,10 @@ private struct BookTower: View {
                     radius: 16 + promotion * 10,
                     y: 12 + promotion * 6
                 )
-                // Cover-morph shared element (V17): while this book is open the reading
-                // surface's plate owns the id (this card yields source) and the card hides —
-                // the hardback has "left" the stack; back-morph returns it.
-                .matchedGeometryEffect(
-                    id: "cover-\(book.id)", in: morphNamespace,
-                    isSource: openedBookId != book.id
-                )
+                // Cover-morph matchedGeometryEffect REMOVED: it linked this card to the reading
+                // surface's plate, and with both alive they mutually re-rendered forever (100%
+                // CPU hang — _printChanges showed BookTower ⇄ ReadingSurfaceView). The opened
+                // card still hides; the surface cross-dissolves instead of the cover flying.
                 .opacity(openedBookId == book.id ? 0 : 1)
         }
     }
