@@ -246,6 +246,10 @@ struct LibraryStackView: View {
             // Scroll-settle detection (motion grammar #2): each card publishes its viewport
             // midY; the nearest to the front slot owns focus. Suppressed under Reduce Motion.
             .onPreferenceChange(CardMidYKey.self) { midYs in
+                // Freeze focus while a surface covers the library: the keyboard's avoidance
+                // shifts these (occluded) cards, and recomputing focus from those spurious
+                // positions both loses the pinned book and feeds preference-update loops.
+                guard !anyOverlayOpen else { return }
                 focus = resolvedFocus(midYs: midYs, viewportHeight: geo.size.height)
             }
             .onPreferenceChange(CardTopYKey.self) { cardTops = $0 }
@@ -423,12 +427,12 @@ struct LibraryStackView: View {
     /// settled or under Reduce Motion (focus is `.none`).
     @ViewBuilder
     private func focusAffordances(in size: CGSize) -> some View {
-        // Suppressed while the reading surface (a full, opaque overlay) is open: the cluster is
-        // invisible behind it, but if it keeps rendering it republishes its `.global`
-        // `ClusterFrameKey` every layout pass — and the Discuss-open animation reflows those
-        // globals, tripping "preference updated multiple times per frame" → a crash on
-        // double-tap-to-Discuss. Gating it off removes the cluster from the layout entirely.
-        if reading == nil, focus.index >= 0, focus.index < shelf.count {
+        // Suppressed while ANY surface is open over the library (reading or a morphed plane):
+        // the cluster is invisible behind it, but if it keeps rendering it republishes its
+        // `.global` `ClusterFrameKey` every layout pass — and opening Discuss raises the
+        // keyboard, whose avoidance reflows those globals, tripping "preference updated multiple
+        // times per frame" → a crash. Gating it off removes the cluster from the layout entirely.
+        if !anyOverlayOpen, focus.index >= 0, focus.index < shelf.count {
             // Anchor inside the focused cover's visible bottom — above the next book that
             // overlaps it (V24) — using RENDERED tops (V37): the seams the user sees are the
             // transformed ones, not the layout ones.
