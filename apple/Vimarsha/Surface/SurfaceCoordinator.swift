@@ -10,6 +10,11 @@ final class SurfaceCoordinator {
     private(set) var activeSurface: Surface = .library
     private(set) var session: BookSession?
 
+    /// The library's focused book index, preserved across the library's unmount while a surface
+    /// covers it (single-live-surface tears the library down so nothing loops behind Discuss).
+    /// On return the tower re-pins this book so its control cluster + promotion come back.
+    var libraryFocusIndex: Int?
+
     // MARK: Reading-level surfaces (need a live session)
 
     /// Open a ready chapter into the reading surface, building the book session. Returns

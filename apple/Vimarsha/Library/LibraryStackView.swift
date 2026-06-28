@@ -279,6 +279,9 @@ struct LibraryStackView: View {
                 // positions both loses the pinned book and feeds preference-update loops.
                 guard !anyOverlayOpen else { return }
                 focus = resolvedFocus(midYs: midYs, viewportHeight: geo.size.height)
+                // Remember the focused book so it can be re-pinned after the library is torn
+                // down + rebuilt for Discuss (single-live-surface).
+                if focus.index >= 0 { coordinator.libraryFocusIndex = focus.index }
             }
             .onPreferenceChange(CardTopYKey.self) { tops in
                 guard !anyOverlayOpen else { return }
@@ -357,6 +360,15 @@ struct LibraryStackView: View {
             // scroll under the keyboard).
             .onChange(of: anyOverlayOpen, initial: true) { _, open in
                 surfaceCovering?.wrappedValue = open
+            }
+            // Re-pin the focused book when the library returns to the foreground after being torn
+            // down + rebuilt for Discuss (its @State focus reset on the rebuild) — only when
+            // focus was actually lost, so normal browsing is untouched.
+            .onChange(of: coordinator.activeSurface) { _, surface in
+                if surface == .library, focus.index < 0,
+                   let idx = coordinator.libraryFocusIndex, idx >= 0, idx < shelf.count {
+                    tappedIndex = idx
+                }
             }
         }
     }
