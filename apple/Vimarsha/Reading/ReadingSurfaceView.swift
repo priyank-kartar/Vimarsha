@@ -157,42 +157,41 @@ struct ReadingSurfaceView: View {
             // The compact glass transport (V19) floats over the paper body — never a
             // chrome bar — and the figure carrier (V20) auto-pops above it at each
             // figure's startMs, recedes at endMs. Only when a chapter is actually loaded.
-            // The Discuss panel (V33) takes the whole bottom region while up — a glass
-            // plane morphed up within the canvas; narration keeps playing behind it.
             .overlay(alignment: .bottom) {
                 if let player, player.bundle != nil {
-                    if showDiscuss, let chatStore {
-                        DiscussPanelView(
-                            chat: chatStore,
-                            voice: voiceInput,
-                            speaker: replySpeaker,
-                            archive: discussArchive,
-                            reduceTransparency: reduceTransparency,
-                            onClose: {
-                                voiceInput?.cancelHold()
-                                showDiscuss = false
-                            }
-                        )
-                        .frame(maxWidth: 600)
-                        .frame(height: min(geo.size.height * 0.55, 520))
-                        .transition(
-                            reduceMotion ? .opacity
-                                : .move(edge: .bottom).combined(with: .opacity)
-                        )
-                    } else {
-                        transportOverlay(player: player)
-                    }
+                    transportOverlay(player: player)
                 }
             }
-            .animation(
-                reduceMotion ? .easeInOut(duration: 0.15)
-                    : .spring(response: 0.4, dampingFraction: 0.88),
-                value: showDiscuss
-            )
             // The opened-figure viewer rides above everything (transport included).
             .overlay { figureViewer }
         }
         .background(Palette.canvas.ignoresSafeArea())
+        // Discuss is presented as a sheet (NOT an in-canvas overlay): stacking it as a third
+        // full-bleed overlay on the library+reading surfaces — all heavily geometry-observed —
+        // fed a keyboard-driven SwiftUI render loop that hung the main thread (watchdog). A sheet
+        // gets its own isolated presentation context and native keyboard handling, so the
+        // cross-surface feedback can't happen. Narration keeps playing behind it.
+        .sheet(isPresented: $showDiscuss) {
+            if let chatStore {
+                DiscussPanelView(
+                    chat: chatStore,
+                    voice: voiceInput,
+                    speaker: replySpeaker,
+                    archive: discussArchive,
+                    reduceTransparency: reduceTransparency,
+                    onClose: { showDiscuss = false }   // chevron-down dismisses the sheet
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(.clear)        // DiscussPanelView draws its own glass plane
+                .onDisappear {
+                    // Any dismissal (drag-down or chevron) ends the conversation cleanly.
+                    voiceInput?.cancelHold()
+                    replySpeaker?.stop()
+                }
+            }
+        }
     }
 
     /// Full-bleed zoomable viewer for a tapped inline figure (V-figure-open). Shown only when a
