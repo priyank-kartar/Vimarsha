@@ -861,7 +861,22 @@ struct LibraryStackView: View {
     /// plate (suppressed under Reduce Motion — the dissolve carries the transition).
     @ViewBuilder
     private var readingSurface: some View {
-        if let reading {
+        // Single live surface (spec 2026-06-28): Discuss replaces the reading surface entirely
+        // — the reading view UNMOUNTS, a frozen snapshot of it sits behind the panel, so nothing
+        // live observes behind Discuss. This is the fix for the device 100% CPU hang (the old
+        // sheet-over-live-reading composition looped the AttributeGraph forever on device).
+        if coordinator.activeSurface == .discuss, let session = coordinator.session {
+            DiscussPlaneView(
+                backdrop: coordinator.backdrop,
+                chat: session.chatStore,
+                voice: session.voiceInput,
+                speaker: session.replySpeaker,
+                archive: discussArchive(for: session.context),
+                reduceTransparency: reduceTransparency,
+                onClose: { withAnimation(coverMorphAnimation) { coordinator.close() } }
+            )
+            .transition(.opacity)
+        } else if let reading {
             ReadingSurfaceView(
                 book: reading.shelfBook,
                 chapterIndex: reading.chapter.index,
@@ -875,10 +890,21 @@ struct LibraryStackView: View {
                 discussArchive: discussArchive(for: reading),
                 reduceTransparency: reduceTransparency,
                 onClose: { closeReadingSurface() },
+                onOpenDiscuss: { openDiscussPanel() },
                 morphNamespace: reduceMotion ? nil : coverMorph
             )
             .transition(.opacity)
         }
+    }
+
+    /// Open Discuss as the single live surface: pin the anchor, freeze the reading surface to a
+    /// static backdrop, then switch. Opening does NOT pause narration (spec §4) — the session's
+    /// player keeps playing while its reading VIEW is unmounted.
+    private func openDiscussPanel() {
+        guard let session = coordinator.session else { return }
+        session.chatStore.recordAnchor(session.player.currentBlockId)
+        coordinator.backdrop = SurfaceSnapshot.captureKeyWindow()
+        withAnimation(coverMorphAnimation) { coordinator.openDiscuss() }
     }
 
     /// The chapter's saved-conversation handles (V35): list/save/delete through the

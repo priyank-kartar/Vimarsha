@@ -35,6 +35,10 @@ struct ReadingSurfaceView: View {
     var discussArchive: DiscussArchive?
     var reduceTransparency: Bool = false
     var onClose: () -> Void = {}
+    /// Open the Discuss panel (single-live-surface): the host snapshots this surface and
+    /// switches the active surface to `.discuss`, unmounting this view. Default no-op for
+    /// previews/snapshots.
+    var onOpenDiscuss: () -> Void = {}
     /// The cover-morph namespace; nil (snapshots/Reduce Motion) renders without the
     /// shared element.
     var morphNamespace: Namespace.ID?
@@ -72,11 +76,6 @@ struct ReadingSurfaceView: View {
     /// never a sheet. Mutually exclusive with the gallery; leaving it stops any
     /// playing memo clip.
     @State private var showNotes = false
-
-    /// The Discuss panel (V33) — a glass plane morphed up within the canvas, never a
-    /// sheet. Opening does NOT pause narration (spec §4); the panel replaces the
-    /// transport while up (the reading body keeps playing behind it).
-    @State private var showDiscuss = false
 
     /// A tapped inline figure, opened full-bleed (zoomable) over the reading surface. A state
     /// of the surface (an overlay that fades/scales in), never a sheet.
@@ -116,13 +115,6 @@ struct ReadingSurfaceView: View {
                             }
                         )
                         .transition(galleryTransition)
-                    } else if showDiscuss {
-                        // The opaque Discuss sheet fully covers the surface — do NOT render the
-                        // chapter body behind it. ReadingBlocksView lays out hundreds of text
-                        // rows, each with a per-row .accessibilityAction; kept rendering under
-                        // the sheet they spun the render thread at 100% CPU (Time Profiler:
-                        // ReadingBlocksView.textRow looping in AttributeGraph). Restored on close.
-                        Color.clear
                     } else {
                         chapterBody(bundle: bundle, player: player, in: geo.size)
                             .transition(galleryTransition)
@@ -174,44 +166,6 @@ struct ReadingSurfaceView: View {
             .overlay { figureViewer }
         }
         .background(Palette.canvas.ignoresSafeArea())
-        #if DEBUG
-        // Repro harness seam: auto-open Discuss so the hang reproduces without a tap.
-        .task {
-            guard DiscussLoopRepro.autoOpenInReadingSurface, let player else { return }
-            try? await Task.sleep(for: .milliseconds(700))
-            openDiscuss(player: player)
-        }
-        #endif
-        // Discuss is presented as a sheet (NOT an in-canvas overlay): stacking it as a third
-        // full-bleed overlay on the library+reading surfaces — all heavily geometry-observed —
-        // fed a keyboard-driven SwiftUI render loop that hung the main thread (watchdog). A sheet
-        // gets its own isolated presentation context and native keyboard handling, so the
-        // cross-surface feedback can't happen. Narration keeps playing behind it.
-        .sheet(isPresented: $showDiscuss) {
-            if let chatStore {
-                DiscussPanelView(
-                    chat: chatStore,
-                    voice: voiceInput,
-                    speaker: replySpeaker,
-                    archive: discussArchive,
-                    reduceTransparency: reduceTransparency,
-                    onClose: { showDiscuss = false }   // chevron-down dismisses the sheet
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-                // SOLID sheet background (was .clear): a clear backdrop made the panel's Liquid
-                // Glass refract the live, still-animating reading surface behind it every frame,
-                // pinning the render thread (the freeze). An opaque canvas covers the moving
-                // content, so the glass refracts a static surface.
-                .presentationBackground(Palette.canvas)
-                .onDisappear {
-                    // Any dismissal (drag-down or chevron) ends the conversation cleanly.
-                    voiceInput?.cancelHold()
-                    replySpeaker?.stop()
-                }
-            }
-        }
     }
 
     /// Full-bleed zoomable viewer for a tapped inline figure (V-figure-open). Shown only when a
@@ -304,7 +258,7 @@ struct ReadingSurfaceView: View {
 
     /// Dedicated AI-chat (Discuss) button — a glass control left of the player transport.
     private func discussButton(player: PlayerController) -> some View {
-        Button { openDiscuss(player: player) } label: {
+        Button { onOpenDiscuss() } label: {
             Image(systemName: "bubble.left.and.text.bubble.right")
                 .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(Palette.textPrimary)
@@ -325,13 +279,6 @@ struct ReadingSurfaceView: View {
         .accessibilityLabel("Discuss this passage")
     }
 
-    /// Open the Discuss panel without touching playback; anchor the conversation at the
-    /// current paragraph (spec §4 — opening does NOT pause narration).
-    private func openDiscuss(player: PlayerController) {
-        guard let chatStore else { return }
-        chatStore.recordAnchor(player.currentBlockId)
-        showDiscuss = true
-    }
 
     /// The narrated reading body: cover plate + masthead scroll away with the text (the
     /// chapter opens with its cover, then reads); the live paragraph carries the wash and

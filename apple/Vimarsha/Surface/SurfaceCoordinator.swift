@@ -59,6 +59,9 @@ final class SurfaceCoordinator {
             session?.close()
             session = nil
         }
+        // The frozen backdrop belongs to the plane that's closing — drop it so the surface we
+        // return to renders live, not behind a stale still.
+        backdrop = nil
         activeSurface = target
     }
 }
