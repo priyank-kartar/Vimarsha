@@ -37,6 +37,10 @@ struct VimarshaApp: App {
     /// in @State and refreshed on appear / when the scene becomes active.
     @State private var topInset: CGFloat = 0
     @State private var bottomInset: CGFloat = 0
+    /// True while a surface (reading / a morphed plane) covers the library — the horizontal
+    /// paging scroll locks so a swipe on the reading screen can't page to Scientific Literature
+    /// and the live paging scroll can't feed the keyboard-reflow loop.
+    @State private var surfaceCoveringLibrary = false
 
     #if os(iOS)
     private func keyWindowInsets() -> UIEdgeInsets {
@@ -67,7 +71,8 @@ struct VimarshaApp: App {
             ScrollView(.horizontal) {
                 HStack(spacing: 0) {
                     LibraryStackView(
-                        store: store, audioEngine: audioEngine, recorder: recorder
+                        store: store, audioEngine: audioEngine, recorder: recorder,
+                        surfaceCovering: $surfaceCoveringLibrary
                     )
                     .containerRelativeFrame([.horizontal, .vertical])
                     ScientificLiteratureView()
@@ -77,6 +82,11 @@ struct VimarshaApp: App {
             }
             .scrollTargetBehavior(.paging)
             .scrollIndicators(.hidden)
+            // Lock the section paging while a surface covers the library: stops a reading-screen
+            // swipe from leaking to Scientific Literature, and stops the live paging scroll from
+            // feeding the keyboard-reflow loop. Also keep the keyboard from reflowing the root.
+            .scrollDisabled(surfaceCoveringLibrary)
+            .ignoresSafeArea(.keyboard, edges: .bottom)
             // One source of truth for the safe-area insets, read by every surface's edge
             // controls (library/reading top controls, reading transport) so none of them render
             // under the status bar or the home indicator.

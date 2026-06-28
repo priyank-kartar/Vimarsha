@@ -23,6 +23,12 @@ struct LibraryStackView: View {
     /// inset, so top controls add this to clear the status bar.
     @Environment(\.topSafeInset) private var topSafeInset
 
+    /// Reflects `anyOverlayOpen` up to the app root so the horizontal paging scroll (My Books ⇄
+    /// Scientific Literature) can disable itself while a surface (reading / a plane) is open —
+    /// otherwise a swipe on the reading screen pages to the papers section, and the live paging
+    /// scroll feeds the keyboard-reflow loop. `nil` in previews.
+    var surfaceCovering: Binding<Bool>?
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorScheme) private var colorScheme
@@ -327,6 +333,12 @@ struct LibraryStackView: View {
                 allowedContentTypes: [.epub]
             ) { result in
                 handlePickedEpub(result)
+            }
+            // Tell the app root when a surface covers the library, so it can lock the horizontal
+            // paging scroll (no swipe-leak to Scientific Literature while reading; no live paging
+            // scroll under the keyboard).
+            .onChange(of: anyOverlayOpen, initial: true) { _, open in
+                surfaceCovering?.wrappedValue = open
             }
         }
     }
