@@ -57,32 +57,28 @@ struct DiscussPanelView: View {
         .animation(.easeInOut(duration: 0.18), value: panelState)
         .background(plane)
         .clipShape(UnevenRoundedRectangle(topLeadingRadius: 28, topTrailingRadius: 28))
-        // Keyboard-default input (spec §4): the field is focused the moment the plane arrives.
-        // This is now safe because the library underneath ignores the keyboard and freezes all
-        // its geometry observers while covered (see LibraryStackView) — so the keyboard no
-        // longer drives a reflow loop. The spoken transcript also lands in the field for review.
         .onAppear {
-            inputFocused = true
             voice?.onTranscript = { text in
                 draft = draft.isEmpty ? text : draft + " " + text
                 inputFocused = true
             }
         }
+        // Defer auto-focus until AFTER the sheet has settled. Setting @FocusState in onAppear
+        // races the sheet's presentation + keyboard layout into a 100%-CPU loop on iOS 26; a
+        // short delay lets the sheet finish first, then raises the keyboard cleanly.
+        .task {
+            try? await Task.sleep(for: .milliseconds(450))
+            inputFocused = true
+        }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Discuss this passage")
     }
 
-    /// The plane is the glass element; Reduce Transparency gets the matte token.
-    @ViewBuilder
+    /// Matte plane (was Liquid Glass). A `.glassEffect` plane inside the Discuss sheet pinned
+    /// the render thread at 100% CPU on iOS 26 — drop it; the panel is a sky-tinted matte
+    /// surface instead. (The reading canvas keeps its glass; this one control surface doesn't.)
     private var plane: some View {
-        if reduceTransparency {
-            Palette.surface
-        } else {
-            Color.clear.glassEffect(
-                .regular.tint(Palette.sky.opacity(0.22)),
-                in: UnevenRoundedRectangle(topLeadingRadius: 28, topTrailingRadius: 28)
-            )
-        }
+        Palette.surface
     }
 
     private var header: some View {
