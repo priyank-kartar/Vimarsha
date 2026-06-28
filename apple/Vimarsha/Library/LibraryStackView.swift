@@ -1057,14 +1057,13 @@ private struct BookTower: View {
                     // target stays the card's layout frame.
                     .contentShape(Rectangle())
                     .onTapGesture { onTapBook(index) }
-                    // Remove-book affordance (long-press / right-click). A system context menu
-                    // is the one OS-driven surface sanctioned here (like the keyboard) — the
-                    // long-press is itself the deliberate gesture; a confirm still follows.
-                    .contextMenu {
-                        Button(role: .destructive) { onRequestDelete(index) } label: {
-                            Label("Remove Book", systemImage: "trash")
-                        }
-                    }
+                    // Remove-book affordance: a plain long-press (a confirm dialog still follows).
+                    // This deliberately REPLACES a per-card `.contextMenu` — `.contextMenu` inside
+                    // this ForEach (each card also carrying a `.visualEffect`, a preference-
+                    // publishing GeometryReader, and a matchedGeometryEffect) drove an
+                    // AttributeGraph update storm that hung the main thread (watchdog 0x8BADF00D,
+                    // crash report frame `View.contextMenu(menuItems:)` in `BookTower.body`).
+                    .onLongPressGesture(minimumDuration: 0.5) { onRequestDelete(index) }
                     .accessibilityAddTraits(.isButton)
                     .accessibilityHint("Shows playback controls")
                     .accessibilityAction { onTapBook(index) }
