@@ -212,7 +212,13 @@ struct LibraryStackView: View {
                 .padding(.bottom, geo.size.height * 0.22)
                 .frame(width: geo.size.width)
             }
+            // Keyboard avoidance must NEVER reflow the library: when Discuss raises the keyboard,
+            // a reflow of this full-bleed, heavily geometry-observed stack feeds back into layout
+            // → a runaway SwiftUI update loop that hangs the main thread. The Discuss panel lives
+            // in a separate overlay subtree and keeps its own keyboard avoidance.
+            .ignoresSafeArea(.keyboard, edges: .bottom)
             .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, y in
+                guard !anyOverlayOpen else { return }
                 distanceToRest = max(0, y)
             }
             // Rest-snap (V46): when the scroll settles to idle, the cluster animates from
@@ -221,14 +227,13 @@ struct LibraryStackView: View {
             // scrubbing is the animation, and the whole stack is in motion anyway).
             // Reduce Motion swaps the spring for an instant resolve.
             .onScrollPhaseChange { _, newPhase in
+                // Freeze entirely while a surface covers the library (see ignoresSafeArea above):
+                // a spurious phase change here would clear the focused book's pin (losing its
+                // cluster) and churn state into the update loop.
+                guard !anyOverlayOpen else { return }
                 // A real scroll gesture reclaims focus from a tap-pin (the tower's settle
-                // takes back over the moment the user starts browsing again). BUT only when the
-                // library is actually on top: while a surface is open over it (reading, the
-                // Discuss/chapter/voice/notes planes), the keyboard's avoidance shifts this
-                // ScrollView underneath, firing a spurious phase change — clearing the pin there
-                // loses the focused book's cluster, and it can't be recovered when the user
-                // returns. Freeze the pin while any overlay is up.
-                if (newPhase == .interacting || newPhase == .decelerating), !anyOverlayOpen {
+                // takes back over the moment the user starts browsing again).
+                if newPhase == .interacting || newPhase == .decelerating {
                     tappedIndex = nil
                 }
                 let atRest = newPhase == .idle
@@ -241,6 +246,10 @@ struct LibraryStackView: View {
             // (the one space an overlay and the scroll content share); subtracting this maps
             // it into the viewport coordinates the card preferences use.
             .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY } action: {
+                // A `.global` frame reacts to ANY ancestor reflow — exactly what a keyboard does.
+                // Freeze it while covered so it can't drive the update loop (the dodge that
+                // consumes it isn't rendered while a surface is up anyway).
+                guard !anyOverlayOpen else { return }
                 scrollOriginGlobalY = $0
             }
             // Scroll-settle detection (motion grammar #2): each card publishes its viewport
@@ -252,8 +261,14 @@ struct LibraryStackView: View {
                 guard !anyOverlayOpen else { return }
                 focus = resolvedFocus(midYs: midYs, viewportHeight: geo.size.height)
             }
-            .onPreferenceChange(CardTopYKey.self) { cardTops = $0 }
-            .onPreferenceChange(CardVisualTopKey.self) { cardVisualTops = $0 }
+            .onPreferenceChange(CardTopYKey.self) { tops in
+                guard !anyOverlayOpen else { return }
+                cardTops = tops
+            }
+            .onPreferenceChange(CardVisualTopKey.self) { tops in
+                guard !anyOverlayOpen else { return }
+                cardVisualTops = tops
+            }
             .background(Palette.canvas.ignoresSafeArea())
             // (Lensing drag puck removed: its minimumDistance:0 drag claimed horizontal drags,
             // blocking the swipe to the Scientific Literature section, and it surfaced an
@@ -273,8 +288,14 @@ struct LibraryStackView: View {
             // true, so a yielded band (cluster-only, XXXL) reads false — and the focused
             // cover keeps its printed title. Sits ABOVE the affordance overlay so the
             // preference actually reaches it.
-            .onPreferenceChange(FocusMetadataVisibleKey.self) { metadataRevealShown = $0 }
-            .onPreferenceChange(ClusterFrameKey.self) { clusterGlobalFrame = $0 }
+            .onPreferenceChange(FocusMetadataVisibleKey.self) { shown in
+                guard !anyOverlayOpen else { return }
+                metadataRevealShown = shown
+            }
+            .onPreferenceChange(ClusterFrameKey.self) { frame in
+                guard !anyOverlayOpen else { return }
+                clusterGlobalFrame = frame
+            }
             .overlay(alignment: .topTrailing) { addBookButton(topInset: topSafeInset) }
             .overlay(alignment: .topLeading) { layoutToggle(topInset: topSafeInset) }
             .overlay { chapterListPlane }

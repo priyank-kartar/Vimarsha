@@ -57,12 +57,12 @@ struct DiscussPanelView: View {
         .animation(.easeInOut(duration: 0.18), value: panelState)
         .background(plane)
         .clipShape(UnevenRoundedRectangle(topLeadingRadius: 28, topTrailingRadius: 28))
-        // NOTE: we deliberately do NOT auto-focus the input on appear. Force-popping the
-        // keyboard the instant Discuss opens drove a keyboard-avoidance reflow of the surfaces
-        // underneath at the same moment the open animation runs — a runaway SwiftUI update loop
-        // that hung the main thread (watchdog "crash") on double-tap-to-Discuss. The panel now
-        // opens calmly; tapping the field raises the keyboard deliberately.
+        // Keyboard-default input (spec §4): the field is focused the moment the plane arrives.
+        // This is now safe because the library underneath ignores the keyboard and freezes all
+        // its geometry observers while covered (see LibraryStackView) — so the keyboard no
+        // longer drives a reflow loop. The spoken transcript also lands in the field for review.
         .onAppear {
+            inputFocused = true
             voice?.onTranscript = { text in
                 draft = draft.isEmpty ? text : draft + " " + text
                 inputFocused = true
