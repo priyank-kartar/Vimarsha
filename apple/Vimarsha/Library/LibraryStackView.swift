@@ -1138,17 +1138,18 @@ private struct BookTower: View {
                 .background {
                     GeometryReader { proxy in
                         let frame = proxy.frame(in: .scrollView)
+                        // Quantize to whole points. Raw sub-pixel floats jitter every layout
+                        // pass, so onPreferenceChange → focus/cardTops/cardVisualTops → re-render
+                        // → republish a slightly-different float → fire again, FOREVER (the 100%
+                        // CPU library loop, confirmed via _printChanges). Rounding makes the
+                        // published value stable at rest so the chain settles.
+                        let visualTop = CardVisualTop.at(
+                            layoutFrame: frame, viewportHeight: viewportHeight, promotion: promotion
+                        )
                         Color.clear
-                            .preference(key: CardMidYKey.self, value: [index: frame.midY])
-                            .preference(key: CardTopYKey.self, value: [index: frame.minY])
-                            .preference(
-                                key: CardVisualTopKey.self,
-                                value: [index: CardVisualTop.at(
-                                    layoutFrame: frame,
-                                    viewportHeight: viewportHeight,
-                                    promotion: promotion
-                                )]
-                            )
+                            .preference(key: CardMidYKey.self, value: [index: frame.midY.rounded()])
+                            .preference(key: CardTopYKey.self, value: [index: frame.minY.rounded()])
+                            .preference(key: CardVisualTopKey.self, value: [index: visualTop.rounded()])
                     }
                 }
                 // Contact shadow; deepens with the grow-to-front promotion → strongest on the
