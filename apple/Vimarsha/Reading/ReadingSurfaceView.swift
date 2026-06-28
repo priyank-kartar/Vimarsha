@@ -174,6 +174,14 @@ struct ReadingSurfaceView: View {
             .overlay { figureViewer }
         }
         .background(Palette.canvas.ignoresSafeArea())
+        #if DEBUG
+        // Repro harness seam: auto-open Discuss so the hang reproduces without a tap.
+        .task {
+            guard DiscussLoopRepro.autoOpenInReadingSurface, let player else { return }
+            try? await Task.sleep(for: .milliseconds(700))
+            openDiscuss(player: player)
+        }
+        #endif
         // Discuss is presented as a sheet (NOT an in-canvas overlay): stacking it as a third
         // full-bleed overlay on the library+reading surfaces — all heavily geometry-observed —
         // fed a keyboard-driven SwiftUI render loop that hung the main thread (watchdog). A sheet

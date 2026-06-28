@@ -62,6 +62,27 @@ struct VimarshaApp: App {
 
     var body: some Scene {
         WindowGroup {
+            #if DEBUG
+            if DiscussLoopRepro.isActive {
+                DiscussLoopReproView()
+                    .environment(\.topSafeInset, topInset)
+                    .environment(\.bottomSafeInset, bottomInset)
+                    .onAppear { refreshSafeAreaInsets() }
+            } else {
+                mainScene
+            }
+            #else
+            mainScene
+            #endif
+        }
+        #if os(macOS)
+        .defaultSize(width: 480, height: 920)
+        #endif
+    }
+
+    @ViewBuilder
+    private var mainScene: some View {
+        Group {
             // Two swipeable library sections: My Books ⇄ Scientific Literature. A horizontal
             // paging scroll (each page fills the container) — the signature My Books surface is
             // untouched, the papers section sits a swipe to its right.
@@ -109,8 +130,5 @@ struct VimarshaApp: App {
                 if phase == .active { refreshSafeAreaInsets() }
             }
         }
-        #if os(macOS)
-        .defaultSize(width: 480, height: 920)
-        #endif
     }
 }
