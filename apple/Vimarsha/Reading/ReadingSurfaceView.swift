@@ -115,6 +115,13 @@ struct ReadingSurfaceView: View {
                             }
                         )
                         .transition(galleryTransition)
+                    } else if showDiscuss {
+                        // The opaque Discuss sheet fully covers the surface — do NOT render the
+                        // chapter body behind it. ReadingBlocksView lays out hundreds of text
+                        // rows, each with a per-row .accessibilityAction; kept rendering under
+                        // the sheet they spun the render thread at 100% CPU (Time Profiler:
+                        // ReadingBlocksView.textRow looping in AttributeGraph). Restored on close.
+                        Color.clear
                     } else {
                         chapterBody(bundle: bundle, player: player, in: geo.size)
                             .transition(galleryTransition)
