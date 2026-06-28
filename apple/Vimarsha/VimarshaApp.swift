@@ -58,8 +58,12 @@ struct VimarshaApp: App {
     private func refreshSafeAreaInsets() {
         #if os(iOS)
         let insets = keyWindowInsets()
-        topInset = insets.top
-        bottomInset = insets.bottom
+        // Only adopt a REAL reading. While the Discuss sheet + keyboard are mid-dismiss (and the
+        // library rebuilds behind them), the main window isn't key, so the read is a transient 0
+        // — adopting it rode VIMARSHA up under the status bar and dropped the reading transport
+        // under the home indicator. Keep the last good inset instead.
+        if insets.top > 0 { topInset = insets.top }
+        if insets.bottom > 0 { bottomInset = insets.bottom }
         #endif
     }
 

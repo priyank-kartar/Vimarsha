@@ -332,8 +332,12 @@ struct ReadingSurfaceView: View {
             .onChange(of: player.currentBlockId) { _, id in
                 autoScroll(to: id, proxy: proxy)
             }
-            .onAppear {
-                // Land on the resume position without animating through the chapter.
+            .task {
+                // Land on the narration position (resume, or where it advanced to while Discuss
+                // was up). A frame's delay lets the ScrollView lay out first, so the scrollTo
+                // isn't a no-op on a FRESH remount returning from Discuss (which left it at the
+                // chapter top). `.task` over `.onAppear` for the same reason.
+                try? await Task.sleep(for: .milliseconds(50))
                 if let id = player.currentBlockId {
                     lastScrolledTo = id
                     proxy.scrollTo(id, anchor: UnitPoint(x: 0.5, y: 0.3))
