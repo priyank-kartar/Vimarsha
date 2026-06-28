@@ -220,6 +220,12 @@ struct ReadingSurfaceView: View {
             figureCarrier(player: player)
             memoStatusChip
             HStack(spacing: 10) {
+                // Dedicated AI-chat button, left of the player controls (replaces the old
+                // double-tap-on-record gesture, which was unreliable). Opens Discuss without
+                // touching playback; the anchor pins where the conversation started.
+                if chatStore != nil {
+                    discussButton(player: player)
+                }
                 // While a memo records, narration is paused and the transport
                 // is moot — the aqua waveform puck takes its slot (a discrete
                 // state morph; the phase spring below carries it, RM dissolves).
@@ -255,14 +261,6 @@ struct ReadingSurfaceView: View {
                             } else {
                                 memoCapture.endHold()
                             }
-                        },
-                        // Dual gesture (spec §4): double-tap opens Discuss
-                        // WITHOUT touching playback — the anchor pins where
-                        // the conversation started.
-                        onDoubleTap: {
-                            guard let chatStore else { return }
-                            chatStore.recordAnchor(player.currentBlockId)
-                            showDiscuss = true
                         }
                     )
                 }
@@ -283,6 +281,37 @@ struct ReadingSurfaceView: View {
                 : .spring(response: 0.4, dampingFraction: 0.85),
             value: memoCapture?.phase
         )
+    }
+
+    /// Dedicated AI-chat (Discuss) button — a glass control left of the player transport.
+    private func discussButton(player: PlayerController) -> some View {
+        Button { openDiscuss(player: player) } label: {
+            Image(systemName: "bubble.left.and.text.bubble.right")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(Palette.textPrimary)
+                .frame(width: 44, height: 44)
+        }
+        .buttonStyle(.plain)
+        .contentShape(Circle())
+        .background {
+            if reduceTransparency {
+                Circle().fill(Palette.surface)
+                    .overlay(Circle().strokeBorder(Palette.sky.opacity(0.6), lineWidth: 1))
+            } else {
+                Color.clear.glassEffect(
+                    .regular.tint(Palette.sky.opacity(0.3)).interactive(), in: .circle
+                )
+            }
+        }
+        .accessibilityLabel("Discuss this passage")
+    }
+
+    /// Open the Discuss panel without touching playback; anchor the conversation at the
+    /// current paragraph (spec §4 — opening does NOT pause narration).
+    private func openDiscuss(player: PlayerController) {
+        guard let chatStore else { return }
+        chatStore.recordAnchor(player.currentBlockId)
+        showDiscuss = true
     }
 
     /// The narrated reading body: cover plate + masthead scroll away with the text (the
