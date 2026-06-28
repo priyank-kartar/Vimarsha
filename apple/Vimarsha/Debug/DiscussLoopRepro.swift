@@ -64,14 +64,109 @@ private final class ReproAudioEngine: AudioEngine {
     func setRate(_ rate: Double) {}
 }
 
+/// The mic seam's harness double — no real recording.
+private final class ReproRecorderEngine: RecorderEngine {
+    func requestPermission() async -> Bool { true }
+    func start(to url: URL) throws {}
+    @discardableResult func stop() -> Int { 0 }
+    var isRecording = false
+    var level: CGFloat = 0
+}
+
+/// A loaded `PlayerController` over a fabricated ready chapter (no backend / real MP3).
+@MainActor
+private func reproLoadedPlayer() -> PlayerController? {
+    guard let container = try? ModelContainer(
+        for: Book.self, Chapter.self, Memo.self, ChatThread.self, ChatLine.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    ) else { return nil }
+    let context = ModelContext(container)
+    let root = FileManager.default.temporaryDirectory.appending(path: "DiscussRepro-\(UUID())")
+    let book = Book(title: "Repro", author: "A", epubPath: "x/book.epub")
+    let chapter = Chapter(index: 0, title: "One")
+    chapter.status = .ready
+    chapter.audioPath = "chapters/0/chapter.mp3"
+    chapter.bundlePath = "chapters/0/bundle.json"
+    let bundle = ChapterBundleDTO(
+        chapterId: "c0", title: "One",
+        blocks: (0..<40).map { i in
+            BlockDTO(id: "b\(i)", index: i, kind: "paragraph",
+                     text: "Paragraph \(i): the quick brown fox jumps over the lazy dog, again.")
+        },
+        figureMap: [], audio: "chapter.mp3",
+        paraTimings: Dictionary(uniqueKeysWithValues: (0..<40).map { ("b\($0)", [$0 * 1000, $0 * 1000 + 900]) })
+    )
+    let bundleURL = root.appending(path: chapter.bundlePath!)
+    try? FileManager.default.createDirectory(at: bundleURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+    guard let data = try? JSONEncoder().encode(bundle) else { return nil }
+    try? data.write(to: bundleURL)
+    book.chapters = [chapter]
+    context.insert(book)
+    try? context.save()
+    let player = PlayerController(engine: ReproAudioEngine(), context: context, containerRoot: root)
+    guard (try? player.load(chapter)) != nil else { return nil }
+    player.play()
+    return player
+}
+
 // MARK: - Root harness view
 
 struct DiscussLoopReproView: View {
     var body: some View {
         switch DiscussLoopRepro.mode {
         case "surface": ReadingSurfaceReproView()
+        case "panelWired": PanelWiredReproView()
         default: PanelReproView()
         }
+    }
+}
+
+// MARK: - panelWired mode (DISAMBIGUATOR: full wiring over a PLAIN canvas)
+//
+// Same sheet+canvas as `panel`, but DiscussPanelView gets the REAL voice/speaker/archive the
+// production app passes (the only difference from the stable `panel` case). If THIS loops on
+// device, the wiring/component is the cause; if it stays stable, the live library behind the
+// real sheet is the cause.
+
+private struct PanelWiredReproView: View {
+    @State private var show = false
+    @State private var wired: Wired?
+
+    private struct Wired {
+        let chat: ChatStore
+        let voice: VoiceInput
+        let speaker: ReplySpeaker
+        let archive: DiscussArchive
+    }
+
+    var body: some View {
+        ZStack { Palette.canvas.ignoresSafeArea() }
+            .task { if wired == nil { wired = build(); show = wired != nil } }
+            .sheet(isPresented: $show) {
+                if let wired {
+                    DiscussPanelView(
+                        chat: wired.chat, voice: wired.voice, speaker: wired.speaker,
+                        archive: wired.archive, reduceTransparency: false, onClose: { show = false }
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+                    .presentationBackground(Palette.canvas)
+                }
+            }
+    }
+
+    @MainActor private func build() -> Wired? {
+        guard let player = reproLoadedPlayer() else { return nil }
+        let backend = ReproBackendClient()
+        let chat = ChatStore(
+            backend: backend,
+            contextSnapshot: { ChatContextDTO(passage: "p", bookTitle: "Repro", chapterTitle: "One") }
+        )
+        let voice = VoiceInput(recorder: ReproRecorderEngine(), backend: backend, player: player)
+        let speaker = ReplySpeaker(backend: backend, speechEngine: ReproAudioEngine(), player: player)
+        let archive = DiscussArchive(threads: { [] }, save: { false }, deleteThread: { _ in })
+        return Wired(chat: chat, voice: voice, speaker: speaker, archive: archive)
     }
 }
 

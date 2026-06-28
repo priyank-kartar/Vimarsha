@@ -264,9 +264,14 @@ struct DiscussPanelView: View {
         case .transcribing:
             interimRow(text: "Transcribing…")
         default:
-            TextField("Ask about this passage…", text: $draft, axis: .vertical)
+            // Plain SINGLE-LINE field (was `axis: .vertical` + `lineLimit(1...4)`): the growable
+            // field's intrinsic height re-resolves against the available width every layout pass,
+            // and as the keyboard animates that never converges — a text-resolution AttributeGraph
+            // loop that hangs the main thread on device (0x8BADF00D, Text.resolve…/ResolvedTextFilter
+            // crash report 2026-06-29). A single-line field has a fixed height, so no feedback.
+            TextField("Ask about this passage…", text: $draft)
                 .textFieldStyle(.plain)
-                .lineLimit(1...4)
+                .lineLimit(1)
                 .font(.system(size: 15))
                 .foregroundStyle(Palette.textPrimary)
                 .focused($inputFocused)
@@ -385,16 +390,15 @@ private struct TalkButton: View {
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(Palette.textPrimary)
                 .frame(width: 38, height: 38)
+                // MATTE, never glass: a `.glassEffect` here is the LAST live glass in the
+                // Discuss plane, and native keyboard avoidance re-lays the plane out every frame
+                // — the glass shape never settles, spinning `GlassEffectShapeSet` in the
+                // AttributeGraph until the watchdog kills the app (device-only; proven by the
+                // 0x8BADF00D crash report 2026-06-29). The panel plane itself was matted earlier
+                // for the same reason; the mic was the leftover.
                 .background {
-                    if reduceTransparency {
-                        Circle().fill(Palette.surface)
-                            .overlay(Circle().strokeBorder(tint.opacity(0.6), lineWidth: 1))
-                    } else {
-                        Color.clear.glassEffect(
-                            .regular.tint(tint.opacity(isRecording ? 0.5 : 0.3)).interactive(),
-                            in: .circle
-                        )
-                    }
+                    Circle().fill(Palette.surface)
+                        .overlay(Circle().strokeBorder(tint.opacity(isRecording ? 0.7 : 0.6), lineWidth: 1))
                 }
                 .contentShape(Circle())
         }

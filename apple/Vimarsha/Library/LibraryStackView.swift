@@ -293,7 +293,12 @@ struct LibraryStackView: View {
             // (Lensing drag puck removed: its minimumDistance:0 drag claimed horizontal drags,
             // blocking the swipe to the Scientific Literature section, and it surfaced an
             // unwanted glass circle on press-and-hold.)
-            .overlay(alignment: .top) { topScrim(in: geo.size) }
+            // All three top glass controls are GATED off while a surface covers the library:
+            // their `.glassEffect` shapes otherwise stay live behind the Discuss plane, and the
+            // keyboard's window layout passes spin `GlassEffectShapeSet` in the AttributeGraph
+            // until the watchdog fires (device-only; the single-live-surface rule = no live glass
+            // behind a surface).
+            .overlay(alignment: .top) { if !anyOverlayOpen { topScrim(in: geo.size) } }
             // Pinned editorial header (glass moment #3 — the tower scrolls UNDER it). Fixed at
             // the top so VIMARSHA stays put while only the books below scroll; the in-content
             // `.hidden()` placeholder above reserves its exact footprint. Contrast still tracks
@@ -316,8 +321,8 @@ struct LibraryStackView: View {
                 guard !anyOverlayOpen else { return }
                 clusterGlobalFrame = frame
             }
-            .overlay(alignment: .topTrailing) { addBookButton(topInset: topSafeInset) }
-            .overlay(alignment: .topLeading) { layoutToggle(topInset: topSafeInset) }
+            .overlay(alignment: .topTrailing) { if !anyOverlayOpen { addBookButton(topInset: topSafeInset) } }
+            .overlay(alignment: .topLeading) { if !anyOverlayOpen { layoutToggle(topInset: topSafeInset) } }
             .overlay { chapterListPlane }
             .overlay { bookMemosPlane }
             .overlay { bookConversationsPlane }
@@ -895,8 +900,9 @@ struct LibraryStackView: View {
     private func openDiscussPanel() {
         guard let session = coordinator.session else { return }
         session.chatStore.recordAnchor(session.player.currentBlockId)
-        coordinator.backdrop = SurfaceSnapshot.captureKeyWindow()
-        withAnimation(coverMorphAnimation) { coordinator.openDiscuss() }
+        // The sheet presents itself with native keyboard handling — no snapshot backdrop, no
+        // explicit animation needed.
+        coordinator.openDiscuss()
     }
 
     /// Coupled scroll+zoom hero settle (motion grammar #5): the rigid-group tower zoom as a
