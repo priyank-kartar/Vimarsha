@@ -21,6 +21,9 @@ struct VimarshaApp: App {
     @State private var audioEngine = AVFoundationAudioEngine()
     /// The ONE app-lifetime mic owner (V28) — the record half of the same seam.
     @State private var recorder = AVAudioRecorderEngine()
+    /// The single-live-surface router (spec 2026-06-28) — app-lifetime so the active surface
+    /// and book session survive `App` re-instantiation, like the engines above.
+    @State private var coordinator = SurfaceCoordinator()
 
     init() {
         if let container = Self.sharedContainer {
@@ -93,7 +96,7 @@ struct VimarshaApp: App {
                 HStack(spacing: 0) {
                     LibraryStackView(
                         store: store, audioEngine: audioEngine, recorder: recorder,
-                        surfaceCovering: $surfaceCoveringLibrary
+                        surfaceCovering: $surfaceCoveringLibrary, coordinator: coordinator
                     )
                     .containerRelativeFrame([.horizontal, .vertical])
                     ScientificLiteratureView()

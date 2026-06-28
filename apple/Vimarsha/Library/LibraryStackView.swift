@@ -29,6 +29,12 @@ struct LibraryStackView: View {
     /// scroll feeds the keyboard-reflow loop. `nil` in previews.
     var surfaceCovering: Binding<Bool>?
 
+    /// The single-live-surface router (spec 2026-06-28): owns the book session and which
+    /// surface is active. `VimarshaApp` owns the instance (app-lifetime); previews/snapshots
+    /// get a fresh one. The reading-session state (`reading`/`player`/`chatStore`/…) below is
+    /// read off `coordinator.session` so those read-sites are unchanged by the ownership move.
+    var coordinator: SurfaceCoordinator = SurfaceCoordinator()
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorScheme) private var colorScheme
@@ -119,32 +125,32 @@ struct LibraryStackView: View {
 
     /// The opened chapter (V17): a ready chapter row morphs the hardback OPEN into the
     /// reading surface — a state of this same surface, never a push. Closing back-morphs.
-    @State private var reading: ReadingContext?
+    private var reading: ReadingContext? { coordinator.session?.context }
 
     /// The opened chapter's player (V18): created at open, paused + released at close —
     /// the shared engine itself lives on in `VimarshaApp`.
-    @State private var player: PlayerController?
+    private var player: PlayerController? { coordinator.session?.player }
 
     /// The opened chapter's hold-to-record memos (V28): created with the player,
     /// cancelled + released at close — the shared recorder lives on in `VimarshaApp`.
-    @State private var memoCapture: MemoCapture?
+    private var memoCapture: MemoCapture? { coordinator.session?.memoCapture }
 
     /// The opened chapter's Notes state (V30): memo playback rides its own ephemeral
     /// engine (the chapter's shared engine keeps its MP3); stopped + released at close.
-    @State private var memoNotes: MemoNotes?
+    private var memoNotes: MemoNotes? { coordinator.session?.memoNotes }
 
     /// The opened chapter's live Discuss conversation (V33): in-memory, created with the
     /// player so the thread survives the panel closing/reopening; released (discarded —
     /// save-on-demand) only when the book closes.
-    @State private var chatStore: ChatStore?
+    private var chatStore: ChatStore? { coordinator.session?.chatStore }
 
     /// The opened chapter's hold-to-talk voice input (V34): shares the app-lifetime
     /// recorder; cancelled + released at close like the memo capture.
-    @State private var voiceInput: VoiceInput?
+    private var voiceInput: VoiceInput? { coordinator.session?.voiceInput }
 
     /// The opened chapter's spoken replies (V35): /speak audio on its own ephemeral
     /// engine (the MemoNotes precedent); stopped + released at close.
-    @State private var replySpeaker: ReplySpeaker?
+    private var replySpeaker: ReplySpeaker? { coordinator.session?.replySpeaker }
 
     /// The cover-morph shared-element namespace (tower card ↔ reading cover plate).
     @Namespace private var coverMorph
@@ -826,33 +832,17 @@ struct LibraryStackView: View {
     /// before the morph; an unreadable cache refuses to open a dead surface (the next
     /// `load()` self-heal will catch the stale row).
     private func openReadingSurface(book: Book, chapter: Chapter) {
-        guard chapter.status == .ready else { return }
-        if let store, let audioEngine {
-            let candidate = store.makePlayer(engine: audioEngine)
-            guard (try? candidate.load(chapter)) != nil else { return }
-            player = candidate
-            // Look-ahead: quietly narrate the next chapter so it's cached by the time the
-            // reader reaches it (no-op if already ready / downloading).
-            store.prefetch(after: chapter, count: 1)
-            if let recorder {
-                memoCapture = store.makeMemoCapture(recorder: recorder, player: candidate)
-            }
-            memoNotes = store.makeMemoNotes(
-                player: candidate, memoEngine: AVFoundationAudioEngine()
-            )
-            chatStore = store.makeChatStore(player: candidate)
-            if let recorder {
-                voiceInput = store.makeVoiceInput(recorder: recorder, player: candidate)
-            }
-            replySpeaker = store.makeReplySpeaker(
-                player: candidate, speechEngine: AVFoundationAudioEngine()
-            )
-        }
-        let shelfBook = ShelfBook(book: book, cover: store?.covers[book.id])
-        store?.markOpened(book)   // bubbles this book to the top of the shelf (most-recent first)
+        // Building the book session (player load + prefetch + markOpened + the memo/voice/chat
+        // wiring) now lives in `BookSession.open`, driven by the coordinator. An unreadable
+        // cache refuses to open (openReading returns false), so the chapter plane stays put.
+        guard chapter.status == .ready, let store, let audioEngine else { return }
         withAnimation(coverMorphAnimation) {
-            chapterBook = nil
-            reading = ReadingContext(book: book, chapter: chapter, shelfBook: shelfBook)
+            if coordinator.openReading(
+                book: book, chapter: chapter, store: store,
+                audioEngine: audioEngine, recorder: recorder
+            ) {
+                chapterBook = nil
+            }
         }
     }
 
@@ -860,18 +850,10 @@ struct LibraryStackView: View {
     /// shared engine is never disposed (the Flutter `AudioHandler` lesson). A memo still
     /// recording is abandoned (cancel discards — no half-pinned rows).
     private func closeReadingSurface() {
-        memoCapture?.cancelHold()
-        memoCapture = nil
-        memoNotes?.stopPlayback()
-        memoNotes = nil
-        chatStore = nil
-        voiceInput?.cancelHold()
-        voiceInput = nil
-        replySpeaker?.stop()
-        replySpeaker = nil
-        player?.pause()
-        player = nil
-        withAnimation(coverMorphAnimation) { reading = nil }
+        // The teardown (cancel holds, stop ephemeral playback, pause + persist the player) now
+        // lives in `BookSession.close`, invoked by `coordinator.close()`, which then releases
+        // the session and returns the surface to the library.
+        withAnimation(coverMorphAnimation) { coordinator.close() }
     }
 
     /// The opened-book state riding above the stack. The canvas itself cross-fades; the
