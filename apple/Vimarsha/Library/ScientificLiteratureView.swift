@@ -7,6 +7,10 @@ import SwiftUI
 struct ScientificLiteratureView: View {
     /// Add a paper — paste an arXiv link or share a PDF (wired in Phase 2).
     var onAddPaper: () -> Void = {}
+    /// True while a surface (Discuss/reading) covers the library: this off-screen page's
+    /// `.glassEffect` must go matte so it can't spin `GlassEffectShapeSet` during the keyboard's
+    /// window layout passes (single-live-surface — no live glass behind a surface).
+    var covered: Bool = false
 
     @ScaledMetric(relativeTo: .caption) private var labelSize: CGFloat = 10
     @ScaledMetric(relativeTo: .largeTitle) private var titleSize: CGFloat = 40
@@ -75,7 +79,12 @@ struct ScientificLiteratureView: View {
         .buttonStyle(.plain)
         .contentShape(Capsule())
         .background {
-            Color.clear.glassEffect(.regular.tint(Palette.sky.opacity(0.26)).interactive(), in: .capsule)
+            if covered {
+                Capsule().fill(Palette.surface)
+                    .overlay(Capsule().strokeBorder(Palette.sky.opacity(0.4), lineWidth: 1))
+            } else {
+                Color.clear.glassEffect(.regular.tint(Palette.sky.opacity(0.26)).interactive(), in: .capsule)
+            }
         }
         .accessibilityLabel("Add a scientific paper")
     }

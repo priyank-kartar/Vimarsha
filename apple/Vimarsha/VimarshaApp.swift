@@ -21,6 +21,9 @@ struct VimarshaApp: App {
     @State private var audioEngine = AVFoundationAudioEngine()
     /// The ONE app-lifetime mic owner (V28) — the record half of the same seam.
     @State private var recorder = AVAudioRecorderEngine()
+    /// The single-live-surface router (spec 2026-06-28) — app-lifetime so the active surface
+    /// and book session survive `App` re-instantiation, like the engines above.
+    @State private var coordinator = SurfaceCoordinator()
 
     init() {
         if let container = Self.sharedContainer {
@@ -62,55 +65,115 @@ struct VimarshaApp: App {
 
     var body: some Scene {
         WindowGroup {
-            // Two swipeable library sections: My Books ⇄ Scientific Literature. A horizontal
-            // paging scroll (each page fills the container) — the signature My Books surface is
-            // untouched, the papers section sits a swipe to its right.
-            // The pages draw edge-to-edge (full-bleed canvas), so SwiftUI propagates a zero top
-            // inset into them; the real status-bar / notch height comes from the key window so
-            // the library's top glass controls can clear it.
-            ScrollView(.horizontal) {
-                HStack(spacing: 0) {
-                    LibraryStackView(
-                        store: store, audioEngine: audioEngine, recorder: recorder,
-                        surfaceCovering: $surfaceCoveringLibrary
-                    )
-                    .containerRelativeFrame([.horizontal, .vertical])
-                    ScientificLiteratureView()
-                        .containerRelativeFrame([.horizontal, .vertical])
-                }
-                .scrollTargetLayout()
+            #if DEBUG
+            if DiscussLoopRepro.isActive {
+                DiscussLoopReproView()
+                    .environment(\.topSafeInset, topInset)
+                    .environment(\.bottomSafeInset, bottomInset)
+                    .onAppear { refreshSafeAreaInsets() }
+            } else {
+                mainScene
             }
-            .scrollTargetBehavior(.paging)
-            .scrollIndicators(.hidden)
-            // Lock the section paging while a surface covers the library: stops a reading-screen
-            // swipe from leaking to Scientific Literature, and stops the live paging scroll from
-            // feeding the keyboard-reflow loop. Also keep the keyboard from reflowing the root.
-            .scrollDisabled(surfaceCoveringLibrary)
-            .ignoresSafeArea(.keyboard, edges: .bottom)
-            // One source of truth for the safe-area insets, read by every surface's edge
-            // controls (library/reading top controls, reading transport) so none of them render
-            // under the status bar or the home indicator.
-            .environment(\.topSafeInset, topInset)
-            .environment(\.bottomSafeInset, bottomInset)
-            // No keyboard-focus ring lingering on the round glass buttons after a click
-            // (every icon button) — this is a tap/scroll surface, not a focus-driven one.
-            .focusEffectDisabled()
-            // Share-to-Vimarsha: an EPUB opened from Files / the share sheet ("Copy to
-            // Vimarsha") arrives here → import it onto the shelf.
-            .onOpenURL { url in
-                Task { await store?.addBook(from: url) }
-            }
-            // Ship one book: import the bundled Stolen Focus once, on first launch.
-            .task { await store?.seedBundledBookIfNeeded() }
-            // Resolve the real top inset once the window exists (see `topInset`), and refresh
-            // it whenever the scene reactivates (rotation / returning from background).
-            .onAppear { refreshSafeAreaInsets() }
-            .onChange(of: scenePhase) { _, phase in
-                if phase == .active { refreshSafeAreaInsets() }
-            }
+            #else
+            mainScene
+            #endif
         }
         #if os(macOS)
         .defaultSize(width: 480, height: 920)
         #endif
+    }
+
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    @ViewBuilder
+    private var mainScene: some View {
+        Group {
+            if coordinator.activeSurface == .discuss {
+                // TRUE single live surface: while Discuss is up, NOTHING live is rendered behind
+                // the sheet — just a flat canvas. The paging library would otherwise re-layout
+                // under the keyboard and spin a non-settling text-resolution loop on device
+                // (0x8BADF00D). DiscussPanelView over a plain canvas is device-proven stable.
+                // The book session lives in the coordinator, so closing Discuss restores reading.
+                Palette.canvas.ignoresSafeArea()
+            } else {
+                pagingLibrary
+            }
+        }
+        // One source of truth for the safe-area insets, read by every surface's edge controls.
+        .environment(\.topSafeInset, topInset)
+        .environment(\.bottomSafeInset, bottomInset)
+        // No keyboard-focus ring lingering on the round glass buttons after a click.
+        .focusEffectDisabled()
+        // Share-to-Vimarsha: an EPUB opened from Files / the share sheet arrives here.
+        .onOpenURL { url in
+            Task { await store?.addBook(from: url) }
+        }
+        // Ship one book: import the bundled Stolen Focus once, on first launch.
+        .task { await store?.seedBundledBookIfNeeded() }
+        // Resolve the real top inset once the window exists, and refresh on reactivation.
+        .onAppear { refreshSafeAreaInsets() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { refreshSafeAreaInsets() }
+        }
+        // Discuss is presented in a `.sheet` (single-live-surface): the reading surface is
+        // UNMOUNTED behind it (the original cross-surface render loop, already fixed), and the
+        // sheet's own presentation context has battle-tested keyboard handling. An in-canvas
+        // plane under SwiftUI's native keyboard avoidance never converged on device — every
+        // attempt just relocated a non-settling layout loop (GlassEffectShapeSet, then Text
+        // resolution; 0x8BADF00D crash reports 2026-06-29). The Prime-Directive in-canvas morph
+        // is deferred to a follow-up once that avoidance behaviour is understood.
+        .sheet(isPresented: discussPresented) { discussSheet }
+    }
+
+    /// The two swipeable library sections (My Books ⇄ Scientific Literature). A horizontal paging
+    /// scroll; each page fills the container. Rendered only when Discuss is NOT up.
+    private var pagingLibrary: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 0) {
+                LibraryStackView(
+                    store: store, audioEngine: audioEngine, recorder: recorder,
+                    surfaceCovering: $surfaceCoveringLibrary, coordinator: coordinator
+                )
+                .containerRelativeFrame([.horizontal, .vertical])
+                ScientificLiteratureView(covered: surfaceCoveringLibrary)
+                    .containerRelativeFrame([.horizontal, .vertical])
+            }
+            .scrollTargetLayout()
+        }
+        .scrollTargetBehavior(.paging)
+        .scrollIndicators(.hidden)
+        .scrollDisabled(surfaceCoveringLibrary)
+        .ignoresSafeArea(.keyboard, edges: .bottom)
+    }
+
+    private var discussPresented: Binding<Bool> {
+        Binding(
+            get: { coordinator.activeSurface == .discuss },
+            set: { presented in if !presented { coordinator.close() } }
+        )
+    }
+
+    @ViewBuilder
+    private var discussSheet: some View {
+        if let session = coordinator.session, let store {
+            DiscussPanelView(
+                chat: session.chatStore,
+                voice: session.voiceInput,
+                speaker: session.replySpeaker,
+                archive: store.discussArchive(for: session),
+                reduceTransparency: reduceTransparency,
+                onClose: { coordinator.close() }
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            // Solid background: nothing live is behind it (reading unmounted, library glass gated),
+            // so the panel reads as the foreground with no refraction of moving content.
+            .presentationBackground(Palette.canvas)
+            .onDisappear {
+                session.voiceInput?.cancelHold()
+                session.replySpeaker.stop()
+            }
+        }
     }
 }

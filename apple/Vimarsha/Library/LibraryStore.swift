@@ -366,6 +366,28 @@ final class LibraryStore {
         ReplySpeaker(backend: backend, speechEngine: speechEngine, player: player)
     }
 
+    /// The chapter's saved-conversation handles (V35) for the open session — list/save/delete
+    /// through the store; each Save inserts a NEW thread titled by the opening question.
+    func discussArchive(for session: BookSession) -> DiscussArchive {
+        let book = session.context.book
+        let chapterIndex = session.context.chapter.index
+        let chatStore = session.chatStore
+        return DiscussArchive(
+            threads: { self.chatThreads(for: book, chapterIndex: chapterIndex) },
+            save: {
+                guard chatStore.hasExchange else { return false }
+                return self.saveChatThread(
+                    book: book,
+                    chapterIndex: chapterIndex,
+                    anchorBlockId: chatStore.anchorBlockId,
+                    title: chatStore.suggestedTitle,
+                    messages: chatStore.messages
+                ) != nil
+            },
+            deleteThread: { self.deleteChatThread($0) }
+        )
+    }
+
     /// Persist one conversation as a NEW thread (V32; save-on-demand — each Save
     /// inserts, never updates). Empty conversations are refused (spec §6: Save needs
     /// at least one exchange; the UI disables earlier, this is the backstop).
