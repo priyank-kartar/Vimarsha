@@ -147,3 +147,27 @@
   noise without carrying meaning.
 - Consequences: `widthFactor`/per-book aspect leave the stack layout (V22); real cover art
   (P2) fits inside the uniform card; the V09 findings became Phase P1.5 (V22–V26).
+
+### ADR-012 — Single live surface: never two surfaces alive/observing at once
+- Date: 2026-06-29 · Status: Accepted
+- Context: The Discuss panel froze the device (watchdog `0x8BADF00D`) and survived 14+ targeted
+  fixes. Root cause (proven on device across successive crash reports): a non-converging SwiftUI
+  layout loop that fires when the keyboard presents over a **second, live, text/geometry-heavy
+  surface re-laying-out behind Discuss** — DEVICE-ONLY (the simulator renders it cheaply, which
+  is why it never reproduced there). The loop relocated with each fix (ReadingSurfaceView
+  self-render → `GlassEffectShapeSet` glass → `Text` resolution) — the signature that it was
+  compositional, not any single element.
+- Decision: at most **one surface is mounted/observing at a time**. Orchestration lives in
+  `SurfaceCoordinator` (app-lifetime `activeSurface` + the book-lifetime `BookSession`); the
+  view tree renders exactly the active surface. Concretely: the reading surface unmounts while
+  Discuss is up, and the root renders a flat canvas (not the live paging library) behind the
+  Discuss `.sheet`. No `.glassEffect` may be live behind a covering surface.
+- Rationale: SwiftUI has no "stay mounted but don't lay out"; the only reliable way to stop the
+  device layout loop is to keep the heavy second surface out of the live tree. A panel over a
+  plain canvas is device-proven stable.
+- Consequences: (1) Unmounting a surface resets its view-state (scroll/focus) on return — the
+  durable fix is to OWN that state in the coordinator, not the view (follow-up). (2) Discuss is
+  a `.sheet` for now (battle-tested keyboard handling); the Prime-Directive in-canvas morph is
+  deferred until the native-keyboard-avoidance loop is understood. (3) `apple/CLAUDE.md` glass
+  budget gains a hard rule: no live glass behind a covering surface.
+  Spec: `docs/superpowers/specs/2026-06-28-vimarsha-single-live-surface-design.md`.

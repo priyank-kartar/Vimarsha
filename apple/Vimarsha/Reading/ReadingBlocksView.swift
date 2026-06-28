@@ -23,8 +23,7 @@ struct ReadingBlocksView: View {
     @ScaledMetric(relativeTo: .caption) private var captionSize: CGFloat = 12
 
     var body: some View {
-        let _ = Self._printChanges()   // DIAG
-        return VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 10) {
             ForEach(blocks, id: \.id) { block in
                 row(block)
                     .id(block.id)  // the auto-scroll target (ScrollViewReader)

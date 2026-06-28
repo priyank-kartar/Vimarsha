@@ -37,8 +37,7 @@ struct DiscussPanelView: View {
     @ScaledMetric(relativeTo: .caption) private var labelSize: CGFloat = 10
 
     var body: some View {
-        let _ = Self._printChanges()   // DIAG
-        return VStack(spacing: 0) {
+        VStack(spacing: 0) {
             header
                 .padding(.horizontal, 18)
                 .padding(.top, 16)

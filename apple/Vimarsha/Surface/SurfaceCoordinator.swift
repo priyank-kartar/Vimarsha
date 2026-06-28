@@ -1,18 +1,14 @@
 import AVFoundation
-import SwiftUI
 
 /// The app-lifetime router for the single-live-surface model (spec 2026-06-28). Owns which ONE
-/// surface is live (`activeSurface`), the book-lifetime `session`, and the frozen `backdrop`
-/// shown behind an incoming plane. Closing is a derived transition (`Surface.returnTarget`);
-/// the `session` is released only when the surface returns to the library.
+/// surface is live (`activeSurface`) and the book-lifetime `session`. Closing is a derived
+/// transition (`Surface.returnTarget`); the `session` is released only when the surface returns
+/// to the library.
 @Observable
 @MainActor
 final class SurfaceCoordinator {
     private(set) var activeSurface: Surface = .library
     private(set) var session: BookSession?
-    /// The outgoing surface, frozen to a static image and shown beneath the incoming one so
-    /// nothing live observes behind a plane (set/cleared by `SurfaceHost`, chunk 2).
-    var backdrop: Image?
 
     // MARK: Reading-level surfaces (need a live session)
 
@@ -59,9 +55,6 @@ final class SurfaceCoordinator {
             session?.close()
             session = nil
         }
-        // The frozen backdrop belongs to the plane that's closing — drop it so the surface we
-        // return to renders live, not behind a stale still.
-        backdrop = nil
         activeSurface = target
     }
 }
