@@ -184,7 +184,11 @@ struct ReadingSurfaceView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
-                .presentationBackground(.clear)        // DiscussPanelView draws its own glass plane
+                // SOLID sheet background (was .clear): a clear backdrop made the panel's Liquid
+                // Glass refract the live, still-animating reading surface behind it every frame,
+                // pinning the render thread (the freeze). An opaque canvas covers the moving
+                // content, so the glass refracts a static surface.
+                .presentationBackground(Palette.canvas)
                 .onDisappear {
                     // Any dismissal (drag-down or chevron) ends the conversation cleanly.
                     voiceInput?.cancelHold()
