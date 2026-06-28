@@ -83,7 +83,8 @@ struct ReadingSurfaceView: View {
     @State private var openedFigure: BlockDTO?
 
     var body: some View {
-        GeometryReader { geo in
+        let _ = Self._printChanges()   // DIAG: prints "ReadingSurfaceView: …" each render
+        return GeometryReader { geo in
             ZStack(alignment: .topLeading) {
                 if let player, let bundle = player.bundle {
                     if showNotes, let memoNotes {

@@ -171,7 +171,8 @@ struct LibraryStackView: View {
     }
 
     var body: some View {
-        GeometryReader { geo in
+        let _ = Self._printChanges()   // DIAG
+        return GeometryReader { geo in
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: reduceMotion ? 24 : -geo.size.height * 0.052) {
                     // The header is rendered PINNED as a fixed overlay (below) so it stays put
@@ -1043,6 +1044,7 @@ private struct BookTower: View {
     var onRequestDelete: (Int) -> Void = { _ in }
 
     var body: some View {
+        let _ = Self._printChanges()   // DIAG: prints "BookTower: …" each render
         // Inter-card overlap lives HERE (not the outer tower VStack) so it stays proportional
         // to card height — the shingled staircase reads the same now that cards are upright
         // book boards (ADR-011 aspect 1.5), and the header↔tower gap is decoupled from it.
