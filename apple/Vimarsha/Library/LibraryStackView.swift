@@ -155,6 +155,15 @@ struct LibraryStackView: View {
     /// value so the reserved footprint matches the pinned header exactly.
     private var headerTopInset: CGFloat { topSafeInset + 48 }
 
+    /// Whether any surface is open over the library (reading or one of the morphed planes).
+    /// While true the library is occluded and must freeze its focus state — a keyboard that
+    /// rises over it shifts this ScrollView, which would otherwise clear the tap-pin and lose
+    /// the focused book's control cluster.
+    private var anyOverlayOpen: Bool {
+        reading != nil || chapterBook != nil || voiceBook != nil
+            || conversationsBook != nil || memoBook != nil
+    }
+
     var body: some View {
         GeometryReader { geo in
             ScrollView(.vertical, showsIndicators: false) {
@@ -213,8 +222,13 @@ struct LibraryStackView: View {
             // Reduce Motion swaps the spring for an instant resolve.
             .onScrollPhaseChange { _, newPhase in
                 // A real scroll gesture reclaims focus from a tap-pin (the tower's settle
-                // takes back over the moment the user starts browsing again).
-                if newPhase == .interacting || newPhase == .decelerating {
+                // takes back over the moment the user starts browsing again). BUT only when the
+                // library is actually on top: while a surface is open over it (reading, the
+                // Discuss/chapter/voice/notes planes), the keyboard's avoidance shifts this
+                // ScrollView underneath, firing a spurious phase change — clearing the pin there
+                // loses the focused book's cluster, and it can't be recovered when the user
+                // returns. Freeze the pin while any overlay is up.
+                if (newPhase == .interacting || newPhase == .decelerating), !anyOverlayOpen {
                     tappedIndex = nil
                 }
                 let atRest = newPhase == .idle
