@@ -83,9 +83,11 @@ struct VimarshaApp: App {
         #endif
     }
 
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
     @ViewBuilder
     private var mainScene: some View {
-        Group {
+        ZStack {
             // Two swipeable library sections: My Books ⇄ Scientific Literature. A horizontal
             // paging scroll (each page fills the container) — the signature My Books surface is
             // untouched, the papers section sits a swipe to its right.
@@ -108,30 +110,50 @@ struct VimarshaApp: App {
             .scrollIndicators(.hidden)
             // Lock the section paging while a surface covers the library: stops a reading-screen
             // swipe from leaking to Scientific Literature, and stops the live paging scroll from
-            // feeding the keyboard-reflow loop. Also keep the keyboard from reflowing the root.
+            // feeding the keyboard-reflow loop.
             .scrollDisabled(surfaceCoveringLibrary)
+            // Keep the library keyboard-isolated; the Discuss plane below is a SIBLING outside
+            // this modifier, so it (the only live surface) gets native keyboard avoidance.
             .ignoresSafeArea(.keyboard, edges: .bottom)
-            // One source of truth for the safe-area insets, read by every surface's edge
-            // controls (library/reading top controls, reading transport) so none of them render
-            // under the status bar or the home indicator.
-            .environment(\.topSafeInset, topInset)
-            .environment(\.bottomSafeInset, bottomInset)
-            // No keyboard-focus ring lingering on the round glass buttons after a click
-            // (every icon button) — this is a tap/scroll surface, not a focus-driven one.
-            .focusEffectDisabled()
-            // Share-to-Vimarsha: an EPUB opened from Files / the share sheet ("Copy to
-            // Vimarsha") arrives here → import it onto the shelf.
-            .onOpenURL { url in
-                Task { await store?.addBook(from: url) }
-            }
-            // Ship one book: import the bundled Stolen Focus once, on first launch.
-            .task { await store?.seedBundledBookIfNeeded() }
-            // Resolve the real top inset once the window exists (see `topInset`), and refresh
-            // it whenever the scene reactivates (rotation / returning from background).
-            .onAppear { refreshSafeAreaInsets() }
-            .onChange(of: scenePhase) { _, phase in
-                if phase == .active { refreshSafeAreaInsets() }
-            }
+
+            // Discuss as the single live surface (spec 2026-06-28): rendered at the root over a
+            // frozen snapshot of the reading surface, so SwiftUI lifts the panel above the
+            // keyboard and nothing live observes behind it (the device-hang fix).
+            discussPlane
+        }
+        // One source of truth for the safe-area insets, read by every surface's edge controls
+        // (library/reading top controls, reading transport) so none render under the status bar.
+        .environment(\.topSafeInset, topInset)
+        .environment(\.bottomSafeInset, bottomInset)
+        // No keyboard-focus ring lingering on the round glass buttons after a click.
+        .focusEffectDisabled()
+        // Share-to-Vimarsha: an EPUB opened from Files / the share sheet arrives here.
+        .onOpenURL { url in
+            Task { await store?.addBook(from: url) }
+        }
+        // Ship one book: import the bundled Stolen Focus once, on first launch.
+        .task { await store?.seedBundledBookIfNeeded() }
+        // Resolve the real top inset once the window exists, and refresh on reactivation.
+        .onAppear { refreshSafeAreaInsets() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { refreshSafeAreaInsets() }
+        }
+    }
+
+    /// The Discuss surface, mounted at the root (native keyboard avoidance) when it's active.
+    @ViewBuilder
+    private var discussPlane: some View {
+        if coordinator.activeSurface == .discuss, let session = coordinator.session, let store {
+            DiscussPlaneView(
+                backdrop: coordinator.backdrop,
+                chat: session.chatStore,
+                voice: session.voiceInput,
+                speaker: session.replySpeaker,
+                archive: store.discussArchive(for: session),
+                reduceTransparency: reduceTransparency,
+                onClose: { withAnimation(.easeInOut(duration: 0.22)) { coordinator.close() } }
+            )
+            .transition(.opacity)
         }
     }
 }

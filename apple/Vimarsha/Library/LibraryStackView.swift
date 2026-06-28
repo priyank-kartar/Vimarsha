@@ -862,20 +862,13 @@ struct LibraryStackView: View {
     @ViewBuilder
     private var readingSurface: some View {
         // Single live surface (spec 2026-06-28): Discuss replaces the reading surface entirely
-        // — the reading view UNMOUNTS, a frozen snapshot of it sits behind the panel, so nothing
-        // live observes behind Discuss. This is the fix for the device 100% CPU hang (the old
-        // sheet-over-live-reading composition looped the AttributeGraph forever on device).
-        if coordinator.activeSurface == .discuss, let session = coordinator.session {
-            DiscussPlaneView(
-                backdrop: coordinator.backdrop,
-                chat: session.chatStore,
-                voice: session.voiceInput,
-                speaker: session.replySpeaker,
-                archive: discussArchive(for: session.context),
-                reduceTransparency: reduceTransparency,
-                onClose: { withAnimation(coverMorphAnimation) { coordinator.close() } }
-            )
-            .transition(.opacity)
+        // — the reading view UNMOUNTS while `.discuss` is active (a frozen snapshot stands in
+        // behind the panel), so nothing live observes behind Discuss. This is the fix for the
+        // device 100% CPU hang. The Discuss plane itself is rendered at the app root
+        // (`VimarshaApp`) so it gets NATIVE keyboard avoidance, outside the library's
+        // keyboard-ignore.
+        if coordinator.activeSurface == .discuss {
+            Color.clear
         } else if let reading {
             ReadingSurfaceView(
                 book: reading.shelfBook,
@@ -887,7 +880,6 @@ struct LibraryStackView: View {
                 chatStore: chatStore,
                 voiceInput: voiceInput,
                 replySpeaker: replySpeaker,
-                discussArchive: discussArchive(for: reading),
                 reduceTransparency: reduceTransparency,
                 onClose: { closeReadingSurface() },
                 onOpenDiscuss: { openDiscussPanel() },
@@ -906,29 +898,6 @@ struct LibraryStackView: View {
         coordinator.backdrop = SurfaceSnapshot.captureKeyWindow()
         withAnimation(coverMorphAnimation) { coordinator.openDiscuss() }
     }
-
-    /// The chapter's saved-conversation handles (V35): list/save/delete through the
-    /// store — each Save inserts a NEW thread titled by the opening question.
-    private func discussArchive(for reading: ReadingContext) -> DiscussArchive? {
-        guard let store else { return nil }
-        let book = reading.book
-        let chapterIndex = reading.chapter.index
-        return DiscussArchive(
-            threads: { store.chatThreads(for: book, chapterIndex: chapterIndex) },
-            save: { [chatStore] in
-                guard let chatStore, chatStore.hasExchange else { return false }
-                return store.saveChatThread(
-                    book: book,
-                    chapterIndex: chapterIndex,
-                    anchorBlockId: chatStore.anchorBlockId,
-                    title: chatStore.suggestedTitle,
-                    messages: chatStore.messages
-                ) != nil
-            },
-            deleteThread: { store.deleteChatThread($0) }
-        )
-    }
-
 
     /// Coupled scroll+zoom hero settle (motion grammar #5): the rigid-group tower zoom as a
     /// pure function of distance-to-rest. Reduce Motion pins it to rest (no hero zoom).
