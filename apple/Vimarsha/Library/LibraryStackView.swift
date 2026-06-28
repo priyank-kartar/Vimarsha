@@ -194,7 +194,14 @@ struct LibraryStackView: View {
                     // group, anchored on the front slot. One scale on the tower as a whole —
                     // the per-card depth-stack parallax rides inside it. Reduce Motion exempt
                     // (the static fallback has no hero zoom).
-                    if galleryMode {
+                    if reading != nil {
+                        // The reading surface (an opaque overlay) fully covers the library — do
+                        // NOT render the book tower behind it. BookTower and ReadingSurfaceView
+                        // were re-rendering each other forever (100% CPU hang; _printChanges
+                        // showed BookTower ⇄ ReadingSurfaceView). Removing the tower from the tree
+                        // while reading breaks the coupling; it's invisible behind the surface.
+                        Color.clear.frame(height: geo.size.height)
+                    } else if galleryMode {
                         galleryGrid
                     } else {
                         BookTower(
