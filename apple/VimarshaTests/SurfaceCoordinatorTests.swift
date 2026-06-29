@@ -81,6 +81,24 @@ struct SurfaceCoordinatorTests {
         #expect(c.session === session)
     }
 
+    /// Regression: the Discuss chevron-down fires its `onClose` AND the `.sheet`'s
+    /// `isPresented`-binding setter on dismissal — two close calls for ONE user action.
+    /// A raw double `close()` recedes two levels (.discuss → .reading → .library), releasing
+    /// the session (reading transport/controls vanish; the library remounts to a scroll-0
+    /// "messed-up scaling" state). `closeDiscuss()` must be idempotent: a redundant dismissal
+    /// stays on .reading with the session intact.
+    @Test func dismissingDiscussIsIdempotentAndStaysOnReading() throws {
+        let f = try makeFixture()
+        let c = SurfaceCoordinator()
+        enterReading(c, f)
+        let session = try #require(c.session)
+        c.openDiscuss()
+        c.closeDiscuss()   // the chevron-down's onClose
+        c.closeDiscuss()   // the sheet binding's dismissal setter — must be a no-op
+        #expect(c.activeSurface == .reading)
+        #expect(c.session === session)
+    }
+
     @Test func closingReadingReturnsToLibraryAndReleasesSession() throws {
         let f = try makeFixture()
         let c = SurfaceCoordinator()

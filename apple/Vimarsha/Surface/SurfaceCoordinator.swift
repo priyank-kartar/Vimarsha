@@ -52,6 +52,17 @@ final class SurfaceCoordinator {
 
     // MARK: Close
 
+    /// Dismiss the Discuss sheet — idempotently. The chevron-down's `onClose` AND the
+    /// `.sheet`'s `isPresented`-binding setter both fire for ONE dismissal, so a plain
+    /// `close()` per call would recede two levels (.discuss → .reading → .library) and
+    /// release the session (the reading transport/controls vanish; the library remounts at
+    /// scroll 0 with the depth-stack scaling reset). Guarding on `.discuss` makes the second
+    /// call a no-op, so a dismissal lands on .reading exactly once.
+    func closeDiscuss() {
+        guard activeSurface == .discuss else { return }
+        close()
+    }
+
     /// Recede to the current surface's return target. Landing back on the library ends the
     /// book session (pause player, stop ephemeral playback, release).
     func close() {

@@ -44,6 +44,13 @@ struct VimarshaApp: App {
     /// paging scroll locks so a swipe on the reading screen can't page to Scientific Literature
     /// and the live paging scroll can't feed the keyboard-reflow loop.
     @State private var surfaceCoveringLibrary = false
+    /// Holds the flat Discuss backdrop up until the sheet has FULLY dismissed (not merely until
+    /// `activeSurface` leaves `.discuss`). Returning to `.reading` immediately would remount the
+    /// library + reading surface WHILE the sheet/keyboard are still animating away, so the rebuild
+    /// measures a transient container size — the reading content mis-scales and the bottom transport
+    /// lays out off-screen. Swapping back only on the sheet's `onDisappear` rebuilds in stable
+    /// geometry, exactly like a normal library→reading open (which never shows the bug).
+    @State private var discussBackdrop = false
 
     #if os(iOS)
     private func keyWindowInsets() -> UIEdgeInsets {
@@ -92,16 +99,23 @@ struct VimarshaApp: App {
     @ViewBuilder
     private var mainScene: some View {
         Group {
-            if coordinator.activeSurface == .discuss {
+            if discussBackdrop {
                 // TRUE single live surface: while Discuss is up, NOTHING live is rendered behind
                 // the sheet — just a flat canvas. The paging library would otherwise re-layout
                 // under the keyboard and spin a non-settling text-resolution loop on device
                 // (0x8BADF00D). DiscussPanelView over a plain canvas is device-proven stable.
                 // The book session lives in the coordinator, so closing Discuss restores reading.
+                // Driven by `discussBackdrop` (not `activeSurface` directly) so it stays up until
+                // the sheet has fully dismissed — the live surface then rebuilds in stable geometry.
                 Palette.canvas.ignoresSafeArea()
             } else {
                 pagingLibrary
             }
+        }
+        // Raise the flat backdrop the instant Discuss opens; it's lowered again only by the
+        // sheet's `onDisappear` (full dismissal), so the reading surface never rebuilds mid-animation.
+        .onChange(of: coordinator.activeSurface) { _, surface in
+            if surface == .discuss { discussBackdrop = true }
         }
         // One source of truth for the safe-area insets, read by every surface's edge controls.
         .environment(\.topSafeInset, topInset)
@@ -153,7 +167,11 @@ struct VimarshaApp: App {
     private var discussPresented: Binding<Bool> {
         Binding(
             get: { coordinator.activeSurface == .discuss },
-            set: { presented in if !presented { coordinator.close() } }
+            // Idempotent dismissal: this setter AND the panel's chevron-down `onClose` both
+            // fire for one dismissal, so route through `closeDiscuss()` (a no-op unless still
+            // in .discuss) — otherwise the surface recedes two levels to the library and the
+            // session is released. See `SurfaceCoordinator.closeDiscuss`.
+            set: { presented in if !presented { coordinator.closeDiscuss() } }
         )
     }
 
@@ -166,7 +184,7 @@ struct VimarshaApp: App {
                 speaker: session.replySpeaker,
                 archive: store.discussArchive(for: session),
                 reduceTransparency: reduceTransparency,
-                onClose: { coordinator.close() }
+                onClose: { coordinator.closeDiscuss() }
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .presentationDetents([.large])
@@ -177,6 +195,10 @@ struct VimarshaApp: App {
             .onDisappear {
                 session.voiceInput?.cancelHold()
                 session.replySpeaker.stop()
+                // Only now — sheet + keyboard fully gone — swap the flat backdrop for the live
+                // library/reading surface, so it rebuilds in stable geometry (controls on-screen,
+                // correct scaling) instead of mid-dismiss.
+                discussBackdrop = false
             }
         }
     }
